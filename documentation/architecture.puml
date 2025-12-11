@@ -1,0 +1,134 @@
+@startuml
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+
+package "Game Loop" {
+  class Game {
+    - context: GameContext
+    - players: List<Player>
+    - logger: GameLogger
+    - turn_index: int
+    - score_table: Dict<int, int>
+    + play(turns: Optional<int> = None)
+    + next_turn()
+    + current_player(): Player
+  }
+  class GameLogger {
+    - logfile: Path
+    - buffer: List<LogEntry>
+    + record_setup(game: Game)
+    + record_turn(turn_number: int, player: Player, action: str, result: str)
+    + record_scores(score_table: Dict<int, int>)
+    + flush()
+  }
+}
+
+package "Player" {
+  class Player {
+    - player_id: str
+    - name: str
+    - color: str
+    - __train_hand: Counter[str]
+    - __tickets: List<DestinationTicket>
+    - trains_remaining: int
+    - __interface: Interface
+    + set_context(context: PlayerContext, setup: bool = False)
+    + take_turn(fault_flags: Dict[str, bool])
+    + get_affordable_routes(): List<Route>
+  }
+  class PlayerContext {
+    - player_id: str
+    - map: MapGraph
+    - train_deck: TrainCardDeck
+    - ticket_deck: TicketDeck
+    - face_up_cards: List[str]
+    - turn_number: int
+    - score: int
+    - opponents: List<OpponentInfo>
+  }
+  class OpponentInfo {
+    - player_id: str
+    - name: str
+    - color: str
+    - trains_remaining: int
+    - claimed_routes: List<Route>
+    - completed_tickets: List<DestinationTicket>
+    - uncompleted_tickets: List<DestinationTicket>
+    - face_up_card_counts: Counter[str]
+    - score: int
+  }
+  interface Interface
+}
+
+package "Shared State" {
+  class GameContext {
+    - map_graph: MapGraph
+    - train_deck: TrainCardDeck
+    - ticket_deck: TicketDeck
+    - scores: Dict[str, int]
+    + get_map(): MapGraph
+    + get_train_deck(): TrainCardDeck
+    + get_ticket_deck(): TicketDeck
+    + set_score(player_id, score)
+  }
+}
+
+package "Board" {
+  class MapGraph {
+    - routes: List<Route>
+    - _adj: Dict[str, List<Route>>
+    + claim_route(route: Route, player_id: str)
+    + get_claimed_routes(player_id: str)
+    + cities(): Set[str]
+  }
+  class Route {
+    city1: str
+    city2: str
+    length: int
+    color: str
+    claimed_by: str
+  }
+}
+
+package "Cards" {
+  class TrainCardDeck {
+    - deck: Deque[str]
+    - discard: List[str]
+    + draw(n: int = 1): List[str>
+    + discard_cards(cards: List[str])
+    + reveal_face_up(): List[str]
+  }
+  class TicketDeck {
+    - deck: Deque<DestinationTicket>
+    + draw(n: int = 3): List<DestinationTicket>
+    + return_unkept(tickets: List<DestinationTicket>)
+  }
+  class DestinationTicket {
+    - city1: str
+    - city2: str
+    - value: int
+  }
+}
+
+Game --> GameContext : shares state
+Game --> Player : orchestrates
+Game --> GameLogger : logs rounds/turns
+GameContext *-- MapGraph
+GameContext *-- TrainCardDeck
+GameContext *-- TicketDeck
+Player --> PlayerContext : loads snapshot
+PlayerContext --> GameContext : built from
+Player --> Interface : delegates decisions
+Player --> Route : claims
+Player --> DestinationTicket : holds
+PlayerContext --> OpponentInfo
+PlayerContext --> MapGraph
+PlayerContext --> TrainCardDeck
+PlayerContext --> TicketDeck
+MapGraph o-- Route
+TrainCardDeck <.. Player : draws
+TicketDeck <.. Player : draws tickets
+GameLogger <.. Game : records turns
+
+@enduml
