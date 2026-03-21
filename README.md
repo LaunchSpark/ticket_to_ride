@@ -1,61 +1,74 @@
-# Ticket to Ride Botmaking Tournament
+# Ticket to Ride
 
 ## Overview
-Welcome to the inaugural Ticket to Ride Botmaking Tournament!  
-Build and pit your Ticket to Ride bots against one another in a structured competition.
 
-## Key Dates
-- Make a pull request and work on your own branch with your name on it; to submit, make a merge request.  
-- Bot turn-in deadline: **August 1, 2025**  
-- Showing: **TBD**
+This repo now manages the native Ticket to Ride engine and backend as a UV-managed project.
 
-## Prerequisites
-- **Languages & Frameworks:** Python 3.8+
+- Native Python runtime lives in `src/ticket_to_ride/`
+- First-party support apps live in `apps/`
+- External integrations and bot examples live in `external/`
 
-## Installation
-Clone this repository:
+The main native commands are:
 
-## Where to Put Your Bot
-Your bot lives under the `bots/` directory in its own folder:
+- `uv run run`
+- `uv run test`
+
+## Setup
+
+1. Install `uv`
+2. Run `uv sync`
+3. Place the PocketBase binary at `tools/pocketbase/pocketbase.exe`
+
+## Native Layout
 
 ```text
 ticket_to_ride/
-├── Interfaces/
-│   ├── your bot goes here
-└── maps/
+├── pyproject.toml
+├── uv.lock
+├── src/ticket_to_ride/
+├── apps/viewer/
+├── external/
+├── data/
+├── tests/
+└── documentation/
 ```
 
-## How to Start a Game With It
-- Refer to `main.py`  
-- `--rounds`: how many times each pairing plays
+## Native Runtime
 
-## Tournament Format
+- `uv run run` starts the native backend stack
+- `uv run test` runs the native automated test suite
+- `uv run run` will auto-start PocketBase when the binary is available at `tools/pocketbase/pocketbase.exe`
 
-### Round-Robin
-- Each win awards victory points based on the stage.
-- At the end, the bot with the most points wins.
-- Ties are resolved by having the tied players face off in additional rounds until one bot has ≥ 20% of total points.
+The native runtime must not depend on code under `external/`.
 
-#### Point Structure
-| Stage          | Points per Win |
-| -------------- | -------------- |
-| 4-player stage | 1              |
-| 3-player stage | 2              |
-| 2-player stage | 4              |
+## External Integrations
 
-## Scoring
-- **Win** = highest average score across all rounds
+Bot code is quarantined under `external/` so the folder layout clearly distinguishes first-party/native code from outside integrations.
 
-## Submission Guidelines
-- Send a merge request to `main` with your final bot  
-- Ensure it passes local tests  
-- Submit by **August 1, 2025 at 23:59 CDT**
+- `external/bots/` contains example bots
+- `external/clients/` contains external client and bot API reference code
+- `external/contracts/` contains external-facing contracts
 
-## Rules & Regulations
-- **Time Limit:** 2 seconds per move  
-- **No Networking:** bots must not make external calls  
-- **Fair Play:** disqualification for cheating or rule violations
+These files are kept for reference and integration work, but they are not part of the native package contract.
 
-## FAQs
-**Q:** My bot crashes sometimes. What then?  
-**A:** It will forfeit that match (0 points). Test thoroughly before submitting.  
+## Viewer
+
+The first-party web viewer lives in `apps/viewer/`.
+
+## PocketBase
+
+The conventional local install path for PocketBase is `tools/pocketbase/pocketbase.exe`.
+
+If you keep the binary somewhere else, set `POCKETBASE_BINARY` to the full path before running `uv run run`.
+
+For local development, the launcher also ensures a default PocketBase superuser:
+
+- email: `admin@example.com`
+- password: `12345678`
+
+PocketBase requires an email-based superuser login and a password of at least 8 characters, so a literal `admin` / `admin` login is not supported by PocketBase itself.
+
+## More Detail
+
+- Repo layout notes: `documentation/repo_layout.md`
+- External integration notes: `external/README.md`

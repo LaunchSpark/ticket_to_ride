@@ -1,0 +1,2973 @@
+{
+    "players": [
+        {
+            "playerId": 1,
+            "name": "John",
+            "color": "blue"
+        },
+        {
+            "playerId": 2,
+            "name": "Jill",
+            "color": "red"
+        },
+        {
+            "playerId": 3,
+            "name": "Alex",
+            "color": "green"
+        }
+    ],
+    "rounds": [
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 1,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-0"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 1,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 2,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 2,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-0"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 0,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 2,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 3,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-0"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 0,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 1,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 2,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-1"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 2,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 3,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 3,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-1"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 1,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 3,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 4,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-1"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 1,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 2,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 3,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-2"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 3,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 4,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 4,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-2"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 2,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 4,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 5,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-2"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 2,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 3,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 4,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-3"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 4,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 5,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 5,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-3"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 3,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 5,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 6,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-3"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 3,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 4,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 5,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-4"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 5,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 6,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 6,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-4"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 4,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 6,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 7,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-4"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Vancouver",
+                                "to": "Seattle",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 4,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 5,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 6,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-5"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Vancouver",
+                                "to": "Raleigh",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 6,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 7,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 7,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-5"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "New York",
+                                "to": "Atlanta",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 5,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 7,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 8,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-5"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Santa-Fe",
+                                "to": "Washington",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 5,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 6,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 7,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-6"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Boston",
+                                "to": "Toronto",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 7,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 8,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 8,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-6"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "S.St.Marie",
+                                "to": "Chicago",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 6,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 8,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 9,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-6"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "Miami",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 6,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 7,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 8,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-7"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Miami",
+                                "to": "Duluth",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 8,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 9,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 9,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-7"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Helena",
+                                "to": "Kansas City",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 7,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 9,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 10,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-7"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Oklahoma City",
+                                "to": "Little Rock",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 7,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 8,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 9,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-8"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Dallas",
+                                "to": "Phoenix",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 9,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 10,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 10,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-8"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "El Paso",
+                                "to": "Denver",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 8,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 10,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 11,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-8"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Calgary",
+                                "to": "Dallas",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 8,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 9,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "turns": [
+                {
+                    "player": {
+                        "playerId": 1,
+                        "score": 10,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-1-9"
+                        ],
+                        "longestPath": 1,
+                        "hasLongestPath": true,
+                        "destinationTickets": [
+                            {
+                                "from": "Winnipeg",
+                                "to": "Atlanta",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 2,
+                            "score": 10,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 11,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 2,
+                        "score": 11,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-2-9"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Pittsburgh",
+                                "to": "Helena",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 9,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 3,
+                            "score": 11,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                },
+                {
+                    "player": {
+                        "playerId": 3,
+                        "score": 12,
+                        "trainCarCount": 45,
+                        "claimedRoutes": [
+                            "Route-3-9"
+                        ],
+                        "longestPath": 0,
+                        "hasLongestPath": false,
+                        "destinationTickets": [
+                            {
+                                "from": "Chicago",
+                                "to": "St. Louis",
+                                "points": 24,
+                                "completed": true
+                            },
+                            {
+                                "from": "Nashville",
+                                "to": "Raleigh",
+                                "points": 13,
+                                "completed": false
+                            }
+                        ],
+                        "hand": {
+                            "black": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "locomotive": 0,
+                            "orange": 0,
+                            "purple": 0,
+                            "red": 0,
+                            "white": 0,
+                            "yellow": 0
+                        }
+                    },
+                    "opponents": [
+                        {
+                            "playerId": 1,
+                            "score": 9,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        },
+                        {
+                            "playerId": 2,
+                            "score": 10,
+                            "trainCarCount": 45,
+                            "claimedRoutes": [],
+                            "longestPath": 0,
+                            "hasLongestPath": false,
+                            "destinationTicketCount": 3,
+                            "hand": {
+                                "public": {
+                                    "black": 0,
+                                    "blue": 0,
+                                    "green": 0,
+                                    "locomotive": 0,
+                                    "orange": 0,
+                                    "purple": 0,
+                                    "red": 0,
+                                    "white": 0,
+                                    "yellow": 0
+                                },
+                                "hidden": 5
+                            }
+                        }
+                    ],
+                    "gameObjects": {
+                        "map": {
+                            "claimed_routes": [],
+                            "longest_path": 1
+                        },
+                        "decks": {
+                            "trainDeckCount": 9,
+                            "destinationDeckCount": 20,
+                            "marketCards": []
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "averageScores": [
+        {
+            "playerId": 1,
+            "scores": [
+                1,
+                2,
+                5,
+                6,
+                8
+            ]
+        },
+        {
+            "playerId": 2,
+            "scores": [
+                1,
+                2,
+                5,
+                6,
+                10
+            ]
+        },
+        {
+            "playerId": 3,
+            "scores": [
+                2,
+                3,
+                4,
+                6,
+                7
+            ]
+        }
+    ]
+}

@@ -1,0 +1,2 @@
+"""Example external bots."""
+
