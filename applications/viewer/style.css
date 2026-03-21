@@ -1,0 +1,1779 @@
+.flatened {
+    background-color: #413e3e;
+   display: flex;
+   flex-direction: row;
+   justify-content: center;
+   width: 100%;
+   }
+   .flatened .overlap-wrapper {
+    background-color: #413e3e;
+   overflow: hidden;
+   width: 1440px;
+    height: 813px;
+   }
+   .flatened .overlap {
+    position: relative;
+   width: 1528px;
+    height: 928px;
+    top: -63px;
+    left: -40px;
+   }
+   .flatened .overlap-group {
+    position: absolute;
+   width: 1528px;
+    height: 876px;
+    top: 52px;
+    left: 0;
+   }
+   .flatened .USA-map {
+    position: absolute;
+   width: 821px;
+    height: 548px;
+    top: 56px;
+    left: 156px;
+    object-fit: cover;
+   }
+   .flatened .market {
+    width: 443px;
+    top: 563px;
+    left: 345px;
+    position: absolute;
+   height: 82px;
+   }
+   .flatened .market-image-4 {
+    position: absolute;
+   width: 53px;
+    height: 82px;
+    top: 0;
+   left: 171px;
+   }
+   .flatened .market-image-3 {
+    position: absolute;
+   width: 53px;
+    height: 82px;
+    top: 0;
+   left: 114px;
+   }
+   .flatened .market-image-2 {
+    position: absolute;
+   width: 53px;
+    height: 82px;
+    top: 0;
+   left: 57px;
+   }
+   .flatened .market-image-1 {
+    position: absolute;
+   width: 53px;
+    height: 82px;
+    top: 0;
+   left: 0;
+   }
+   .flatened .market-image-5 {
+    width: 53px;
+    top: 0;
+   left: 228px;
+    position: absolute;
+   height: 82px;
+   }
+   .flatened .market-deck {
+    position: absolute;
+   width: 53px;
+    height: 82px;
+    top: 0;
+   left: 336px;
+   }
+   .flatened .market-destination-ticket {
+    position: absolute;
+   width: 53px;
+    height: 82px;
+    top: 0;
+   left: 390px;
+   }
+   .flatened .right-player {
+    position: absolute;
+   width: 660px;
+    height: 108px;
+    top: 280px;
+    left: 799px;
+    transform: rotate(90deg);
+   }
+   .flatened .right-red-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 95px;
+    left: 605px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-blue-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 96px;
+    left: 537px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-yellow-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 96px;
+    left: 479px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-orange-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 96px;
+    left: 422px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-green-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 96px;
+    left: 365px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-purple-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 95px;
+    left: 310px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-white-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 96px;
+    left: 250px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-black-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 96px;
+    left: 193px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-locomotive-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 97px;
+    left: 137px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-hidden-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 97px;
+    left: 83px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .right-destination-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 96px;
+    left: 22px;
+    transform: rotate(-90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .div {
+    position: absolute;
+   width: 638px;
+    height: 87px;
+    top: 0;
+   left: 0;
+   }
+   .flatened .right-black-train {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 16px;
+    left: 386px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-white-train {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 15px;
+    left: 328px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-purple-train {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 15px;
+    left: 271px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-green-train {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 15px;
+    left: 214px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-orange-train {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 15px;
+    left: 157px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-yellow-train {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 15px;
+    left: 99px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-blue-train-car {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 15px;
+    left: 42px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-red-train-car {
+    position: absolute;
+   width: 87px;
+    height: 56px;
+    top: 15px;
+    left: -15px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-locomotive-card {
+    position: absolute;
+   width: 87px;
+    height: 54px;
+    top: 16px;
+    left: 442px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-hidden-card {
+    position: absolute;
+   width: 80px;
+    height: 51px;
+    top: 22px;
+    left: 499px;
+    transform: rotate(-90deg);
+   }
+   .flatened .right-destination-card {
+    position: absolute;
+   width: 82px;
+    height: 53px;
+    top: 20px;
+    left: 570px;
+    transform: rotate(-90deg);
+   }
+   .flatened .left-player {
+    position: absolute;
+   width: 660px;
+    height: 112px;
+    top: 274px;
+    left: -274px;
+    transform: rotate(-90deg);
+   }
+   .flatened .left-red-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 22px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-blue-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 79px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-yellow-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 137px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-orange-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 194px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-green-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 251px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-purple-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 309px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-white-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 366px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-black-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 423px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-locomotive-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 99px;
+    left: 479px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-hidden-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 99px;
+    left: 533px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-destination-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 100px;
+    left: 606px;
+    transform: rotate(90deg);
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .left-black-train-car {
+    position: absolute;
+   width: 36px;
+    height: 56px;
+    top: 31px;
+    left: 408px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-white-train-car {
+    position: absolute;
+   width: 36px;
+    height: 56px;
+    top: 31px;
+    left: 351px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-purple-train {
+    position: absolute;
+   width: 36px;
+    height: 56px;
+    top: 31px;
+    left: 294px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-green-train-car {
+    position: absolute;
+   width: 36px;
+    height: 56px;
+    top: 31px;
+    left: 237px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-orange-train {
+    position: absolute;
+   width: 36px;
+    height: 57px;
+    top: 31px;
+    left: 180px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-yellow-train {
+    position: absolute;
+   width: 36px;
+    height: 56px;
+    top: 31px;
+    left: 124px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-blue-train-car {
+    position: absolute;
+   width: 36px;
+    height: 56px;
+    top: 31px;
+    left: 67px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-red-train-car {
+    position: absolute;
+   width: 36px;
+    height: 56px;
+    top: 31px;
+    left: 10px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-locomotive-card {
+    position: absolute;
+   width: 36px;
+    height: 54px;
+    top: 31px;
+    left: 463px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-hidden-card {
+    position: absolute;
+   width: 36px;
+    height: 51px;
+    top: 31px;
+    left: 516px;
+    transform: rotate(90deg);
+   }
+   .flatened .left-destination-card {
+    position: absolute;
+   width: 36px;
+    height: 53px;
+    top: 31px;
+    left: 594px;
+    transform: rotate(90deg);
+   }
+   .flatened .sidebar {
+    position: absolute;
+   width: 397px;
+    height: 650px;
+    top: 7px;
+    left: 1129px;
+   }
+   .flatened .overlap-2 {
+    position: relative;
+    width: 351px;
+    height: 647px;
+    top: 3px;
+   }
+   .flatened .sidebar-background {
+    position: absolute;
+   width: 351px;
+    height: 646px;
+    top: 1px;
+    left: 0;
+   object-fit: cover;
+   }
+   .flatened .score-background {
+    position: absolute;
+    width: 351px;
+    height: 100px;
+    top: 52px;
+    left: 10px;
+    z-index: 0;
+   }
+   .flatened .fourth-place-score {
+    top: 210px;
+    position: absolute;
+   width: 82px;
+    height: 51px;
+    left: 268px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 45px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .fourth-place-name {
+    position: absolute;
+   width: 237px;
+    height: 51px;
+    top: 215px;
+    left: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 29px;
+    letter-spacing: 0;
+   line-height: normal;
+   z-index: 1;
+   }
+   .flatened .third-place-score {
+    top: 157px;
+    position: absolute;
+   width: 82px;
+    height: 51px;
+    left: 268px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 45px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .third-place-name {
+    position: absolute;
+   width: 237px;
+    height: 51px;
+    top: 166px;
+    left: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+    color: #000000;
+    font-size: 29px;
+    letter-spacing: 0;
+    line-height: normal;
+    z-index: 1;
+   }
+   .flatened .second-place-score {
+    top: 104px;
+    position: absolute;
+   width: 82px;
+    height: 51px;
+    left: 268px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 45px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .second-place-name {
+    position: absolute;
+   width: 237px;
+    height: 51px;
+    top: 113px;
+    left: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 29px;
+    letter-spacing: 0;
+   line-height: normal;
+    z-index: 1;
+   }
+   .flatened .first-place-score {
+    top: 51px;
+    position: absolute;
+   width: 82px;
+    height: 51px;
+    left: 268px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 45px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .first-place-name {
+    position: absolute;
+   width: 237px;
+    height: 51px;
+    top: 60px;
+    left: 25px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 29px;
+    letter-spacing: 0;
+   line-height: normal;
+    z-index: 1;
+   }
+   .flatened .this-game-label {
+    position: absolute;
+   width: 236px;
+    height: 51px;
+    top: 0;
+   left: 53px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .score {
+    width: 79px;
+    height: 26px;
+    top: 595px;
+    left: 241px;
+    position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .label {
+    width: 108px;
+    height: 13px;
+    top: 595px;
+    left: 74px;
+    white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .name {
+    width: 132px;
+    height: 20px;
+    top: 564px;
+    left: 110px;
+    text-shadow: 0px 4px 4px #00000040;
+    text-decoration: underline;
+   white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .p-score {
+    width: 79px;
+    height: 26px;
+    top: 513px;
+    left: 241px;
+    position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .p-label {
+    width: 108px;
+    height: 13px;
+    top: 515px;
+    left: 74px;
+    white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .p-name {
+    width: 132px;
+    height: 20px;
+    top: 482px;
+    left: 110px;
+    text-shadow: 0px 4px 4px #00000040;
+    text-decoration: underline;
+   white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .text-wrapper {
+    width: 79px;
+    height: 26px;
+    top: 431px;
+    left: 241px;
+    position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .label-2 {
+    width: 108px;
+    height: 13px;
+    top: 432px;
+    left: 74px;
+    white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .name-2 {
+    width: 132px;
+    height: 20px;
+    top: 400px;
+    left: 110px;
+    text-shadow: 0px 4px 4px #00000040;
+    text-decoration: underline;
+   white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .score-2 {
+    width: 79px;
+    height: 26px;
+    top: 349px;
+    left: 241px;
+    position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .label-3 {
+    width: 108px;
+    height: 13px;
+    top: 350px;
+    left: 74px;
+    white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .name-3 {
+    width: 132px;
+    height: 20px;
+    top: 318px;
+    left: 110px;
+    text-shadow: 0px 4px 4px #00000040;
+    text-decoration: underline;
+   white-space: nowrap;
+   position: absolute;
+   font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 20px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .match-stats-label {
+    position: absolute;
+   width: 350px;
+    height: 51px;
+    top: 257px;
+    left: 0;
+   font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #ffffff;
+   font-size: 35px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .current-player {
+    position: absolute;
+   width: 1491px;
+    height: 222px;
+    top: 654px;
+    left: 37px;
+   }
+   .flatened .overlap-3 {
+    position: relative;
+   width: 1440px;
+    height: 176px;
+    top: -6px;
+    left: 3px;
+   }
+   .flatened .current-background {
+    position: absolute;
+   width: 1099px;
+    height: 176px;
+    top: 0;
+   left: 0;
+   }
+   .flatened .current-name-card {
+    position: absolute;
+   width: 322px;
+    height: 31px;
+    top: 6px;
+    left: 0;
+   }
+   .flatened .destination {
+    position: absolute;
+   width: 354px;
+    height: 170px;
+    top: 6px;
+    left: 1086px;
+   }
+   .flatened .train-counter-image {
+    position: absolute;
+   width: 69px;
+    height: 69px;
+    top: 93px;
+    left: 950px;
+    object-fit: cover;
+   }
+   .flatened .current-black-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 742px;
+   }
+   .flatened .current-white-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 641px;
+   }
+   .flatened .current-purple-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 540px;
+   }
+   .flatened .current-green-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 438px;
+   }
+   .flatened .current-orange-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 336px;
+   }
+   .flatened .current-yellow-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 235px;
+   }
+   .flatened .current-blue-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 134px;
+   }
+   .flatened .current-red-train {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 33px;
+   }
+   .flatened .current-locomotive-card {
+    position: absolute;
+   width: 89px;
+    height: 90px;
+    top: 86px;
+    left: 843px;
+   }
+   .flatened .current-locomotive-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 880px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-black-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 780px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-white-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 678px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-purple-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 577px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-green-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 475px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-orange-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 374px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-yellow-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 273px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-blue-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 171px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .current-red-count {
+    position: absolute;
+   width: 16px;
+    height: 29px;
+    top: 57px;
+    left: 70px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-b {
+    top: 148px;
+    left: 1101px;
+    position: absolute;
+   width: 105px;
+    height: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-a {
+    top: 147px;
+    left: 1317px;
+    text-align: right;
+   position: absolute;
+   width: 105px;
+    height: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-score {
+    position: absolute;
+   width: 40px;
+    height: 32px;
+    top: 140px;
+    left: 1242px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #362301;
+   font-size: 35px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-b-2 {
+    top: 104px;
+    left: 1101px;
+    position: absolute;
+   width: 105px;
+    height: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-a-2 {
+    top: 103px;
+    left: 1317px;
+    text-align: right;
+   position: absolute;
+   width: 105px;
+    height: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-score-2 {
+    position: absolute;
+   width: 40px;
+    height: 32px;
+    top: 97px;
+    left: 1242px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #362301;
+   font-size: 35px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-b-3 {
+    top: 60px;
+    left: 1101px;
+    position: absolute;
+   width: 105px;
+    height: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-a-3 {
+    top: 59px;
+    left: 1317px;
+    text-align: right;
+   position: absolute;
+   width: 105px;
+    height: 24px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-score-3 {
+    position: absolute;
+   width: 40px;
+    height: 32px;
+    top: 53px;
+    left: 1242px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #362301;
+   font-size: 35px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-b-4 {
+    left: 1101px;
+    position: absolute;
+   width: 105px;
+    height: 24px;
+    top: 16px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-city-a-4 {
+    left: 1317px;
+    text-align: right;
+   position: absolute;
+   width: 105px;
+    height: 24px;
+    top: 16px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #763d07;
+   font-size: 27px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .ticket-score-4 {
+    position: absolute;
+   width: 40px;
+    height: 32px;
+    top: 9px;
+    left: 1242px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #362301;
+   font-size: 35px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .name-text {
+    position: absolute;
+   width: 267px;
+    height: 30px;
+    top: 7px;
+    left: 14px;
+    font-family: "Impact-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 30px;
+    letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .train-car-total {
+    position: absolute;
+   width: 35px;
+    height: 23px;
+    top: 116px;
+    left: 1031px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 16px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .train-counter-label {
+    position: absolute;
+   width: 86px;
+    height: 21px;
+    top: 55px;
+    left: 943px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 16px;
+    letter-spacing: 0;
+   line-height: normal;
+   }
+   .flatened .opposite-player {
+    position: absolute;
+   width: 681px;
+    height: 101px;
+    top: 0;
+   left: 239px;
+   }
+   .flatened .opposite-red-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 24px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-blue-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 84px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-yellow-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 144px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-orange-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 203px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-green-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 263px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-purple-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 323px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-white-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 383px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-black-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 443px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-locomotive-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 502px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-hidden-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 559px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-destination-count {
+    position: absolute;
+   width: 10px;
+    height: 14px;
+    top: 87px;
+    left: 628px;
+    font-family: "Inter-Regular", Helvetica;
+    font-weight: 400;
+   color: #000000;
+   font-size: 15px;
+    text-align: center;
+   letter-spacing: 0;
+   line-height: normal;
+   white-space: nowrap;
+   }
+   .flatened .opposite-black-train {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 420px;
+   }
+   .flatened .opposite-white-train {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 360px;
+   }
+   .flatened .opposite-purple {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 300px;
+   }
+   .flatened .opposite-green-train {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 240px;
+   }
+   .flatened .opposite-orange {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 180px;
+   }
+   .flatened .opposite-yellow {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 120px;
+   }
+   .flatened .opposite-blue-train {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 60px;
+   }
+   .flatened .opposite-red-train {
+    position: absolute;
+   width: 56px;
+    height: 24px;
+    top: 63px;
+    left: 0;
+   }
+   .flatened .opposite-locomotive-card {
+    position: absolute;
+   width: 54px;
+    height: 24px;
+    top: 63px;
+    left: 480px;
+   }
+   .flatened .opposite-hidden-card {
+    position: absolute;
+   width: 51px;
+    height: 24px;
+    top: 63px;
+    left: 538px;
+   }
+   .flatened .opposite-destination-card {
+    position: absolute;
+   width: 53px;
+    height: 24px;
+    top: 63px;
+    left: 606px;
+   }
+   .flatened .routes {
+    position: absolute;
+    width: 351px;
+    height: 100px;
+    top: 57px;
+    left: 153px;
+    z-index: 200;
+   }
+   .flatened .player-hand-backgrounds {
+    position: absolute;
+    width: 1175px;
+    height: 660px;
+    top: 0px;
+    left: 0px;
+   }
+   .turn-display {
+	position: relative;
+    top: 560px;
+    left: 178px;
+	width: 110px;
+	height: 58px;
+   }
+   .turn-counter-background {
+   	position: absolute;
+   	top: 0;
+   	left: 0;
+   	z-index: 0;
+   }
+   .turn-counter-text,
+   #turn-counter {
+   	font-family: sans-serif;
+   	font-size: 20px;
+   	font-weight: bold;
+   	color: black;
+   	z-index: 1;
+   }
+   .turn-display {
+   	display: flex;
+   	justify-content: center;
+   	align-items: center;
+   }
+   .turn-display .turn-counter-text,
+   .turn-display #turn-counter {
+   	display: inline;
+   }
+   .ticket-check-mark-4 {
+    position: absolute;
+    top: 14px;
+    left: 1280px;
+    width: 25px;
+    height: 25px;
+   }
+   .ticket-check-mark-3 {
+    position: absolute;
+    top: 58px;
+    left: 1280px;
+    width: 25px;
+    height: 25px;
+   }
+   .ticket-check-mark-2 {
+    position: absolute;
+    top: 102px;
+    left: 1280px;
+    width: 25px;
+    height: 25px;
+   }
+   .ticket-check-mark {
+    position: absolute;
+    top: 146px;
+    left: 1280px;
+    width: 25px;
+    height: 25px;
+   }

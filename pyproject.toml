@@ -19,5 +19,4 @@ run = "ticket_to_ride.runtime.cli:run"
 test = "ticket_to_ride.runtime.cli:test"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ticket_to_ride"]
-
+packages = ["services/native-runtime/src/ticket_to_ride"]

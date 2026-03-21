@@ -1,2 +1,0 @@
-"""External client implementations."""
-

@@ -4,9 +4,11 @@
 
 This repo now manages the native Ticket to Ride engine and backend as a UV-managed project.
 
-- Native Python runtime lives in `src/ticket_to_ride/`
-- First-party support apps live in `apps/`
-- External integrations and bot examples live in `external/`
+- Native Python runtime lives in `services/native-runtime/src/ticket_to_ride/`
+- First-party UI surfaces live in `applications/`
+- External integrations and bot examples live in `integrations/external/`
+- Local state and tooling live in `operations/`
+- Native automated tests live in `quality/tests/`
 
 The main native commands are:
 
@@ -17,7 +19,7 @@ The main native commands are:
 
 1. Install `uv`
 2. Run `uv sync`
-3. Place the PocketBase binary at `tools/pocketbase/pocketbase.exe`
+3. Place the PocketBase binary at `operations/tools/pocketbase/pocketbase.exe`
 
 ## Native Layout
 
@@ -25,39 +27,40 @@ The main native commands are:
 ticket_to_ride/
 ├── pyproject.toml
 ├── uv.lock
-├── src/ticket_to_ride/
-├── apps/viewer/
-├── external/
-├── data/
-├── tests/
-└── documentation/
+├── services/native-runtime/src/ticket_to_ride/
+├── applications/viewer/
+├── integrations/external/
+├── operations/data/
+├── operations/tools/
+├── quality/tests/
+└── docs/
 ```
 
 ## Native Runtime
 
 - `uv run run` starts the native backend stack
 - `uv run test` runs the native automated test suite
-- `uv run run` will auto-start PocketBase when the binary is available at `tools/pocketbase/pocketbase.exe`
+- `uv run run` will auto-start PocketBase when the binary is available at `operations/tools/pocketbase/pocketbase.exe`
 
-The native runtime must not depend on code under `external/`.
+The native runtime must not depend on code under `integrations/external/`.
 
 ## External Integrations
 
-Bot code is quarantined under `external/` so the folder layout clearly distinguishes first-party/native code from outside integrations.
+Bot code is quarantined under `integrations/external/` so the folder layout clearly distinguishes first-party/native code from outside integrations.
 
-- `external/bots/` contains example bots
-- `external/clients/` contains external client and bot API reference code
-- `external/contracts/` contains external-facing contracts
+- `integrations/external/bots/` contains example bots
+- `integrations/external/clients/` contains external client and bot API reference code
+- `integrations/external/contracts/` contains external-facing contracts
 
 These files are kept for reference and integration work, but they are not part of the native package contract.
 
 ## Viewer
 
-The first-party web viewer lives in `apps/viewer/`.
+The first-party web viewer lives in `applications/viewer/`.
 
 ## PocketBase
 
-The conventional local install path for PocketBase is `tools/pocketbase/pocketbase.exe`.
+The conventional local install path for PocketBase is `operations/tools/pocketbase/pocketbase.exe`.
 
 If you keep the binary somewhere else, set `POCKETBASE_BINARY` to the full path before running `uv run run`.
 
@@ -70,5 +73,5 @@ PocketBase requires an email-based superuser login and a password of at least 8 
 
 ## More Detail
 
-- Repo layout notes: `documentation/repo_layout.md`
-- External integration notes: `external/README.md`
+- Repo layout notes: `docs/repository-layout.md`
+- External integration notes: `integrations/external/README.md`

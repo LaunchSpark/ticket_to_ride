@@ -1,0 +1,270 @@
+from __future__ import annotations
+
+import os
+from typing import Optional
+
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from ticket_to_ride.backend.bot_catalog import BotCatalogClient, BotCatalogError, build_bot_catalog_client_from_env
+from ticket_to_ride.backend.runtime import (
+    ManagedMatchNotFoundError,
+    ManagedMatchRuntimeManager,
+    ManagedRoundNotFoundError,
+    ManagedRuntimeError,
+)
+from ticket_to_ride.backend.models import (
+    BotRegisterRequest,
+    BotSummary,
+    ManagedMatchCreateRequest,
+    ManagedMatchSummary,
+    ManagedRoundSummary,
+    MatchCreateRequest,
+    MatchCreateResponse,
+    MatchFinalizeResponse,
+    MatchPayload,
+    MatchSummary,
+    RoundClockView,
+    RoundCreateRequest,
+    RoundCreateResponse,
+    RoundRuntimeView,
+    TurnCreateRequest,
+    TurnCreateResponse,
+)
+from ticket_to_ride.backend.pocketbase import PocketBaseError, build_repository_from_env
+from ticket_to_ride.backend.repository import MatchRepository
+from ticket_to_ride.backend.service import (
+    BotNotFoundError,
+    MatchNotFoundError,
+    create_match,
+    create_round,
+    create_turn,
+    finalize_match,
+    get_match,
+    list_bots,
+    list_matches,
+    register_bot,
+)
+
+
+def _cors_origins_from_env() -> list[str]:
+    configured = os.getenv("TICKET_TO_RIDE_CORS_ALLOW_ORIGINS", "*").strip()
+    if configured == "*":
+        return ["*"]
+    return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+
+def create_app(
+    repository: Optional[MatchRepository] = None,
+    bot_catalog_client: Optional[BotCatalogClient] = None,
+    runtime_manager: Optional[ManagedMatchRuntimeManager] = None,
+) -> FastAPI:
+    app = FastAPI(title="Ticket to Ride Match Logger", version="1.0.0")
+    app.state.match_repository = repository or build_repository_from_env()
+    app.state.bot_catalog_client = bot_catalog_client or build_bot_catalog_client_from_env()
+    app.state.runtime_manager = runtime_manager
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins_from_env(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.exception_handler(PocketBaseError)
+    async def handle_pocketbase_error(_, exc: PocketBaseError) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": str(exc),
+                "service": "pocketbase",
+            },
+        )
+
+    @app.exception_handler(BotCatalogError)
+    async def handle_bot_catalog_error(_, exc: BotCatalogError) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": str(exc),
+                "service": "bot_catalog",
+            },
+        )
+
+    @app.exception_handler(ManagedRuntimeError)
+    async def handle_managed_runtime_error(_, exc: ManagedRuntimeError) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": str(exc),
+                "service": "managed_runtime",
+            },
+        )
+
+    def get_repository() -> MatchRepository:
+        return app.state.match_repository
+
+    def get_bot_catalog_client() -> BotCatalogClient:
+        return app.state.bot_catalog_client
+
+    def get_runtime_manager() -> ManagedMatchRuntimeManager:
+        if app.state.runtime_manager is None:
+            app.state.runtime_manager = ManagedMatchRuntimeManager(app.state.match_repository)
+        return app.state.runtime_manager
+
+    @app.get("/bots", response_model=list[BotSummary])
+    def get_bots(
+        repository: MatchRepository = Depends(get_repository),
+    ) -> list[BotSummary]:
+        return list_bots(repository)
+
+    @app.post("/bots", response_model=BotSummary)
+    def post_bot(
+        request: BotRegisterRequest,
+        repository: MatchRepository = Depends(get_repository),
+        bot_catalog_client: BotCatalogClient = Depends(get_bot_catalog_client),
+    ) -> BotSummary:
+        try:
+            return register_bot(repository, bot_catalog_client, request.botId)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except BotNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/matches", response_model=MatchCreateResponse)
+    def post_match(
+        request: MatchCreateRequest,
+        repository: MatchRepository = Depends(get_repository),
+    ) -> MatchCreateResponse:
+        match_name = request.name or "-".join(player.name for player in request.players)
+        match_id = create_match(
+            repository,
+            name=match_name,
+            players=request.players,
+            player_names=request.playerNames or [player.name for player in request.players],
+        )
+        return MatchCreateResponse(matchId=match_id)
+
+    @app.post("/matches/{match_id}/rounds", response_model=RoundCreateResponse)
+    def post_round(
+        match_id: str,
+        request: RoundCreateRequest,
+        repository: MatchRepository = Depends(get_repository),
+    ) -> RoundCreateResponse:
+        try:
+            round_id = create_round(repository, match_id=match_id, round_number=request.roundNumber)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return RoundCreateResponse(roundId=round_id)
+
+    @app.post("/matches/{match_id}/rounds/{round_id}/turns", response_model=TurnCreateResponse)
+    def post_turn(
+        match_id: str,
+        round_id: str,
+        request: TurnCreateRequest,
+        repository: MatchRepository = Depends(get_repository),
+    ) -> TurnCreateResponse:
+        try:
+            turn_id = create_turn(
+                repository,
+                match_id=match_id,
+                round_id=round_id,
+                turn_index=request.turnIndex,
+                turn_state=request.turnState,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return TurnCreateResponse(turnId=turn_id)
+
+    @app.post("/matches/{match_id}/finalize", response_model=MatchFinalizeResponse)
+    def post_finalize(
+        match_id: str,
+        repository: MatchRepository = Depends(get_repository),
+    ) -> MatchFinalizeResponse:
+        try:
+            average_scores = finalize_match(repository, match_id)
+        except MatchNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return MatchFinalizeResponse(matchId=match_id, status="completed", averageScores=average_scores)
+
+    @app.get("/matches", response_model=list[MatchSummary])
+    def get_matches(
+        repository: MatchRepository = Depends(get_repository),
+    ) -> list[MatchSummary]:
+        return list_matches(repository)
+
+    @app.get("/matches/{match_id}", response_model=MatchPayload)
+    def get_match_by_id(
+        match_id: str,
+        repository: MatchRepository = Depends(get_repository),
+    ) -> MatchPayload:
+        try:
+            return get_match(repository, match_id)
+        except MatchNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/managed-matches", response_model=ManagedMatchSummary)
+    def post_managed_match(
+        request: ManagedMatchCreateRequest,
+        runtime_manager: ManagedMatchRuntimeManager = Depends(get_runtime_manager),
+    ) -> ManagedMatchSummary:
+        return runtime_manager.create_managed_match(request)
+
+    @app.get("/managed-matches/{match_id}", response_model=ManagedMatchSummary)
+    def get_managed_match(
+        match_id: str,
+        runtime_manager: ManagedMatchRuntimeManager = Depends(get_runtime_manager),
+    ) -> ManagedMatchSummary:
+        try:
+            return runtime_manager.get_managed_match(match_id)
+        except ManagedMatchNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/managed-matches/{match_id}/rounds", response_model=list[ManagedRoundSummary])
+    def get_managed_rounds(
+        match_id: str,
+        runtime_manager: ManagedMatchRuntimeManager = Depends(get_runtime_manager),
+    ) -> list[ManagedRoundSummary]:
+        try:
+            return runtime_manager.list_rounds(match_id)
+        except ManagedMatchNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/managed-matches/{match_id}/rounds/{round_number}", response_model=ManagedRoundSummary)
+    def get_managed_round(
+        match_id: str,
+        round_number: int,
+        runtime_manager: ManagedMatchRuntimeManager = Depends(get_runtime_manager),
+    ) -> ManagedRoundSummary:
+        try:
+            return runtime_manager.get_round(match_id, round_number)
+        except ManagedRoundNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/managed-matches/{match_id}/rounds/{round_number}/clock", response_model=RoundClockView)
+    def get_managed_round_clock(
+        match_id: str,
+        round_number: int,
+        runtime_manager: ManagedMatchRuntimeManager = Depends(get_runtime_manager),
+    ) -> RoundClockView:
+        try:
+            return runtime_manager.get_round_clock(match_id, round_number)
+        except ManagedRoundNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/managed-matches/{match_id}/rounds/{round_number}/runtime", response_model=RoundRuntimeView)
+    def get_managed_round_runtime(
+        match_id: str,
+        round_number: int,
+        runtime_manager: ManagedMatchRuntimeManager = Depends(get_runtime_manager),
+    ) -> RoundRuntimeView:
+        try:
+            return runtime_manager.get_round_runtime(match_id, round_number)
+        except ManagedRoundNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return app
+
+
+app = create_app()

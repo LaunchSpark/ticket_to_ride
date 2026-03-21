@@ -1,0 +1,92 @@
+{   "players":[{
+        "playerId": 1,
+        "name": "John",
+        "color": "blue"
+    }, 
+    {
+        "playerId": 2,
+        "name": "Jill",
+        "color": "red"
+    }],
+    "rounds":[{
+        "turns":[{
+            "player": {
+                "playerId": 1,
+                "score": 3,
+                "trainCarCount": 45,
+                "claimedRoutes": ["El_Paso-Houston-1"],
+                "longestPath": 1,
+                "hasLongestPath": true, 
+                "destinationTickets": [
+                    {
+                        "from": "Nashville",
+                        "to": "Raleigh",
+                        "points": 13,
+                        "completed": false 
+                    },
+                    {
+                        "from": "Vancouver",
+                        "to": "Seattle",
+                        "points": 24,
+                        "completed": true
+                    }
+                ],
+                "hand": { 
+                    "black": 0,
+                    "blue": 0,
+                    "green": 0,
+                    "locomotive": 0,
+                    "orange": 0,
+                    "purple": 0,
+                    "red": 0,
+                    "white": 0,
+                    "yellow": 0
+                }
+            },
+            "opponents": [{
+                "playerId": 2,
+                "score": 0,
+                "trainCarCount": 45,
+                "claimedRoutes": [],
+                "longestPath": 0,
+                "hasLongestPath": false, 
+                "destinationTicketCount": 3,
+                "hand": {
+                    "public": {
+                        "black": 0,
+                        "blue": 0,
+                        "green": 0,
+                        "locomotive": 0,
+                        "orange": 0,
+                        "purple": 0,
+                        "red": 0,
+                        "white": 0,
+                        "yellow": 0
+                    },
+                    "hidden": 5
+                }
+            }],
+            "gameObjects": {
+                "map": {
+                    "claimed_routes": [],
+                    "longest_path": 1
+                },
+                "decks": {
+                    "trainDeckCount": 9,
+                    "destinationDeckCount": 20,
+                    "marketCards": []
+                }
+            }
+        }]
+    }],
+    "averageScores": [
+        {
+            "playerId": 1,
+            "scores": [1, 2, 5, 6, 8]
+        },
+        {
+            "playerId": 2,
+            "scores": [1, 2, 5, 6, 10]
+        }
+    ]
+}
