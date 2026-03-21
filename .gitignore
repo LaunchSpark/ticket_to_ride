@@ -37,3 +37,9 @@ env/
 
 # Logs and databases
 *.log
+
+# Local PocketBase runtime data
+operations/data/pocketbase/backups/
+operations/data/pocketbase/*.db
+operations/data/pocketbase/*.db-shm
+operations/data/pocketbase/*.db-wal
