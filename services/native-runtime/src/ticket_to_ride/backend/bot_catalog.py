@@ -32,6 +32,7 @@ class BotCatalogRecord:
     source_kind: str
     source_base_url: str
     discovery_path: str
+    module_path: str
 
 
 class BotCatalogClient(ABC):
@@ -104,6 +105,7 @@ class LocalApiBotCatalogClient(BotCatalogClient):
         description = payload.get("description")
         author = payload.get("author") or ""
         tags = payload.get("tags") or []
+        module_path = payload.get("modulePath") or ""
 
         if schema_version != 1:
             raise BotCatalogError("Bot catalog entries must declare schemaVersion 1.")
@@ -131,6 +133,7 @@ class LocalApiBotCatalogClient(BotCatalogClient):
             source_kind=LOCAL_API_SOURCE_KIND,
             source_base_url=self.base_url,
             discovery_path=self.discovery_path,
+            module_path=str(module_path).strip(),
         )
 
     def _ensure_local_base_url(self) -> None:

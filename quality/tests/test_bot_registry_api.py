@@ -16,6 +16,7 @@ def build_catalog_record(
     name: str,
     source_base_url: str = "http://127.0.0.1:8001",
     discovery_path: str = "/bots",
+    module_path: str = "",
 ) -> BotCatalogRecord:
     return BotCatalogRecord(
         schema_version=1,
@@ -28,6 +29,7 @@ def build_catalog_record(
         source_kind="local_api",
         source_base_url=source_base_url,
         discovery_path=discovery_path,
+        module_path=module_path,
     )
 
 

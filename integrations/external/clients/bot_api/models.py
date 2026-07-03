@@ -13,6 +13,7 @@ class BotMetadata(BaseModel):
     description: str = Field(min_length=1)
     author: str = ""
     tags: List[str] = Field(default_factory=list)
+    modulePath: str = ""
 
     @classmethod
     def from_module_meta(cls, meta: Dict[str, Any]) -> "BotMetadata":
