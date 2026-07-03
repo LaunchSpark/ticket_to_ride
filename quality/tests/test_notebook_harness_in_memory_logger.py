@@ -7,7 +7,7 @@ from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.engine.state.player_context import PlayerContext
 from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
-from applications.notebook_harness.in_memory_logger import InMemoryGameLogger
+from notebook_harness.in_memory_logger import InMemoryGameLogger
 
 
 class InMemoryGameLoggerTests(unittest.TestCase):

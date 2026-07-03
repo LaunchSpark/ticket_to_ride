@@ -4,7 +4,7 @@ import unittest
 
 from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
-from applications.notebook_harness.game_runner import initialize_game, list_maps
+from notebook_harness.game_runner import initialize_game, list_maps
 
 
 class GameRunnerTests(unittest.TestCase):

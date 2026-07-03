@@ -4,7 +4,7 @@ import unittest
 
 from ticket_to_ride.engine.state.map import MapGraph
 
-from applications.notebook_harness.rendering import (
+from notebook_harness.rendering import (
     build_edges,
     build_nodes,
     claimed_by_from_snapshot,

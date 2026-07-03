@@ -26,4 +26,14 @@ run = "ticket_to_ride.runtime.cli:run"
 test = "ticket_to_ride.runtime.cli:test"
 
 [tool.hatch.build.targets.wheel]
-packages = ["services/native-runtime/src/ticket_to_ride"]
+# Installed as editable packages so they resolve via site-packages regardless
+# of sys.path/cwd anchoring — required because marimo's kernel process does
+# not inherit the repo-root-relative sys.path that `uv run`/`python -m
+# unittest` set up, so a bare `import external` / `import notebook_harness`
+# would otherwise fail when a bot notebook is opened directly (e.g. via
+# `marimo edit` or `marimo export`).
+packages = [
+  "services/native-runtime/src/ticket_to_ride",
+  "integrations/external",
+  "applications/notebook_harness",
+]

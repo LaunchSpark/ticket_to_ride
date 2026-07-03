@@ -93,7 +93,7 @@ class RandomBot(BaseBot):
 def _():
     import marimo as mo
 
-    from applications.notebook_harness.game_runner import initialize_game, list_maps
+    from notebook_harness.game_runner import initialize_game, list_maps
 
     mo.md("# Random Bot — spectate & debug").left()
     return initialize_game, list_maps, mo
@@ -129,7 +129,7 @@ def _(harness_game, mo):
 def _(harness_game, mo, step_slider):
     from wigglystuff import GraphWidget
 
-    nodes, edges = harness_game.board_at(int(step_slider.value or 0))
+    nodes, edges = harness_game.board_at(int(step_slider.value["value"]))
     graph = mo.ui.anywidget(GraphWidget(nodes=nodes, edges=edges))
     graph
     return

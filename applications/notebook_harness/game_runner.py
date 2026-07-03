@@ -8,8 +8,8 @@ from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.engine.state.map import DEFAULT_MAP_NAME, available_maps
 
-from applications.notebook_harness.in_memory_logger import InMemoryGameLogger
-from applications.notebook_harness.rendering import build_edges, build_nodes, claimed_by_from_snapshot
+from notebook_harness.in_memory_logger import InMemoryGameLogger
+from notebook_harness.rendering import build_edges, build_nodes, claimed_by_from_snapshot
 
 _SEAT_COLORS = ["red", "blue", "green", "yellow", "black"]
 
