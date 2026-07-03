@@ -18,7 +18,7 @@ The main native commands are:
 ## Setup
 
 1. Install `uv`
-2. Run `uv sync`
+2. Run `uv sync --extra notebooks` (bot files under `integrations/external/bots/` are marimo notebooks and `import marimo` unconditionally, so the `notebooks` extra is required even for `uv run test` — plain `uv sync` will fail to load bots)
 3. Place the PocketBase binary at `operations/tools/pocketbase/pocketbase.exe`
 
 ## Native Layout

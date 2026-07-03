@@ -24,13 +24,15 @@ The supported native commands are:
 - `uv run run`
 - `uv run test`
 
+Both require dependencies installed via `uv sync --extra notebooks`, not plain `uv sync` — see "External Area" below for why.
+
 The native runtime must not depend on anything under `integrations/external/`.
 
 ## External Area
 
 The `integrations/external/` tree exists for examples, contracts, and integration reference material:
 
-- `integrations/external/bots/`: example external bots
+- `integrations/external/bots/`: example external bots. These are marimo notebook files (see `docs/superpowers/specs/2026-07-02-marimo-notebook-migration-design.md`); each `import marimo` unconditionally at module scope, so anything that imports a bot module — including `BotLoader` and therefore the native test suite — requires the `notebooks` optional dependency group installed.
 - `integrations/external/clients/`: external-facing bot client and bot API reference code
 - `integrations/external/contracts/`: shared external contracts
 
