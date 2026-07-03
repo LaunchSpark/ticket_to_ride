@@ -1,0 +1,22 @@
+{
+  "name": "route-graph-widget-build",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Build-only project: bundles a forked graph_widget (vasturiano/force-graph) into a single offline-capable anywidget JS file for the notebook harness.",
+  "scripts": {
+    "build": "esbuild src/route_graph_widget.js --bundle --format=esm --outfile=../static/route_graph_widget.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "dependencies": {
+    "d3-array": "^3.2.4",
+    "d3-brush": "^3.0.0",
+    "d3-force": "^3.0.0",
+    "d3-scale": "^4.0.2",
+    "d3-scale-chromatic": "^3.1.0",
+    "d3-selection": "^3.0.0",
+    "force-graph": "^1.49.5",
+    "rbush": "^4.0.1"
+  }
+}

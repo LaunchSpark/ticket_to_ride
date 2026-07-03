@@ -127,10 +127,10 @@ def _(harness_game, mo):
 
 @app.cell
 def _(harness_game, mo, step_slider):
-    from wigglystuff import GraphWidget
+    from notebook_harness.route_graph_widget import RouteGraphWidget, build_graph_data
 
     nodes, edges = harness_game.board_at(int(step_slider.value["value"]))
-    graph = mo.ui.anywidget(GraphWidget(nodes=nodes, edges=edges))
+    graph = mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(nodes, edges)))
     graph
     return
 

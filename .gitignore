@@ -46,3 +46,8 @@ operations/data/pocketbase/*.db-wal
 
 # marimo per-notebook session cache
 **/__marimo__/
+
+# Build-only tool for the notebook harness's vendored graph widget - the
+# bundled build/ output it produces is committed under
+# applications/notebook_harness/static/, so this doesn't need to ship.
+applications/notebook_harness/widget-src/node_modules/
