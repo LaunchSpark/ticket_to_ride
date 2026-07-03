@@ -14,6 +14,13 @@ dependencies = [
   "uvicorn>=0.30,<1.0",
 ]
 
+[project.optional-dependencies]
+notebooks = [
+  "marimo>=0.9",
+  "anywidget>=0.9",
+  "wigglystuff>=0.1",
+]
+
 [project.scripts]
 run = "ticket_to_ride.runtime.cli:run"
 test = "ticket_to_ride.runtime.cli:test"

@@ -3,7 +3,7 @@
 This project is split into architecture-first top-level ownership areas:
 
 - `services/`: first-party runtime services. The native Python runtime lives in `services/native-runtime/src/ticket_to_ride/`.
-- `applications/`: first-party UI surfaces. The current viewer lives in `applications/viewer/`.
+- `applications/`: first-party UI surfaces. The current viewer lives in `applications/viewer/`. The notebook test harness used by bot notebooks lives in `applications/notebook_harness/` — a pure-Python package (no HTTP/PocketBase dependency) that bot notebooks under `integrations/external/bots/` import to run and render in-process test games.
 - `integrations/`: external-facing code and example bot surfaces. The current external tree lives in `integrations/external/`.
 - `operations/`: local runtime state and tooling. PocketBase data lives in `operations/data/`; the binary belongs in `operations/tools/pocketbase/pocketbase.exe`.
 - `quality/`: automated test suites. Native tests live in `quality/tests/`.

@@ -1,7 +1,7 @@
 import { RUN_TRANSITION, h, useDeferredValue, useEffect, useMemo, useState } from "../runtime.jsx";
 import { CardShell } from "../atoms/CardShell.jsx";
 import { UiIcon } from "../atoms/UiIcon.jsx";
-import { listBots, registerBot } from "../services/bot-registry.jsx";
+import { launchNotebook, listBots, registerBot } from "../services/bot-registry.jsx";
 
 const DEFAULT_TEST_BOT_ID = "random_bot";
 
@@ -229,6 +229,19 @@ function BotsDashboard(props) {
     setFetchState({ kind: "ready", message: "" });
   }
 
+  const [launchState, setLaunchState] = useState({});
+
+  async function handleOpenNotebook(bot) {
+    setLaunchState((current) => ({ ...current, [bot.botId]: "opening" }));
+    try {
+      const result = await launchNotebook(props.apiBase, bot.botId);
+      window.open(result.url, "_blank", "noopener");
+      setLaunchState((current) => ({ ...current, [bot.botId]: "idle" }));
+    } catch (error) {
+      setLaunchState((current) => ({ ...current, [bot.botId]: "error" }));
+    }
+  }
+
   return h(
     "div",
     { className: "bots-dashboard-grid" },
@@ -321,6 +334,23 @@ function BotsDashboard(props) {
                           h("span", { className: "matches-modal-meta-pill" }, bot.sourceKind),
                           bot.createdLabel
                             ? h("span", { className: "matches-modal-meta-pill" }, `Registered ${bot.createdLabel}`)
+                            : null
+                        ),
+                        h(
+                          "div",
+                          { className: "bots-card-actions" },
+                          h(
+                            "button",
+                            {
+                              className: "matches-modal-link",
+                              type: "button",
+                              disabled: launchState[bot.botId] === "opening",
+                              onClick: () => handleOpenNotebook(bot),
+                            },
+                            launchState[bot.botId] === "opening" ? "Opening..." : "Open Notebook"
+                          ),
+                          launchState[bot.botId] === "error"
+                            ? h("span", { className: "bots-add-error" }, "Unable to open the notebook.")
                             : null
                         )
                       )

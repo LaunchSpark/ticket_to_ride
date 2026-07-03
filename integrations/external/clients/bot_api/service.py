@@ -78,7 +78,11 @@ class BotSessionManager:
         del self.sessions[session_id]
 
     def list_bots(self) -> List[BotMetadata]:
-        return BotLoader.sort_metadata([descriptor.metadata for descriptor in self.descriptors.values()])
+        metadata_with_paths = [
+            descriptor.metadata.model_copy(update={"modulePath": descriptor.module_path})
+            for descriptor in self.descriptors.values()
+        ]
+        return BotLoader.sort_metadata(metadata_with_paths)
 
     @staticmethod
     def build_player(payload: Dict[str, Any]):

@@ -45,6 +45,11 @@ class BotSummary(BaseModel):
     createdAt: str
 
 
+class NotebookLaunchResponse(BaseModel):
+    botId: str
+    url: str
+
+
 class TimeControlConfig(BaseModel):
     initialTimeMs: int = Field(gt=0)
     incrementMs: int = Field(default=0, ge=0)

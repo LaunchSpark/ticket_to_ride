@@ -1,22 +1,28 @@
-from typing import List
-import random
+import marimo
 
-from external.contracts.base_bot import BaseBot
-from ticket_to_ride.engine.state.map import MapGraph
-from ticket_to_ride.engine.state.map import Route
-from ticket_to_ride.engine.state.decks import DestinationTicket
+__generated_with = "0.9.14"
+app = marimo.App(width="medium")
 
-BOT_META = {
-    "schema_version": 1,
-    "id": "random_bot",
-    "name": "Random Bot",
-    "version": "1.0.0",
-    "description": "Baseline bot that selects randomly from legal options.",
-    "author": "Lucas Starkey",
-    "tags": ["baseline", "random"],
-}
+with app.setup:
+    import random
+    from typing import List
+
+    from external.contracts.base_bot import BaseBot
+    from ticket_to_ride.engine.state.map import Route
+    from ticket_to_ride.engine.state.decks import DestinationTicket
+
+    BOT_META = {
+        "schema_version": 1,
+        "id": "random_bot",
+        "name": "Random Bot",
+        "version": "1.0.0",
+        "description": "Baseline bot that selects randomly from legal options.",
+        "author": "Lucas Starkey",
+        "tags": ["baseline", "random"],
+    }
 
 
+@app.class_definition
 class RandomBot(BaseBot):
     """Baseline bot that makes random choices.
 
@@ -27,54 +33,19 @@ class RandomBot(BaseBot):
 
     ``self.player.get_affordable_routes()`` -> ``List[tuple[Route, int]]``
         Returns the routes you can currently afford and the locomotives required.
-        Example::
-
-            options = self.player.get_affordable_routes()
-            if options:
-                route, loco_needed = options[0]
 
     ``self.player.get_tickets()`` -> ``List[DestinationTicket]``
         Your destination tickets. Each ticket has ``city1``, ``city2``,
         ``value`` and ``is_completed`` attributes.
-        Example::
-
-            incomplete = [t for t in self.player.get_tickets() if not t.is_completed]
 
     ``self.player.get_hand()`` -> ``Counter[str]``
         Current train cards in hand, keyed by color letter.
-        Example::
-
-            red_cards = self.player.get_hand().get('R', 0)
 
     ``self.player.trains_remaining``
         How many trains you still have available.
-        Example::
-
-            if self.player.trains_remaining <= 2:
-                # game will end soon
-                pass
 
     ``self.player.context`` -> :class:`PlayerContext`
-        Snapshot of public game state each turn. Useful fields include:
-
-        - ``face_up_cards``: visible train cards in the market.
-          Example::
-
-              first = self.player.context.face_up_cards[0]
-
-        - ``map``: :class:`MapGraph` representing the board. You can inspect
-          routes via ``self.player.context.map.get_available_routes()`` or
-          ``get_claimed_routes(player_id)``.
-
-        - ``opponents``: list of ``OpponentInfo`` with each opponent's exposed
-          cards, remaining trains, score and ticket count.
-          Example::
-
-              for opp in self.player.context.opponents:
-                  print(opp.player_id, opp.score)
-
-        - ``turn_number``: current turn index.
-        - ``score``: your current score so far.
+        Snapshot of public game state each turn.
     """
 
     META = BOT_META
@@ -93,29 +64,17 @@ class RandomBot(BaseBot):
         else:
             return 1
 
-
-
-
-    ##############################################################################################
-    # now that you`ve decided what action to take on your turn, decide how to handle each action #
-    ##############################################################################################
-
-
     # choose what cards to draw
     def choose_draw_train_action(self) -> int:
         """Choose which face-up index to draw or ``-1`` for the deck."""
         return random.randrange(-1, 5)
 
-    # choose what routes to claim -------------------------------------------------------------------#
-    # claimable_routes is a list of tuples( Route , number of locomotives needed to claim)           #
-    # return a tuple (route, number of locomotives you wish to spend)                                #
-    # so to buy a route that costs 2 of a color using 1 locomotive you could return tuple(route, 1)  #
-    # error handling is done on the back end --------------------------------------------------------#
+    # choose what routes to claim
     def choose_route_to_claim(self, claimable_routes: 'List[tuple[Route,int]]') -> 'tuple[Route,int]':
         """Select a route and number of locomotives to spend."""
         return claimable_routes[random.randrange(0, len(claimable_routes))]
 
-    # choose what color to spend on a gray route (will spend most common color on input of None or on invalid color input)
+    # choose what color to spend on a gray route
     def choose_color_to_spend(self, route: Route, color_options: List[str]) -> "str | None":
         """Pick a color to spend on gray routes."""
         return None
@@ -125,11 +84,56 @@ class RandomBot(BaseBot):
         """Choose which destination tickets to keep."""
         return [offer[0], offer[1]]
 
-
-    #######################
-    #       helpers       #
-    #######################
-
     def path_finder(self, city1, city2):
         """Placeholder for path-finding logic."""
         return None
+
+
+@app.cell
+def _():
+    import marimo as mo
+
+    from applications.notebook_harness.game_runner import initialize_game, list_maps
+
+    mo.md("# Random Bot — spectate & debug").left()
+    return initialize_game, list_maps, mo
+
+
+@app.cell
+def _(list_maps, mo):
+    map_picker = mo.ui.dropdown(options=list_maps(), value=list_maps()[0], label="Map")
+    map_picker
+    return (map_picker,)
+
+
+@app.cell
+def _(initialize_game, map_picker):
+    # Runs the freshly-edited RandomBot against a second copy of itself.
+    harness_game = initialize_game([RandomBot(), RandomBot()], map_name=map_picker.value)
+    harness_game.play()
+    return (harness_game,)
+
+
+@app.cell
+def _(harness_game, mo):
+    from wigglystuff import PlaySlider
+
+    step_slider = mo.ui.anywidget(
+        PlaySlider(min_value=0, max_value=harness_game.snapshot_count() - 1, step=1, interval_ms=300)
+    )
+    step_slider
+    return (step_slider,)
+
+
+@app.cell
+def _(harness_game, mo, step_slider):
+    from wigglystuff import GraphWidget
+
+    nodes, edges = harness_game.board_at(int(step_slider.value or 0))
+    graph = mo.ui.anywidget(GraphWidget(nodes=nodes, edges=edges))
+    graph
+    return
+
+
+if __name__ == "__main__":
+    app.run()

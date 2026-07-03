@@ -2,15 +2,15 @@ from ticket_to_ride.engine.state.map import MapGraph
 from ticket_to_ride.engine.state.decks import TrainCardDeck, TicketDeck
 
 from collections import Counter
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 
 class GameContext:
-    def __init__(self, player_ids):
+    def __init__(self, player_ids, map_name: Optional[str] = None):
         """Holds shared state used throughout the gameplay loop."""
         print("Initializing GameContext...")
-        self.map_graph = MapGraph(player_count=len(player_ids))
+        self.map_graph = MapGraph(player_count=len(player_ids), map_name=map_name)
         self.train_deck = TrainCardDeck()
         self.ticket_deck = TicketDeck()
         self.turn_num = 0

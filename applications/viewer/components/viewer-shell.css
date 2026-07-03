@@ -547,6 +547,13 @@ select {
   letter-spacing: -0.04em;
 }
 
+.bots-card-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .bots-card-path {
   margin-top: 6px;
   font-family: "Consolas", "Courier New", monospace;

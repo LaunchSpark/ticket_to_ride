@@ -38,7 +38,20 @@ async function registerBot(apiBase, botId) {
   return response.json();
 }
 
+async function launchNotebook(apiBase, botId) {
+  const response = await fetch(`${apiBase}/notebooks/${encodeURIComponent(botId)}/launch`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    return readResponseError(response, `Notebook launch failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export {
+  launchNotebook,
   listBots,
   registerBot,
 };

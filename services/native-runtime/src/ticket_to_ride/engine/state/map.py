@@ -4,7 +4,22 @@ from pathlib import Path
 from typing import List, Dict, Optional, Set
 
 
-MAP_CSV_PATH = Path(__file__).resolve().parents[6] / "operations" / "data" / "map.csv"
+MAPS_DIR = Path(__file__).resolve().parents[6] / "operations" / "data" / "maps"
+DEFAULT_MAP_NAME = "classic"
+
+
+def available_maps() -> List[str]:
+    """Return the names of every map CSV available under the maps directory."""
+    return sorted(path.stem for path in MAPS_DIR.glob("*.csv"))
+
+
+def resolve_map_path(map_name: Optional[str]) -> Path:
+    """Resolve a map name to its CSV path, defaulting to the classic map."""
+    resolved_name = map_name or DEFAULT_MAP_NAME
+    map_path = MAPS_DIR / f"{resolved_name}.csv"
+    if not map_path.exists():
+        raise ValueError(f"Unknown map '{resolved_name}'. Available maps: {available_maps()}")
+    return map_path
 
 class Route:
     city1: str
@@ -40,13 +55,14 @@ class Route:
         return self.route_id
 
 class MapGraph:
-    def __init__(self, player_count: int = 4):
+    def __init__(self, player_count: int = 4, map_name: Optional[str] = None):
         """Load the map and prepare tracking of routes and paths."""
         self.player_count = player_count
+        self.map_name = map_name or DEFAULT_MAP_NAME
         self.longest_path_holder: str = ""
         self.longest_paths: Dict[str,int] = {}
         self.routes: List[Route] = []
-        self._load_routes_from_csv(MAP_CSV_PATH)
+        self._load_routes_from_csv(resolve_map_path(map_name))
 
         #paths hold dicts that associate player_ids with a list comprised of tuples containing (sets of connected cities, longest path length)
         self.paths: 'Dict[str,List[tuple[set[str],int]]]' = {}
