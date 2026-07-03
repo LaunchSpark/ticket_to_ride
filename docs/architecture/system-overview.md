@@ -37,6 +37,11 @@ Browser
   - compatibility bot execution service over HTTP
 - `integrations/external/clients/bot_api/loader.py` and `integrations/external/contracts/base_bot.py`
   - bot plugin discovery, metadata validation, and bot class loading
+- `applications/notebook_harness`
+  - pure-Python test harness for bot notebooks: builds in-process games, renders GraphWidget-ready board state from an in-memory turn log
+  - no dependency on the backend, PocketBase, or HTTP — bot notebooks run fully offline
+- `services/native-runtime/src/ticket_to_ride/backend/notebook_launcher.py`
+  - spawns/reuses one `marimo edit` server per bot notebook, launched from the viewer's Bots page via `POST /notebooks/{bot_id}/launch`
 
 ## Network Boundaries
 
@@ -45,6 +50,7 @@ Browser
 - Main backend runtime -> external bot API: HTTP through `BotApiExecutor`
 - Main backend runtime -> engine: in-process calls
 - External bot API -> bot plugin system: in-process calls
+- Frontend -> main backend API `/notebooks/{bot_id}/launch` -> local `marimo edit` subprocess: process spawn, not HTTP
 
 ## Runtime Package Layout
 
