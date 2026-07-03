@@ -43,3 +43,6 @@ operations/data/pocketbase/backups/
 operations/data/pocketbase/*.db
 operations/data/pocketbase/*.db-shm
 operations/data/pocketbase/*.db-wal
+
+# marimo per-notebook session cache
+**/__marimo__/
