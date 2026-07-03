@@ -12117,7 +12117,7 @@ function render3({ model, el }) {
       create_rtree(data2["nodes"]);
     });
   };
-  const data = model.get("data");
+  let data = model.get("data");
   let node_scale = model.get("node_scale") || default_node_scale;
   let width = model.get("width") || default_width;
   let height = model.get("height") || default_height;
@@ -12128,6 +12128,13 @@ function render3({ model, el }) {
   select_feature_value = model.get("select_feature_value");
   let global_selected_ids = model.get("selected_ids");
   plot = create_plot(data);
+  const update_data = () => {
+    data = model.get("data");
+    plot.graphData(data);
+    build_colour_scale();
+    create_node_canvas_object(plot, node_scale, node_size_feature);
+  };
+  model.on("change:data", update_data);
   const update_repulsion = () => {
     const repulsion = model.get("repulsion") ?? default_repulsion;
     plot.d3Force("charge", manyBody_default2().strength(-repulsion));

@@ -128,7 +128,7 @@ function render({ model, el }) {
             });
     };
 
-    const data = model.get("data");
+    let data = model.get("data");
     let node_scale = model.get("node_scale") || default_node_scale;
     let width = model.get("width") || default_width;
     let height = model.get("height") || default_height;
@@ -140,6 +140,22 @@ function render({ model, el }) {
     let global_selected_ids = model.get("selected_ids");
 
     plot = create_plot(data);
+
+    // force-graph's graphData() setter is designed to be called again for
+    // incremental updates: nodes whose id matches an existing node keep
+    // their current position/velocity, only genuinely new nodes get a fresh
+    // starting position. Re-using the same `plot` instance (instead of
+    // constructing a new widget/ForceGraph per update, which is what the
+    // calling notebook used to do) is what makes this actually apply -
+    // otherwise every update restarts the simulation from scratch, which is
+    // what "flies all over the place" on every board-state update was.
+    const update_data = () => {
+        data = model.get("data");
+        plot.graphData(data);
+        build_colour_scale();
+        create_node_canvas_object(plot, node_scale, node_size_feature);
+    };
+    model.on("change:data", update_data);
 
     const update_repulsion = () => {
         const repulsion = model.get("repulsion") ?? default_repulsion;

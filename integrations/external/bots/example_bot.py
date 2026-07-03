@@ -96,11 +96,23 @@ def _(harness_game, mo):
 
 
 @app.cell
-def _(harness_game, mo, step_slider):
+def _(harness_game, mo):
+    # Created once per game (not per slider step) so the force simulation
+    # keeps running instead of restarting from scratch on every step.
     from notebook_harness.route_graph_widget import RouteGraphWidget, build_graph_data
 
+    initial_nodes, initial_edges = harness_game.board_at(0)
+    graph = mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(initial_nodes, initial_edges)))
+    return build_graph_data, graph
+
+
+@app.cell
+def _(build_graph_data, graph, harness_game, step_slider):
+    # Pushes each step's board state into the existing widget instance
+    # instead of constructing a new one, so node positions persist across
+    # steps and only the diff (newly claimed routes) animates.
     nodes, edges = harness_game.board_at(int(step_slider.value["value"]))
-    graph = mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(nodes, edges)))
+    graph.data = build_graph_data(nodes, edges)
     graph
     return
 
