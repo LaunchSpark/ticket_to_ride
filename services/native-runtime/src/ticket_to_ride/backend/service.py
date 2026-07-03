@@ -8,9 +8,11 @@ from ticket_to_ride.backend.models import (
     BotSummary,
     MatchPayload,
     MatchSummary,
+    NotebookLaunchResponse,
     PlayerRecord,
     RoundPayload,
 )
+from ticket_to_ride.backend.notebook_launcher import NotebookLauncher
 from ticket_to_ride.backend.repository import MatchRepository
 
 
@@ -65,6 +67,24 @@ def register_bot(repository: MatchRepository, catalog_client: BotCatalogClient, 
         discovery_path=catalog_record.discovery_path,
     )
     return build_bot_summary(stored_record)
+
+
+def launch_notebook(
+    catalog_client: BotCatalogClient,
+    notebook_launcher: NotebookLauncher,
+    bot_id: str,
+) -> NotebookLaunchResponse:
+    requested_bot_id = bot_id.strip()
+    if not requested_bot_id:
+        raise ValueError("Bot ID is required.")
+
+    try:
+        catalog_record = catalog_client.resolve_bot(requested_bot_id)
+    except KeyError as exc:
+        raise BotNotFoundError(f"Unknown bot '{requested_bot_id}'.") from exc
+
+    url = notebook_launcher.launch(catalog_record.bot_id, catalog_record.module_path)
+    return NotebookLaunchResponse(botId=catalog_record.bot_id, url=url)
 
 
 def create_match(
