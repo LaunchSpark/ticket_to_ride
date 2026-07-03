@@ -76,6 +76,28 @@ class RenderingTests(unittest.TestCase):
         self.assertIsNone(unclaimed_edge["data"]["claimedBy"])
         self.assertEqual(unclaimed_edge["width"], unclaimed_route.length)
 
+    def test_build_edges_gives_parallel_routes_opposite_nonzero_curvature(self) -> None:
+        game_map = MapGraph(player_count=4)
+
+        edges = build_edges(game_map, claimed_by={}, player_colors={})
+
+        edges_by_id = {edge["id"]: edge for edge in edges}
+        first = edges_by_id["Seattle-Portland-1"]["curvature"]
+        second = edges_by_id["Seattle-Portland-2"]["curvature"]
+
+        self.assertNotEqual(first, 0)
+        self.assertEqual(first, -second)
+
+    def test_build_edges_gives_a_single_route_between_a_city_pair_zero_curvature(self) -> None:
+        game_map = MapGraph(player_count=2)
+        # Vancouver-Calgary has only one route in the classic map.
+        solo_route = next(route for route in game_map.routes if {route.city1, route.city2} == {"Vancouver", "Calgary"})
+
+        edges = build_edges(game_map, claimed_by={}, player_colors={})
+
+        edges_by_id = {edge["id"]: edge for edge in edges}
+        self.assertEqual(edges_by_id[solo_route.route_id]["curvature"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

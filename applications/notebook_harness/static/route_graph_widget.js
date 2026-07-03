@@ -12112,7 +12112,7 @@ function link_distance_for(model, link) {
 function render3({ model, el }) {
   const debouncedSaveChanges = debounce2(() => model.save_changes(), 300);
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.color || "#999999").linkWidth((link) => link.width || 1).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").onEngineStop(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.color || "#999999").linkWidth((link) => link.width || 1).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").onEngineStop(() => {
       plot.zoomToFit(400);
       create_rtree(data2["nodes"]);
     });

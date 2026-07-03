@@ -119,6 +119,7 @@ function render({ model, el }) {
             .nodeLabel("label")
             .linkColor((link) => link.color || "#999999")
             .linkWidth((link) => link.width || 1)
+            .linkCurvature((link) => link.curvature || 0)
             .d3AlphaDecay(0.001)
             .minZoom(0.001)
             .nodeCanvasObjectMode(() => "replace")

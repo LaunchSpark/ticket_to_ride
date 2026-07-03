@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from collections import defaultdict
+from typing import Any, Dict, List, Tuple
 
 from ticket_to_ride.engine.state.map import MapGraph, Route
+
+# Curvature step between adjacent parallel edges, in force-graph's
+# linkCurvature units (roughly: fraction of the edge's on-screen length that
+# its midpoint bows out perpendicular to the straight line between cities).
+_PARALLEL_EDGE_CURVATURE_STEP = 0.2
 
 # Route.color letter codes -> a readable CSS color for unclaimed edges.
 _ROUTE_COLOR_HEX: Dict[str, str] = {
@@ -49,6 +55,29 @@ def _edge_color(route: Route, owner: 'str | None', player_colors: Dict[str, str]
     return _ROUTE_COLOR_HEX.get(route.color, "#999999")
 
 
+def _city_pair_key(route: Route) -> Tuple[str, str]:
+    return tuple(sorted((route.city1, route.city2)))
+
+
+def _curvature_by_route_id(map_graph: MapGraph) -> Dict[str, float]:
+    """Assign a symmetric curvature offset to every route sharing a city pair.
+
+    A single route between two cities gets 0 (straight line). Routes that
+    share a city pair with others - parallel/double routes - get evenly
+    spaced offsets centered on 0, so they bow apart instead of overlapping.
+    """
+    routes_by_pair: Dict[Tuple[str, str], List[Route]] = defaultdict(list)
+    for route in map_graph.routes:
+        routes_by_pair[_city_pair_key(route)].append(route)
+
+    curvature_by_route_id: Dict[str, float] = {}
+    for parallel_routes in routes_by_pair.values():
+        count = len(parallel_routes)
+        for index, route in enumerate(sorted(parallel_routes, key=lambda r: r.route_id)):
+            curvature_by_route_id[route.route_id] = (index - (count - 1) / 2) * _PARALLEL_EDGE_CURVATURE_STEP
+    return curvature_by_route_id
+
+
 def build_edges(
     map_graph: MapGraph,
     claimed_by: Dict[str, str],
@@ -57,8 +86,12 @@ def build_edges(
     """Build GraphWidget edge dicts, one per route, colored by claim state.
 
     The authoritative length/base-color/owner live in each edge's `data` dict,
-    separate from the rendering `width`/`color` fields.
+    separate from the rendering `width`/`color` fields. Parallel routes
+    between the same two cities get a `curvature` offset so they bow apart
+    instead of overlapping.
     """
+    curvature_by_route_id = _curvature_by_route_id(map_graph)
+
     edges: List[Dict[str, Any]] = []
     for route in map_graph.routes:
         owner = claimed_by.get(route.route_id)
@@ -69,6 +102,7 @@ def build_edges(
                 "target": route.city2,
                 "width": route.length,
                 "color": _edge_color(route, owner, player_colors),
+                "curvature": curvature_by_route_id[route.route_id],
                 "data": {
                     "length": route.length,
                     "color": route.color,
