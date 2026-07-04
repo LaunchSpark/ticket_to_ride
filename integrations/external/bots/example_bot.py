@@ -4,7 +4,9 @@ __generated_with = "0.9.14"
 app = marimo.App(width="medium")
 
 with app.setup:
-    import random
+    import heapq
+    from collections import Counter
+    from itertools import combinations
     from typing import List
 
     from external.contracts.base_bot import BaseBot
@@ -23,40 +25,418 @@ with app.setup:
 
 
 @app.class_definition
-class ExampleBot(BaseBot):  # TODO: actually build the thing
+class ExampleBot(BaseBot):
+    """The most basic intelligent strategy - not optimal, just sensible.
+
+    Plan: pick the destination-ticket pair with the best cost-to-points
+    ratio (cost = sum of route point values along an exact Steiner tree,
+    point value as a proxy for difficulty), grab a third ticket if it adds
+    < 4 extra cost. Each turn: draw tickets when everything is scored,
+    otherwise claim a planned route if one is affordable, otherwise draw
+    the train cards the plan still needs. All pathfinding runs on the
+    player's culled map, so the own network is free to travel through and
+    opponent-claimed routes don't exist.
+    """
+
     META = BOT_META
 
-    # used to determine weather to
-    # 1 = Draw
-    # 2 = Claim
-    # 3 = draw a destination ticket
-    def choose_turn_action(self):
-        """Select which action to take on a turn."""
-        return random.randrange(1, 3)
+    # Route points by length: the "difficulty" weight used for planning.
+    _ROUTE_POINTS = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15}
+    _CARD_COLORS = ["R", "B", "U", "G", "O", "P", "W", "Y"]
+    # A third offered ticket rides along if it costs less than this much
+    # extra once the pair's planned routes are free.
+    _EXTRA_TICKET_MAX_COST = 4
 
-    # choose what cards to draw
-    def choose_draw_train_action(self) -> int:
-        """Pick which train card position to draw from."""
-        return random.randrange(-1, 5)
+    def __init__(self) -> None:
+        super().__init__()
+        self._planned_routes: 'List[Route]' = []
+        self._planned_route_ids: 'set[str]' = set()
+        # choose_draw_train_action is called twice back-to-back before any
+        # card moves, so both picks are planned on the first call and the
+        # second is remembered here.
+        self._queued_draw: 'int | None' = None
 
-    # choose what routes to claim
-    def choose_route_to_claim(self, claimable_routes: List[Route]) -> Route:
-        """Select a route to claim from the provided options."""
-        return claimable_routes[random.randrange(0, len(claimable_routes))]
+    # ------------------------------------------------------------------
+    # Pathfinding over the culled map (point-value weights)
+    # ------------------------------------------------------------------
 
-    # choose what color to spend on a gray route
-    def choose_color_to_spend(self, route: Route, color_options: List[str]) -> "str | None":
-        """Decide which color cards to spend on a gray route."""
-        return None
+    def _culled(self):
+        return self.player.get_culled_map()
 
-    # choose which destination tickets to keep
-    def select_ticket_offer(self, offer: List[DestinationTicket]) -> List[DestinationTicket]:
-        """Choose which destination tickets to keep from an offer."""
-        return [offer[0], offer[1]]
+    def _route_points(self, route: Route) -> int:
+        return self._ROUTE_POINTS.get(route.length, route.length)
+
+    def _adjacency(self, culled, free_route_ids=frozenset()):
+        """node -> [(neighbor, cost, route)] with planned/free routes at cost 0."""
+        adjacency = {}
+        for route in culled.routes:
+            node_a, node_b = culled.endpoints(route)
+            cost = 0 if route.route_id in free_route_ids else self._route_points(route)
+            adjacency.setdefault(node_a, []).append((node_b, cost, route))
+            adjacency.setdefault(node_b, []).append((node_a, cost, route))
+        return adjacency
+
+    @staticmethod
+    def _dijkstra(adjacency, source):
+        distances = {source: 0}
+        predecessors = {}
+        frontier = [(0, source)]
+        while frontier:
+            distance, node = heapq.heappop(frontier)
+            if distance > distances.get(node, distance):
+                continue
+            for neighbor, cost, route in adjacency.get(node, []):
+                candidate = distance + cost
+                if candidate < distances.get(neighbor, float("inf")):
+                    distances[neighbor] = candidate
+                    predecessors[neighbor] = (node, route)
+                    heapq.heappush(frontier, (candidate, neighbor))
+        return distances, predecessors
+
+    @staticmethod
+    def _walk_back(predecessors, source, target):
+        routes = []
+        node = target
+        while node != source:
+            node, route = predecessors[node]
+            routes.append(route)
+        return routes
+
+    def _steiner_tree(self, culled, cities, free_route_ids=frozenset()):
+        """Exact minimum Steiner tree over up to 4 cities: (cost, routes) or None.
+
+        Terminals are the cities' culled nodes (a whole owned network counts
+        as one terminal, and tickets already spanning it dedupe away). Exact
+        for <=4 terminals because such a tree has at most two junction
+        nodes, so scanning all junction placements covers every topology.
+        """
+        terminals = sorted({culled.city_to_node[city] for city in cities})
+        if len(terminals) <= 1:
+            return 0, []
+
+        adjacency = self._adjacency(culled, free_route_ids)
+        searches = {t: self._dijkstra(adjacency, t) for t in terminals}
+        if any(t not in searches[terminals[0]][0] for t in terminals[1:]):
+            return None  # some terminal is cut off
+
+        def tree_from_paths(path_lists):
+            routes_by_id = {}
+            for path in path_lists:
+                for route in path:
+                    routes_by_id[route.route_id] = route
+            routes = list(routes_by_id.values())
+            cost = sum(
+                0 if route.route_id in free_route_ids else self._route_points(route)
+                for route in routes
+            )
+            return cost, routes
+
+        if len(terminals) == 2:
+            first, second = terminals
+            return tree_from_paths([self._walk_back(searches[first][1], first, second)])
+
+        nodes = list(adjacency.keys())
+
+        if len(terminals) == 3:
+            best = None
+            for junction in nodes:
+                if not all(junction in searches[t][0] for t in terminals):
+                    continue
+                candidate = tree_from_paths(
+                    [self._walk_back(searches[t][1], t, junction) for t in terminals]
+                )
+                if best is None or candidate[0] < best[0]:
+                    best = candidate
+            return best
+
+        # 4 terminals: two junctions u, v; try all three ways to pair the
+        # terminals across them.
+        all_searches = {node: self._dijkstra(adjacency, node) for node in nodes}
+        t1, t2, t3, t4 = terminals
+        pairings = [((t1, t2), (t3, t4)), ((t1, t3), (t2, t4)), ((t1, t4), (t2, t3))]
+        best = None
+        for (a, b), (c, d) in pairings:
+            for u in nodes:
+                if u not in searches[a][0] or u not in searches[b][0]:
+                    continue
+                for v in nodes:
+                    if v not in all_searches[u][0] or v not in searches[c][0] or v not in searches[d][0]:
+                        continue
+                    bound = (
+                        searches[a][0][u]
+                        + searches[b][0][u]
+                        + all_searches[u][0][v]
+                        + searches[c][0][v]
+                        + searches[d][0][v]
+                    )
+                    if best is not None and bound >= best[0]:
+                        continue
+                    candidate = tree_from_paths(
+                        [
+                            self._walk_back(searches[a][1], a, u),
+                            self._walk_back(searches[b][1], b, u),
+                            self._walk_back(all_searches[u][1], u, v),
+                            self._walk_back(searches[c][1], c, v),
+                            self._walk_back(searches[d][1], d, v),
+                        ]
+                    )
+                    if best is None or candidate[0] < best[0]:
+                        best = candidate
+        return best
 
     def path_finder(self, city1, city2):
-        """Placeholder helper for possible path calculations."""
-        return None
+        """Cheapest still-claimable path between two cities, or None if cut off."""
+        result = self._steiner_tree(self._culled(), [city1, city2])
+        return None if result is None else result[1]
+
+    # ------------------------------------------------------------------
+    # Planning
+    # ------------------------------------------------------------------
+
+    def _unscored_tickets(self):
+        return [t for t in self.player.get_tickets() if not t.is_completed and not t.is_impossible]
+
+    def _replan(self):
+        """Recompute the planned route set for every unscored ticket.
+
+        Runs fresh on the current culled map each time, which is what
+        "update the planned route to account for being cut off" means in
+        practice: routes another player took simply no longer exist here.
+        The first two tickets get an exact joint Steiner tree; any further
+        tickets attach greedily with already-planned routes free.
+        """
+        culled = self._culled()
+        unscored = self._unscored_tickets()
+
+        routes: 'List[Route]' = []
+        free: 'set[str]' = set()
+
+        head, tail = unscored[:2], unscored[2:]
+        if head:
+            cities = [city for ticket in head for city in (ticket.city1, ticket.city2)]
+            joint = self._steiner_tree(culled, cities)
+            if joint is None:
+                tail = unscored[1:]
+                head = unscored[:1]
+                joint = self._steiner_tree(culled, [head[0].city1, head[0].city2])
+            if joint is not None:
+                routes.extend(joint[1])
+                free.update(route.route_id for route in joint[1])
+        for ticket in tail:
+            extra = self._steiner_tree(culled, [ticket.city1, ticket.city2], free_route_ids=free)
+            if extra is not None:
+                routes.extend(extra[1])
+                free.update(route.route_id for route in extra[1])
+
+        self._planned_routes = routes
+        self._planned_route_ids = {route.route_id for route in routes}
+        return routes
+
+    def _card_needs(self):
+        """Deficit per color under the current plan.
+
+        Grey demand is paid in one color, so only the single largest
+        surplus covers it; any grey deficit is assigned to the color with
+        the biggest surplus (fewest extra draws to stack). Locomotives are
+        only ever spent on the longest planned route, so they reduce that
+        route's color demand and nothing else.
+        """
+        reserved: 'Counter[str]' = Counter()
+        grey_needed = 0
+        for route in self._planned_routes:
+            if route.color == "X":
+                grey_needed += route.length
+            else:
+                reserved[route.color] += route.length
+
+        hand = self.player.get_hand()
+        deficits = {c: max(0, reserved[c] - hand.get(c, 0)) for c in self._CARD_COLORS}
+        surplus = {c: max(0, hand.get(c, 0) - reserved[c]) for c in self._CARD_COLORS}
+
+        stack_color = max(self._CARD_COLORS, key=lambda c: surplus[c])
+        grey_deficit = max(0, grey_needed - surplus[stack_color])
+        if grey_deficit:
+            deficits[stack_color] += grey_deficit
+
+        locomotives = hand.get("L", 0)
+        if locomotives and self._planned_routes:
+            longest = max(self._planned_routes, key=lambda route: route.length)
+            target = stack_color if longest.color == "X" else longest.color
+            deficits[target] = max(0, deficits[target] - locomotives)
+        return deficits
+
+    def _claimable_planned(self, affordable):
+        """Affordable planned routes, honoring the locomotive rule.
+
+        Locomotives only get spent on a route as long as the longest route
+        in the plan; anything cheaper that would burn them waits (we draw
+        instead).
+        """
+        max_planned_length = max((route.length for route in self._planned_routes), default=0)
+        picks = []
+        for route, locomotives in affordable:
+            if route.route_id not in self._planned_route_ids:
+                continue
+            if locomotives > 0 and route.length != max_planned_length:
+                continue
+            picks.append((route, locomotives))
+        return picks
+
+    # ------------------------------------------------------------------
+    # Engine-facing decisions
+    # ------------------------------------------------------------------
+
+    # 1 = draw train cards, 2 = claim a route, 3 = draw destination tickets
+    def choose_turn_action(self):
+        """Tickets all scored -> draw more; else claim if a planned route is
+        affordable; else draw train cards."""
+        if not self._unscored_tickets():
+            if len(self.player.context.ticket_deck) >= 3:
+                return 3
+            # Deck can't serve an offer: score points instead of stalling.
+            return 2 if self.player.get_affordable_routes() else 1
+        self._replan()
+        if self._claimable_planned(self.player.get_affordable_routes()):
+            return 2
+        return 1
+
+    def choose_route_to_claim(self, claimable_routes: 'List[tuple[Route, int]]') -> 'tuple[Route, int]':
+        """Most expensive affordable planned route; forced claims dump the
+        least-needed cards on the shortest gray route available."""
+        self._replan()
+        planned = self._claimable_planned(claimable_routes)
+        if planned:
+            return max(planned, key=lambda pick: self._route_points(pick[0]))
+
+        # Forced claim (train deck dry, or nothing planned is affordable):
+        # spend what the plan values least. Gray routes let us choose the
+        # dump color; otherwise prefer colors we need least, shortest first.
+        needs = self._card_needs()
+        options = [pick for pick in claimable_routes if pick[1] == 0] or list(claimable_routes)
+        gray = [pick for pick in options if pick[0].color == "X"]
+        if gray:
+            return min(gray, key=lambda pick: pick[0].length)
+        return min(options, key=lambda pick: (needs.get(pick[0].color, 0), pick[0].length))
+
+    def choose_color_to_spend(self, route: Route, color_options: List[str]) -> 'str | None':
+        """On gray routes, spend the color the plan needs least (largest
+        surplus stack first, so reserved colors stay untouched)."""
+        needs = self._card_needs()
+        hand = self.player.get_hand()
+        return min(color_options, key=lambda c: (needs.get(c, 0), -hand.get(c, 0)))
+
+    def choose_draw_train_action(self) -> int:
+        if self._queued_draw is not None:
+            pick = self._queued_draw
+            self._queued_draw = None
+            return pick
+        first, second = self._plan_draws()
+        self._queued_draw = second
+        return first
+
+    def _plan_draws(self) -> 'tuple[int, int]':
+        """Pick both face-up indices (or -1 for the deck) for this turn.
+
+        If the market shows two copies of a color the plan needs two of,
+        grab both. Otherwise work down the deficit priority list, and hit
+        the deck when the market has nothing useful. Face-up locomotives
+        are never taken: they'd forfeit the second draw.
+        """
+        self._replan()
+        needs = self._card_needs()
+        market = list(self.player.context.face_up_cards)
+
+        indices_by_color: 'dict[str, list[int]]' = {}
+        for index, letter in enumerate(market):
+            if letter != "L":
+                indices_by_color.setdefault(letter, []).append(index)
+
+        priorities = sorted(
+            (color for color in self._CARD_COLORS if needs.get(color, 0) > 0),
+            key=lambda color: -needs[color],
+        )
+
+        for color in priorities:
+            if needs[color] >= 2 and len(indices_by_color.get(color, [])) >= 2:
+                return indices_by_color[color][0], indices_by_color[color][1]
+
+        picks: 'list[int]' = []
+        taken: 'set[int]' = set()
+        for color in priorities:
+            remaining = needs[color]
+            for index in indices_by_color.get(color, []):
+                if index in taken or remaining <= 0:
+                    continue
+                picks.append(index)
+                taken.add(index)
+                remaining -= 1
+                if len(picks) == 2:
+                    return picks[0], picks[1]
+        while len(picks) < 2:
+            picks.append(-1)
+        return picks[0], picks[1]
+
+    def select_ticket_offer(self, offer: List[DestinationTicket]) -> List[DestinationTicket]:
+        """Initial offer: keep the pair with the best Steiner cost/points
+        ratio, plus a third ticket if it adds < 4 extra cost. Later offers:
+        keep everything already completed plus the single best-ratio viable
+        ticket. Never keep nothing (the engine fails the draw): fall back to
+        the lowest-value ticket to minimize the penalty."""
+        culled = self._culled()
+
+        keep = [t for t in offer if culled.connected(t.city1, t.city2)]  # free points
+        candidates = [t for t in offer if t not in keep]
+        viable = []
+        for ticket in candidates:
+            trains = culled.cheapest_connection(ticket.city1, ticket.city2)
+            if trains is not None and trains <= self.player.trains_remaining:
+                viable.append(ticket)
+
+        if not self.player.get_tickets():
+            keep.extend(self._pick_initial_tickets(culled, viable))
+        elif viable:
+            self._replan()
+            free = set(self._planned_route_ids)
+            best = None
+            for ticket in viable:
+                attachment = self._steiner_tree(culled, [ticket.city1, ticket.city2], free_route_ids=free)
+                if attachment is None:
+                    continue
+                ratio = attachment[0] / ticket.value
+                if best is None or ratio < best[0] or (ratio == best[0] and ticket.value > best[1].value):
+                    best = (ratio, ticket)
+            if best is not None:
+                keep.append(best[1])
+
+        if not keep:
+            keep = [min(offer, key=lambda ticket: ticket.value)]
+        return keep
+
+    def _pick_initial_tickets(self, culled, viable):
+        """Best cost/points pair by exact Steiner tree, plus a cheap third."""
+        best = None
+        for first, second in combinations(viable, 2):
+            cities = [first.city1, first.city2, second.city1, second.city2]
+            tree = self._steiner_tree(culled, cities)
+            if tree is None:
+                continue
+            points = first.value + second.value
+            ratio = tree[0] / points
+            if best is None or ratio < best[0] or (ratio == best[0] and points > best[1]):
+                best = (ratio, points, [first, second], tree[1])
+        if best is None:
+            return list(viable)  # 0 or 1 viable tickets: keep what there is
+
+        chosen = list(best[2])
+        free = {route.route_id for route in best[3]}
+        for ticket in viable:
+            if ticket in chosen:
+                continue
+            extra = self._steiner_tree(culled, [ticket.city1, ticket.city2], free_route_ids=free)
+            if extra is not None and extra[0] < self._EXTRA_TICKET_MAX_COST:
+                chosen.append(ticket)
+                free.update(route.route_id for route in extra[1])
+        return chosen
 
 
 @app.cell
