@@ -254,6 +254,18 @@ function render({ model, el }) {
             .width(width)
             .height(height)
             .graphData(data)
+            // Pointer hit-testing happens on a hidden shadow canvas that
+            // knows nothing about our custom node painter: without this, it
+            // falls back to the default radius (sqrt(val||1) * nodeRelSize =
+            // 4 graph units) while the visible circles are node_radius()
+            // (15 by default) - making nodes only grabbable in their exact
+            // center. Paint the hit area at the same radius we draw.
+            .nodePointerAreaPaint((node, color, ctx) => {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node_radius(node), 0, 2 * Math.PI, false);
+                ctx.fill();
+            })
             .cooldownTime(5000)
             .warmupTicks(10)
             .nodeLabel("label")
