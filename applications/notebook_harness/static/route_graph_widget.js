@@ -12039,6 +12039,7 @@ var default_node_scale = 3;
 var train_space_width = 6;
 var train_space_fill = 0.72;
 var claim_inset_fraction = 0.25;
+var claim_band_alpha = 0.45;
 var MyRBush = class extends RBush {
   toBBox(node) {
     return { id: node.id, minX: node.x, minY: node.y, maxX: node.x, maxY: node.y };
@@ -12146,6 +12147,21 @@ function render3({ model, el }) {
     const tMax = 1 - Math.min(node_radius(end) / chord, 0.35);
     const routeLength = link.data && Number.isFinite(link.data.length) ? link.data.length : 1;
     const spaces = Math.max(1, Math.round(routeLength));
+    if (link.claimedColor) {
+      ctx.save();
+      ctx.globalAlpha = claim_band_alpha;
+      ctx.strokeStyle = link.claimedColor;
+      ctx.lineWidth = train_space_width;
+      ctx.beginPath();
+      ctx.moveTo(start2.x, start2.y);
+      if (cp) {
+        ctx.quadraticCurveTo(cp.x, cp.y, end.x, end.y);
+      } else {
+        ctx.lineTo(end.x, end.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
     const baseColor = link.color || "#999999";
     for (let i2 = 0; i2 < spaces; i2++) {
       const t0 = tMin + (tMax - tMin) * i2 / spaces;
@@ -12182,7 +12198,7 @@ function render3({ model, el }) {
     }
   };
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
       plot.zoomToFit(400);
       create_rtree(data2["nodes"]);
     });

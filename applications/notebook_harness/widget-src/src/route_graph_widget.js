@@ -42,6 +42,9 @@ let train_space_fill = 0.72;
 // Claim-marker inset on every side, as a fraction of the space width, so the
 // route's base color pokes out around the owner's color.
 let claim_inset_fraction = 0.25;
+// Opacity of the full-width band stroked under a claimed route's train
+// spaces, in the owner's color, replacing the thin roadbed line.
+let claim_band_alpha = 0.45;
 
 class MyRBush extends RBush {
     toBBox(node) { return { id: node.id, minX: node.x, minY: node.y, maxX: node.x, maxY: node.y }; }
@@ -180,6 +183,28 @@ function render({ model, el }) {
         const routeLength = link.data && Number.isFinite(link.data.length) ? link.data.length : 1;
         const spaces = Math.max(1, Math.round(routeLength));
 
+        // Claimed routes get a translucent full-width band in the owner's
+        // color under the train spaces (the thin roadbed line is hidden for
+        // claimed links via the linkColor accessor), stroked along the same
+        // straight/bezier path the default line would follow. The width is
+        // in graph units so it stays flush with the rectangles at any zoom -
+        // the default line couldn't do this, since linkWidth is screen-px.
+        if (link.claimedColor) {
+            ctx.save();
+            ctx.globalAlpha = claim_band_alpha;
+            ctx.strokeStyle = link.claimedColor;
+            ctx.lineWidth = train_space_width;
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            if (cp) {
+                ctx.quadraticCurveTo(cp.x, cp.y, end.x, end.y);
+            } else {
+                ctx.lineTo(end.x, end.y);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
         const baseColor = link.color || "#999999";
         for (let i = 0; i < spaces; i++) {
             const t0 = tMin + ((tMax - tMin) * i) / spaces;
@@ -232,7 +257,11 @@ function render({ model, el }) {
             .cooldownTime(5000)
             .warmupTicks(10)
             .nodeLabel("label")
-            .linkColor((link) => link.color || "#999999")
+            // Claimed links hide the default line entirely; paint_train_spaces
+            // strokes a full-width claim band in its place. (Safe for hover:
+            // the pointer-picking shadow canvas colors links by __indexColor,
+            // not this accessor.)
+            .linkColor((link) => (link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999"))
             // Thin roadbed only - the visible route body is the train spaces
             // painted on top in "after" mode.
             .linkWidth(() => 1)
