@@ -322,6 +322,15 @@ class Player:
 
     def check_ticket_completion(self):
         """Update ticket completion status based on owned routes."""
+        # TODO: also detect tickets that can no longer be completed and score
+        # them immediately (as failed) instead of waiting for game end:
+        #  - the two cities are cut off from each other in this player's
+        #    culled map (every remaining connecting path needs a route already
+        #    claimed by another player), or
+        #  - the cheapest completing path in the culled map costs more trains
+        #    than the player has remaining.
+        # Depends on the per-player culled/contracted map planned for
+        # MapGraph (merged claimed components + only-claimable-by-me routes).
         path_info = self.context.map.paths[self.player_id]
         for t in [t for t in self.__tickets if not t.is_completed]:
             city_1_group = next((group for group in path_info if t.city1 in group), None)
