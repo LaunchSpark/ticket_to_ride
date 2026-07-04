@@ -49,9 +49,7 @@ def claimed_by_from_snapshot(turn_state: Dict[str, Any]) -> Dict[str, str]:
     return claimed_by
 
 
-def _edge_color(route: Route, owner: 'str | None', player_colors: Dict[str, str]) -> str:
-    if owner is not None:
-        return player_colors.get(owner, _ROUTE_COLOR_HEX.get(route.color, "#999999"))
+def _edge_color(route: Route) -> str:
     return _ROUTE_COLOR_HEX.get(route.color, "#999999")
 
 
@@ -83,12 +81,16 @@ def build_edges(
     claimed_by: Dict[str, str],
     player_colors: Dict[str, str],
 ) -> List[Dict[str, Any]]:
-    """Build GraphWidget edge dicts, one per route, colored by claim state.
+    """Build GraphWidget edge dicts, one per route.
 
-    The authoritative length/base-color/owner live in each edge's `data` dict,
-    separate from the rendering `width`/`color` fields. Parallel routes
-    between the same two cities get a `curvature` offset so they bow apart
-    instead of overlapping.
+    `color` is always the route's own base color; claiming a route never
+    repaints it. Instead the owner's color rides along in `claimedColor`
+    (None while unclaimed), which the widget draws as an inset marker inside
+    each train space so the base color stays visible around it - keeping a
+    black player's trains distinguishable from a black route. The
+    authoritative length/base-color/owner live in each edge's `data` dict,
+    separate from the rendering fields. Parallel routes between the same two
+    cities get a `curvature` offset so they bow apart instead of overlapping.
     """
     curvature_by_route_id = _curvature_by_route_id(map_graph)
 
@@ -101,7 +103,8 @@ def build_edges(
                 "source": route.city1,
                 "target": route.city2,
                 "width": route.length,
-                "color": _edge_color(route, owner, player_colors),
+                "color": _edge_color(route),
+                "claimedColor": player_colors.get(owner) if owner is not None else None,
                 "curvature": curvature_by_route_id[route.route_id],
                 "data": {
                     "length": route.length,

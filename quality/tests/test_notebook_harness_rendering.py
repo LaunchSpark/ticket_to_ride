@@ -51,7 +51,7 @@ class RenderingTests(unittest.TestCase):
             {"Seattle-Portland-1": "bot_0", "Boston-Montreal-1": "bot_1"},
         )
 
-    def test_build_edges_colors_claimed_routes_with_the_owning_players_color_and_others_by_route_color(self) -> None:
+    def test_build_edges_keeps_route_color_and_carries_the_claim_in_claimed_color(self) -> None:
         game_map = MapGraph(player_count=2)
         claimed_route = next(route for route in game_map.routes if route.route_id == "Seattle-Portland-1")
         unclaimed_route = next(route for route in game_map.routes if route.route_id == "Seattle-Portland-2")
@@ -69,10 +69,14 @@ class RenderingTests(unittest.TestCase):
         self.assertEqual(claimed_edge["source"], claimed_route.city1)
         self.assertEqual(claimed_edge["target"], claimed_route.city2)
         self.assertEqual(claimed_edge["width"], claimed_route.length)
-        self.assertEqual(claimed_edge["color"], "red")
+        # A claim never repaints the route's own color; it only adds the
+        # owner's color as an inset marker so the base color stays visible.
+        self.assertNotEqual(claimed_edge["color"], "red")
+        self.assertEqual(claimed_edge["color"], unclaimed_edge["color"])
+        self.assertEqual(claimed_edge["claimedColor"], "red")
         self.assertEqual(claimed_edge["data"]["claimedBy"], "bot_0")
 
-        self.assertNotEqual(unclaimed_edge["color"], "red")
+        self.assertIsNone(unclaimed_edge["claimedColor"])
         self.assertIsNone(unclaimed_edge["data"]["claimedBy"])
         self.assertEqual(unclaimed_edge["width"], unclaimed_route.length)
 

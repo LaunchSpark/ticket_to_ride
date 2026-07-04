@@ -12036,6 +12036,9 @@ var default_repulsion = 80;
 var default_link_distance_base = 30;
 var default_link_distance_scale = 15;
 var default_node_scale = 3;
+var train_space_width = 6;
+var train_space_fill = 0.72;
+var claim_inset_fraction = 0.25;
 var MyRBush = class extends RBush {
   toBBox(node) {
     return { id: node.id, minX: node.x, minY: node.y, maxX: node.x, maxY: node.y };
@@ -12103,6 +12106,17 @@ var create_node_canvas_object = (plot2, node_scale, node_size_feature2) => {
     ctx.globalAlpha = 1;
   });
 };
+var bezier_point = (t3, p0, cp, p1) => {
+  const u2 = 1 - t3;
+  return {
+    x: u2 * u2 * p0.x + 2 * u2 * t3 * cp.x + t3 * t3 * p1.x,
+    y: u2 * u2 * p0.y + 2 * u2 * t3 * cp.y + t3 * t3 * p1.y
+  };
+};
+var bezier_tangent = (t3, p0, cp, p1) => ({
+  x: 2 * (1 - t3) * (cp.x - p0.x) + 2 * t3 * (p1.x - cp.x),
+  y: 2 * (1 - t3) * (cp.y - p0.y) + 2 * t3 * (p1.y - cp.y)
+});
 function link_distance_for(model, link) {
   const base = model.get("link_distance_base") ?? default_link_distance_base;
   const scale = model.get("link_distance_scale") ?? default_link_distance_scale;
@@ -12111,8 +12125,64 @@ function link_distance_for(model, link) {
 }
 function render3({ model, el }) {
   const debouncedSaveChanges = debounce2(() => model.save_changes(), 300);
+  const node_radius = (node) => {
+    if (node_size_feature == void 0 || node_size_feature == "") {
+      return default_node_size * node_scale;
+    }
+    return node[node_size_feature] * node_scale;
+  };
+  const paint_train_spaces = (link, ctx) => {
+    const start2 = link.source;
+    const end = link.target;
+    if (!start2 || !end || typeof start2.x !== "number" || typeof end.x !== "number") return;
+    const controlPoints = link.__controlPoints;
+    if (controlPoints && controlPoints.length !== 2) return;
+    const cp = controlPoints ? { x: controlPoints[0], y: controlPoints[1] } : null;
+    const chord = Math.hypot(end.x - start2.x, end.y - start2.y);
+    if (chord === 0) return;
+    const point = cp ? (t3) => bezier_point(t3, start2, cp, end) : (t3) => ({ x: start2.x + (end.x - start2.x) * t3, y: start2.y + (end.y - start2.y) * t3 });
+    const tangent = cp ? (t3) => bezier_tangent(t3, start2, cp, end) : () => ({ x: end.x - start2.x, y: end.y - start2.y });
+    const tMin = Math.min(node_radius(start2) / chord, 0.35);
+    const tMax = 1 - Math.min(node_radius(end) / chord, 0.35);
+    const routeLength = link.data && Number.isFinite(link.data.length) ? link.data.length : 1;
+    const spaces = Math.max(1, Math.round(routeLength));
+    const baseColor = link.color || "#999999";
+    for (let i2 = 0; i2 < spaces; i2++) {
+      const t0 = tMin + (tMax - tMin) * i2 / spaces;
+      const t1 = tMin + (tMax - tMin) * (i2 + 1) / spaces;
+      const tCenter = (t0 + t1) / 2;
+      const slotStart = point(t0);
+      const slotEnd = point(t1);
+      const center = point(tCenter);
+      const direction = tangent(tCenter);
+      const slotLength = Math.hypot(slotEnd.x - slotStart.x, slotEnd.y - slotStart.y);
+      const carLength = slotLength * train_space_fill;
+      if (carLength <= 0) continue;
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.rotate(Math.atan2(direction.y, direction.x));
+      ctx.fillStyle = baseColor;
+      ctx.fillRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
+      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.strokeRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
+      if (link.claimedColor) {
+        const inset = train_space_width * claim_inset_fraction;
+        const innerLength = carLength - 2 * inset;
+        const innerWidth = train_space_width - 2 * inset;
+        if (innerLength > 0 && innerWidth > 0) {
+          ctx.fillStyle = link.claimedColor;
+          ctx.fillRect(-innerLength / 2, -innerWidth / 2, innerLength, innerWidth);
+          ctx.lineWidth = 0.5;
+          ctx.strokeStyle = "rgba(255,255,255,0.75)";
+          ctx.strokeRect(-innerLength / 2, -innerWidth / 2, innerLength, innerWidth);
+        }
+      }
+      ctx.restore();
+    }
+  };
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.color || "#999999").linkWidth((link) => link.width || 1).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
       plot.zoomToFit(400);
       create_rtree(data2["nodes"]);
     });
@@ -12151,6 +12221,7 @@ function render3({ model, el }) {
         link.name = updated.name;
         link.width = updated.width;
         link.color = updated.color;
+        link.claimedColor = updated.claimedColor;
         link.curvature = updated.curvature;
         link.data = updated.data;
       });

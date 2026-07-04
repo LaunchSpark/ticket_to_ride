@@ -11,6 +11,14 @@
 //   - link color/width are read directly from each edge's own color/width
 //     fields, so callers don't need a colour_feature/node_size_feature dance
 //     for edges
+//   - links are painted as Ticket to Ride routes: each edge's data.length
+//     determines how many rectangular "train spaces" are drawn along it
+//     (rotated to the edge direction, following the same bezier as curved
+//     parallel edges), on top of a thin default line kept as a roadbed. A
+//     claimed route keeps its base color and gets an inset rectangle in the
+//     owner's color inside each space, so the route color stays visible
+//     around the claim marker (and a black player's claim reads differently
+//     from a black route)
 import ForceGraph from "force-graph";
 import { select } from "d3-selection";
 import { extent, min, max } from "d3-array";
@@ -26,6 +34,14 @@ let default_repulsion = 80;
 let default_link_distance_base = 30;
 let default_link_distance_scale = 15;
 let default_node_scale = 3;
+
+// Train-space (route rectangle) geometry, in graph units.
+let train_space_width = 6;
+// Fraction of each slot the rectangle fills; the rest is the gap between spaces.
+let train_space_fill = 0.72;
+// Claim-marker inset on every side, as a fraction of the space width, so the
+// route's base color pokes out around the owner's color.
+let claim_inset_fraction = 0.25;
 
 class MyRBush extends RBush {
     toBBox(node) { return { id: node.id, minX: node.x, minY: node.y, maxX: node.x, maxY: node.y }; }
@@ -99,6 +115,21 @@ const create_node_canvas_object = (plot, node_scale, node_size_feature) => {
     });
 };
 
+// Quadratic bezier helpers matching force-graph's own curved-link geometry
+// (it stores the single control point in link.__controlPoints).
+const bezier_point = (t, p0, cp, p1) => {
+    const u = 1 - t;
+    return {
+        x: u * u * p0.x + 2 * u * t * cp.x + t * t * p1.x,
+        y: u * u * p0.y + 2 * u * t * cp.y + t * t * p1.y,
+    };
+};
+
+const bezier_tangent = (t, p0, cp, p1) => ({
+    x: 2 * (1 - t) * (cp.x - p0.x) + 2 * t * (p1.x - cp.x),
+    y: 2 * (1 - t) * (cp.y - p0.y) + 2 * t * (p1.y - cp.y),
+});
+
 function link_distance_for(model, link) {
     const base = model.get("link_distance_base") ?? default_link_distance_base;
     const scale = model.get("link_distance_scale") ?? default_link_distance_scale;
@@ -109,6 +140,90 @@ function link_distance_for(model, link) {
 function render({ model, el }) {
     const debouncedSaveChanges = debounce(() => model.save_changes(), 300);
 
+    const node_radius = (node) => {
+        if (node_size_feature == undefined || node_size_feature == "") {
+            return default_node_size * node_scale;
+        }
+        return node[node_size_feature] * node_scale;
+    };
+
+    // Paints one link as its route's train spaces: data.length rectangles
+    // evenly spaced between the two city circles, each rotated to the local
+    // edge direction. Runs in "after" mode, so force-graph's default thin
+    // line stays underneath as a roadbed. Reuses link.__controlPoints (the
+    // bezier control point force-graph computes for every visible link right
+    // before custom paints) so spaces follow the exact same bow as curved
+    // parallel edges.
+    const paint_train_spaces = (link, ctx) => {
+        const start = link.source;
+        const end = link.target;
+        if (!start || !end || typeof start.x !== "number" || typeof end.x !== "number") return;
+
+        const controlPoints = link.__controlPoints;
+        if (controlPoints && controlPoints.length !== 2) return; // self-loop, nowhere sensible to put spaces
+        const cp = controlPoints ? { x: controlPoints[0], y: controlPoints[1] } : null;
+
+        const chord = Math.hypot(end.x - start.x, end.y - start.y);
+        if (chord === 0) return;
+
+        const point = cp
+            ? (t) => bezier_point(t, start, cp, end)
+            : (t) => ({ x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t });
+        const tangent = cp
+            ? (t) => bezier_tangent(t, start, cp, end)
+            : () => ({ x: end.x - start.x, y: end.y - start.y });
+
+        // Keep the spaces between the city circles, not underneath them.
+        const tMin = Math.min(node_radius(start) / chord, 0.35);
+        const tMax = 1 - Math.min(node_radius(end) / chord, 0.35);
+
+        const routeLength = link.data && Number.isFinite(link.data.length) ? link.data.length : 1;
+        const spaces = Math.max(1, Math.round(routeLength));
+
+        const baseColor = link.color || "#999999";
+        for (let i = 0; i < spaces; i++) {
+            const t0 = tMin + ((tMax - tMin) * i) / spaces;
+            const t1 = tMin + ((tMax - tMin) * (i + 1)) / spaces;
+            const tCenter = (t0 + t1) / 2;
+
+            const slotStart = point(t0);
+            const slotEnd = point(t1);
+            const center = point(tCenter);
+            const direction = tangent(tCenter);
+
+            const slotLength = Math.hypot(slotEnd.x - slotStart.x, slotEnd.y - slotStart.y);
+            const carLength = slotLength * train_space_fill;
+            if (carLength <= 0) continue;
+
+            ctx.save();
+            ctx.translate(center.x, center.y);
+            ctx.rotate(Math.atan2(direction.y, direction.x));
+
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
+            ctx.lineWidth = 0.6;
+            ctx.strokeStyle = "rgba(0,0,0,0.4)";
+            ctx.strokeRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
+
+            if (link.claimedColor) {
+                const inset = train_space_width * claim_inset_fraction;
+                const innerLength = carLength - 2 * inset;
+                const innerWidth = train_space_width - 2 * inset;
+                if (innerLength > 0 && innerWidth > 0) {
+                    ctx.fillStyle = link.claimedColor;
+                    ctx.fillRect(-innerLength / 2, -innerWidth / 2, innerLength, innerWidth);
+                    // Light outline so the claim still reads when the owner's
+                    // color matches the route color (black on black).
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeStyle = "rgba(255,255,255,0.75)";
+                    ctx.strokeRect(-innerLength / 2, -innerWidth / 2, innerLength, innerWidth);
+                }
+            }
+
+            ctx.restore();
+        }
+    };
+
     const create_plot = (data) => {
         return ForceGraph()(el)
             .width(width)
@@ -118,7 +233,11 @@ function render({ model, el }) {
             .warmupTicks(10)
             .nodeLabel("label")
             .linkColor((link) => link.color || "#999999")
-            .linkWidth((link) => link.width || 1)
+            // Thin roadbed only - the visible route body is the train spaces
+            // painted on top in "after" mode.
+            .linkWidth(() => 1)
+            .linkCanvasObjectMode(() => "after")
+            .linkCanvasObject(paint_train_spaces)
             .linkCurvature((link) => link.curvature || 0)
             .d3AlphaDecay(0.001)
             .minZoom(0.001)
@@ -196,6 +315,7 @@ function render({ model, el }) {
                 link.name = updated.name;
                 link.width = updated.width;
                 link.color = updated.color;
+                link.claimedColor = updated.claimedColor;
                 link.curvature = updated.curvature;
                 link.data = updated.data;
             });
