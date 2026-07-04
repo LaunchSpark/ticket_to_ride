@@ -17,7 +17,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 3px 0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.player-list-row:hover {
+    background: #eee;
+}
+
+.player-list-row.selected {
+    background: #dbe9ff;
+    box-shadow: inset 0 0 0 1px #7aa7e0;
 }
 
 .player-list-swatch {

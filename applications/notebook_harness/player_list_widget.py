@@ -11,11 +11,19 @@ class PlayerListWidget(anywidget.AnyWidget):
     color swatch (matching that player's claim markers on the map) and name.
 
     ``players`` takes the list of ``{id, name, color}`` dicts produced by
-    ``HarnessGame.roster()``. See ``applications/notebook_harness/widget-src/``
-    for the JS source this is bundled from.
+    ``HarnessGame.roster()``.
+
+    Rows behave like a self-clearing radio group: clicking a player selects
+    them (``selected_player`` = their id), clicking a different player moves
+    the selection, and clicking the selected player again clears it back to
+    ``""`` (the default: nobody selected).
+
+    See ``applications/notebook_harness/widget-src/`` for the JS source this
+    is bundled from.
     """
 
     _esm = files("notebook_harness").joinpath("static/player_list_widget.js")
     _css = files("notebook_harness").joinpath("static/player_list_widget.css")
 
     players = traitlets.List([]).tag(sync=True)
+    selected_player = traitlets.Unicode("").tag(sync=True)

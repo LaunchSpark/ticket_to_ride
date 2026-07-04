@@ -114,7 +114,11 @@ def _(build_graph_data, graph, harness_game, info_bar, mo, player_list, step_sli
     # Pushes each step's board state into the existing widget instance
     # instead of constructing a new one, so node positions persist across
     # steps and only the diff (newly claimed routes) animates.
-    nodes, edges = harness_game.board_at(int(step_slider.value["value"]))
+    # Selecting a player in the list switches to their culled view: their
+    # network merged into single nodes, showing only routes they could still
+    # claim (that topology change intentionally restarts the simulation).
+    viewpoint = player_list.value["selected_player"] or None
+    nodes, edges = harness_game.board_at(int(step_slider.value["value"]), viewpoint)
     graph.data = build_graph_data(nodes, edges)
     mo.vstack([step_slider, mo.hstack([graph, player_list], align="start", justify="start"), info_bar])
     return
