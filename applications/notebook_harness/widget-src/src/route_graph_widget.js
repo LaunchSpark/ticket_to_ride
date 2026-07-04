@@ -123,11 +123,22 @@ function render({ model, el }) {
             .d3AlphaDecay(0.001)
             .minZoom(0.001)
             .nodeCanvasObjectMode(() => "replace")
+            // graphData()'s setter always resets alpha to 1 and restarts the
+            // cooldown countdown ("re-heat the simulation"), even when it
+            // preserves existing node positions - so autoPauseRedraw's
+            // default (only repaint while the engine is actively ticking)
+            // would otherwise mean our in-place cosmetic mutations below
+            // (update_data) never actually get painted once the simulation
+            // has settled and gone idle between board-state updates.
+            .autoPauseRedraw(false)
             .onEngineStop(() => {
                 plot.zoomToFit(400);
                 create_rtree(data["nodes"]);
             });
     };
+
+    const idSet = (items) => new Set(items.map((item) => item.id));
+    const idSetsEqual = (a, b) => a.size === b.size && [...a].every((id) => b.has(id));
 
     let data = model.get("data");
     let node_scale = model.get("node_scale") || default_node_scale;
@@ -142,17 +153,59 @@ function render({ model, el }) {
 
     plot = create_plot(data);
 
-    // force-graph's graphData() setter is designed to be called again for
-    // incremental updates: nodes whose id matches an existing node keep
-    // their current position/velocity, only genuinely new nodes get a fresh
-    // starting position. Re-using the same `plot` instance (instead of
-    // constructing a new widget/ForceGraph per update, which is what the
-    // calling notebook used to do) is what makes this actually apply -
-    // otherwise every update restarts the simulation from scratch, which is
-    // what "flies all over the place" on every board-state update was.
+    // Calling plot.graphData() again - even just to recolor a claimed route -
+    // unconditionally resets the simulation's alpha to 1 and restarts its
+    // cooldown countdown (see force-graph's own graphData setter: `.stop()
+    // .alpha(1) // re-heat the simulation`). With updates arriving every
+    // ~300ms from a PlaySlider and a 5s cooldownTime, that means the engine
+    // never gets to settle - it looks like the simulation restarting on
+    // every step, because it genuinely is.
+    //
+    // For our case the board's topology never actually changes mid-game -
+    // only which routes are colored as claimed - so instead of calling
+    // graphData() again, mutate the *same* live node/link objects in place
+    // (matched by id) and let the existing, already-settled simulation keep
+    // running undisturbed. autoPauseRedraw(false) above ensures the canvas
+    // still repaints on the next frame to pick up the new colors even once
+    // the engine has gone idle. Only fall back to a full graphData() reload
+    // if the set of node/link ids actually changed (a genuine topology
+    // change, which none of our current notebooks trigger mid-game).
     const update_data = () => {
-        data = model.get("data");
-        plot.graphData(data);
+        const newData = model.get("data");
+        const currentData = plot.graphData();
+
+        const sameTopology =
+            idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) &&
+            idSetsEqual(idSet(currentData.links), idSet(newData.links));
+
+        if (sameTopology) {
+            const newNodesById = new Map(newData.nodes.map((node) => [node.id, node]));
+            currentData.nodes.forEach((node) => {
+                const updated = newNodesById.get(node.id);
+                if (!updated) return;
+                node.name = updated.name;
+                node.size = updated.size;
+                node.color = updated.color;
+                node.data = updated.data;
+            });
+
+            const newLinksById = new Map(newData.links.map((link) => [link.id, link]));
+            currentData.links.forEach((link) => {
+                const updated = newLinksById.get(link.id);
+                if (!updated) return;
+                link.name = updated.name;
+                link.width = updated.width;
+                link.color = updated.color;
+                link.curvature = updated.curvature;
+                link.data = updated.data;
+            });
+
+            data = currentData;
+        } else {
+            data = newData;
+            plot.graphData(data);
+        }
+
         build_colour_scale();
         create_node_canvas_object(plot, node_scale, node_size_feature);
     };

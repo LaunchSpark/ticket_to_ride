@@ -12112,11 +12112,13 @@ function link_distance_for(model, link) {
 function render3({ model, el }) {
   const debouncedSaveChanges = debounce2(() => model.save_changes(), 300);
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.color || "#999999").linkWidth((link) => link.width || 1).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").onEngineStop(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.color || "#999999").linkWidth((link) => link.width || 1).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
       plot.zoomToFit(400);
       create_rtree(data2["nodes"]);
     });
   };
+  const idSet = (items) => new Set(items.map((item) => item.id));
+  const idSetsEqual = (a3, b2) => a3.size === b2.size && [...a3].every((id2) => b2.has(id2));
   let data = model.get("data");
   let node_scale = model.get("node_scale") || default_node_scale;
   let width = model.get("width") || default_width;
@@ -12129,8 +12131,34 @@ function render3({ model, el }) {
   let global_selected_ids = model.get("selected_ids");
   plot = create_plot(data);
   const update_data = () => {
-    data = model.get("data");
-    plot.graphData(data);
+    const newData = model.get("data");
+    const currentData = plot.graphData();
+    const sameTopology = idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) && idSetsEqual(idSet(currentData.links), idSet(newData.links));
+    if (sameTopology) {
+      const newNodesById = new Map(newData.nodes.map((node) => [node.id, node]));
+      currentData.nodes.forEach((node) => {
+        const updated = newNodesById.get(node.id);
+        if (!updated) return;
+        node.name = updated.name;
+        node.size = updated.size;
+        node.color = updated.color;
+        node.data = updated.data;
+      });
+      const newLinksById = new Map(newData.links.map((link) => [link.id, link]));
+      currentData.links.forEach((link) => {
+        const updated = newLinksById.get(link.id);
+        if (!updated) return;
+        link.name = updated.name;
+        link.width = updated.width;
+        link.color = updated.color;
+        link.curvature = updated.curvature;
+        link.data = updated.data;
+      });
+      data = currentData;
+    } else {
+      data = newData;
+      plot.graphData(data);
+    }
     build_colour_scale();
     create_node_canvas_object(plot, node_scale, node_size_feature);
   };
