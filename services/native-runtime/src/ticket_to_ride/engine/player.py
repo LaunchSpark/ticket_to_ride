@@ -68,6 +68,10 @@ class Player:
 
             else:
                 print(f"Invalid action choice '{turn_choice}' by player {self.player_id}.")
+            # Re-evaluate tickets every turn, not only after own claims:
+            # opponents' claims since last turn may have cut a ticket off, and
+            # a shrinking train supply can make one impossible.
+            self.check_ticket_completion()
             completed = True
         finally:
             end_turn = getattr(self.__interface, "end_turn", None)
@@ -320,22 +324,39 @@ class Player:
         my_longest_path = self.context.map.longest_paths[self.player_id]
         has_longest_path = (self.context.map.longest_path_holder == self.player_id)
 
+    def get_culled_map(self):
+        """This player's contracted view of the board (see MapGraph.culled_map_for).
+
+        Own claims merge cities into single nodes and only routes this player
+        could still claim survive - so shortest paths over it answer "what
+        would it cost to connect X and Y from here?".
+        """
+        return self.context.map.culled_map_for(self.player_id)
+
+    def is_connected(self, city1: str, city2: str) -> bool:
+        """True if this player's claimed routes already join the two cities."""
+        return self.get_culled_map().connected(city1, city2)
+
+    def connection_cost(self, city1: str, city2: str) -> 'int | None':
+        """Fewest trains needed to connect two cities from this player's
+        position (0 = already connected, None = impossible)."""
+        return self.get_culled_map().cheapest_connection(city1, city2)
+
     def check_ticket_completion(self):
-        """Update ticket completion status based on owned routes."""
-        # TODO: also detect tickets that can no longer be completed and score
-        # them immediately (as failed) instead of waiting for game end:
-        #  - the two cities are cut off from each other in this player's
-        #    culled map (every remaining connecting path needs a route already
-        #    claimed by another player), or
-        #  - the cheapest completing path in the culled map costs more trains
-        #    than the player has remaining.
-        # Depends on the per-player culled/contracted map planned for
-        # MapGraph (merged claimed components + only-claimable-by-me routes).
-        path_info = self.context.map.paths[self.player_id]
-        for t in [t for t in self.__tickets if not t.is_completed]:
-            city_1_group = next((group for group in path_info if t.city1 in group), None)
-            if city_1_group != None and t.city2 in city_1_group:
-                t.is_completed = True
+        """Mark tickets completed or impossible from this player's culled map.
+
+        Uses the exact same queries exposed to bots (connection_cost), so a
+        bot can predict precisely how the engine will judge its tickets.
+        """
+        culled = self.get_culled_map()
+        for ticket in self.__tickets:
+            if ticket.is_completed or ticket.is_impossible:
+                continue
+            cost = culled.cheapest_connection(ticket.city1, ticket.city2)
+            if cost == 0:
+                ticket.is_completed = True
+            elif cost is None or cost > self.trains_remaining:
+                ticket.is_impossible = True
 
     def __repr__(self) -> str:
         return (f"{self.__class__.__name__}(id={self.player_id}, trains={self.trains_remaining}, "

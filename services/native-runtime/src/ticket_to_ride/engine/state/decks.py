@@ -117,6 +117,10 @@ class DestinationTicket:
         self.city2 = city2
         self.value = value
         self.is_completed = False
+        # Set once the ticket can no longer be completed (cities cut off from
+        # each other, or cheapest completion costs more trains than remain);
+        # its value counts against the score immediately.
+        self.is_impossible = False
 
     def __repr__(self):
         return f"{self.city1} → {self.city2} ({self.value} pts)"

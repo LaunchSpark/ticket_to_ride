@@ -98,12 +98,22 @@ class Game:
             if tickets is None:
                 raise ValueError(f"Player {p.player_id} has no tickets (NoneType)")
 
-            completed_ticket_values = [t.value for t in p.get_tickets() if t.is_completed]
-            incomplete_ticket_values = [t.value for t in p.get_tickets() if not t.is_completed]
+            completed_ticket_values = [t.value for t in tickets if t.is_completed]
+            # Impossible tickets count against the score as soon as they are
+            # detected; still-pending ones only at final scoring.
+            impossible_ticket_values = [t.value for t in tickets if t.is_impossible]
+            pending_ticket_values = [
+                t.value for t in tickets if not t.is_completed and not t.is_impossible
+            ]
 
-            score = sum(route_values) + (10 * p.has_longest_path) + sum(completed_ticket_values)
+            score = (
+                sum(route_values)
+                + (10 * p.has_longest_path)
+                + sum(completed_ticket_values)
+                - sum(impossible_ticket_values)
+            )
             if penalize_incomplete_tickets:
-                score -= sum(incomplete_ticket_values)
+                score -= sum(pending_ticket_values)
             self.context.set_score(p.player_id, score)
 
 
