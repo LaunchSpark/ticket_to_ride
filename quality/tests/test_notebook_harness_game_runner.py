@@ -2,14 +2,23 @@ from __future__ import annotations
 
 import unittest
 
+from external.contracts.base_bot import BaseBot
 from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
-from notebook_harness.game_runner import initialize_game, list_maps
+from notebook_harness.game_runner import available_bots, initialize_game, list_maps
 
 
 class GameRunnerTests(unittest.TestCase):
     def test_list_maps_includes_the_classic_map(self) -> None:
         self.assertIn("classic", list_maps())
+
+    def test_available_bots_maps_display_names_to_bot_classes(self) -> None:
+        bots = available_bots()
+
+        self.assertIn("Random Bot", bots)
+        self.assertIn("Example Bot", bots)
+        for bot_class in bots.values():
+            self.assertTrue(issubclass(bot_class, BaseBot))
 
     def test_initialize_game_builds_one_player_per_bot(self) -> None:
         harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])

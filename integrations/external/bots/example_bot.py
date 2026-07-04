@@ -69,17 +69,37 @@ def _():
     return initialize_game, list_maps, mo
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(list_maps, mo):
+    from notebook_harness.game_runner import available_bots
+
+    # Every bot notebook on disk, plus this notebook's live class so edits
+    # made here take effect without reloading.
+    bot_options = {"(empty)": None, **available_bots()}
+    bot_options[BOT_META["name"]] = ExampleBot
+
     map_picker = mo.ui.dropdown(options=list_maps(), value=list_maps()[0], label="Map")
-    map_picker
-    return (map_picker,)
+    seat_pickers = mo.ui.array(
+        [
+            mo.ui.dropdown(
+                options=bot_options,
+                value=BOT_META["name"] if index < 2 else "(empty)",
+                label=f"Seat {index + 1}",
+            )
+            for index in range(5)
+        ]
+    )
+    mo.hstack([map_picker, seat_pickers], align="start", justify="start")
+    return map_picker, seat_pickers
 
 
-@app.cell
-def _(initialize_game, map_picker):
-    # Runs the freshly-edited ExampleBot against a second copy of itself.
-    harness_game = initialize_game([ExampleBot(), ExampleBot()], map_name=map_picker.value)
+@app.cell(hide_code=True)
+def _(initialize_game, map_picker, mo, seat_pickers):
+    seated_bot_classes = [bot_class for bot_class in seat_pickers.value if bot_class is not None]
+    mo.stop(len(seated_bot_classes) < 2, mo.md("Pick bots for at least two seats to run a game."))
+    harness_game = initialize_game(
+        [bot_class() for bot_class in seated_bot_classes], map_name=map_picker.value
+    )
     harness_game.play()
     return (harness_game,)
 

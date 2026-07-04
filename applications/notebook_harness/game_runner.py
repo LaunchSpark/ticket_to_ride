@@ -25,6 +25,23 @@ def list_maps() -> List[str]:
     return available_maps()
 
 
+def available_bots() -> 'Dict[str, type]':
+    """Display-name -> bot class for every bot notebook under integrations/external/bots.
+
+    Discovery goes through the same BotLoader the backend uses (BOT_META +
+    single BaseBot subclass per notebook). Notebooks that want their own
+    freshly-edited class to win over the on-disk version can override that
+    one entry after calling this.
+    """
+    from external.clients.bot_api.loader import BotLoader
+
+    descriptors = BotLoader().load_bots().values()
+    return {
+        descriptor.metadata.name: descriptor.bot_class
+        for descriptor in sorted(descriptors, key=lambda d: d.metadata.name.casefold())
+    }
+
+
 @dataclass
 class HarnessGame:
     game: Game
