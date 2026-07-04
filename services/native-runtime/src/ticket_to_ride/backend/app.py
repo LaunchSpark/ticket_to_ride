@@ -17,6 +17,7 @@ from ticket_to_ride.backend.runtime import (
 from ticket_to_ride.backend.models import (
     BotRegisterRequest,
     BotSummary,
+    CulledBoardResponse,
     ManagedMatchCreateRequest,
     ManagedMatchSummary,
     ManagedRoundSummary,
@@ -43,6 +44,7 @@ from ticket_to_ride.backend.service import (
     create_round,
     create_turn,
     finalize_match,
+    get_culled_board,
     get_match,
     launch_notebook,
     list_bots,
@@ -214,6 +216,34 @@ def create_app(
         repository: MatchRepository = Depends(get_repository),
     ) -> list[MatchSummary]:
         return list_matches(repository)
+
+    @app.get("/matches/{match_id}/culled-board", response_model=CulledBoardResponse)
+    def get_culled_board_view(
+        match_id: str,
+        playerId: str,
+        turnIndex: Optional[int] = None,
+        roundNumber: Optional[int] = None,
+        mapName: Optional[str] = None,
+        repository: MatchRepository = Depends(get_repository),
+    ) -> CulledBoardResponse:
+        """A player's contracted view of the board at a recorded turn.
+
+        Reconstructed on the fly from the stored turn snapshot (defaults:
+        latest turn of the first round, classic map), in the same
+        nodes/links shape the notebook graph widget consumes.
+        """
+        try:
+            board = get_culled_board(
+                repository,
+                match_id,
+                player_id=playerId,
+                turn_index=turnIndex,
+                round_number=roundNumber,
+                map_name=mapName,
+            )
+        except MatchNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return CulledBoardResponse(**board)
 
     @app.get("/matches/{match_id}", response_model=MatchPayload)
     def get_match_by_id(

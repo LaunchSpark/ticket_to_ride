@@ -261,5 +261,87 @@ class MatchApiTests(unittest.TestCase):
         self.assertEqual(payload["rounds"][0]["turns"][30]["player"]["score"], 999)
 
 
+class CulledBoardApiTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.repository = InMemoryMatchRepository()
+        self.client = TestClient(create_app(repository=self.repository))
+
+    def make_match_with_claims(self, claimed_route):
+        match_id = self.client.post(
+            "/matches",
+            json={
+                "name": "alpha-beta",
+                "players": [
+                    {"playerId": "bot_1", "name": "Alpha", "color": "red"},
+                    {"playerId": "bot_2", "name": "Beta", "color": "blue"},
+                ],
+            },
+        ).json()["matchId"]
+        round_id = self.client.post(f"/matches/{match_id}/rounds", json={"roundNumber": 0}).json()["roundId"]
+
+        turn_state = {
+            "player": {
+                "playerId": "bot_1",
+                "claimedRoutes": [
+                    {"routeId": claimed_route.route_id, "routeLabel": claimed_route.route_label}
+                ],
+            },
+            "opponents": [{"playerId": "bot_2", "claimedRoutes": []}],
+        }
+        self.client.post(
+            f"/matches/{match_id}/rounds/{round_id}/turns",
+            json={"turnIndex": 0, "turnState": {"player": {"playerId": "bot_1", "claimedRoutes": []}, "opponents": [{"playerId": "bot_2", "claimedRoutes": []}]}},
+        )
+        self.client.post(
+            f"/matches/{match_id}/rounds/{round_id}/turns",
+            json={"turnIndex": 1, "turnState": turn_state},
+        )
+        return match_id
+
+    def test_culled_board_reconstructs_the_players_contracted_view(self) -> None:
+        from ticket_to_ride.engine.state.map import MapGraph
+
+        claimed_route = MapGraph(player_count=2).routes[0]
+        merged_node_id = "+".join(sorted((claimed_route.city1, claimed_route.city2)))
+        match_id = self.make_match_with_claims(claimed_route)
+
+        response = self.client.get(
+            f"/matches/{match_id}/culled-board", params={"playerId": "bot_1"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        node_ids = {node["id"] for node in payload["nodes"]}
+        self.assertIn(merged_node_id, node_ids)
+        edge_ids = {edge["id"] for edge in payload["links"]}
+        self.assertNotIn(claimed_route.route_id, edge_ids)
+        for edge in payload["links"]:
+            self.assertIsNone(edge["claimedColor"])
+
+    def test_culled_board_honors_turn_index(self) -> None:
+        from ticket_to_ride.engine.state.map import MapGraph
+
+        claimed_route = MapGraph(player_count=2).routes[0]
+        merged_node_id = "+".join(sorted((claimed_route.city1, claimed_route.city2)))
+        match_id = self.make_match_with_claims(claimed_route)
+
+        response = self.client.get(
+            f"/matches/{match_id}/culled-board",
+            params={"playerId": "bot_1", "turnIndex": 0},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        node_ids = {node["id"] for node in response.json()["nodes"]}
+        # Nothing claimed yet on turn 0: no merged nodes.
+        self.assertNotIn(merged_node_id, node_ids)
+
+    def test_culled_board_404s_for_unknown_match(self) -> None:
+        response = self.client.get(
+            "/matches/does-not-exist/culled-board", params={"playerId": "bot_1"}
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()

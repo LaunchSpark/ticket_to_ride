@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ticket_to_ride.backend.bot_catalog import BotCatalogClient
+from ticket_to_ride.board_view import (
+    build_culled_edges,
+    build_culled_nodes,
+    claimed_by_from_turn_state,
+)
+from ticket_to_ride.engine.state.map import MapGraph, contract_map
 from ticket_to_ride.backend.models import (
     AverageScoreRecord,
     BotSummary,
@@ -171,6 +177,48 @@ def get_match(repository: MatchRepository, match_id: str) -> MatchPayload:
             for record in match_record.get("averageScores", [])
         ],
     )
+
+
+def get_culled_board(
+    repository: MatchRepository,
+    match_id: str,
+    player_id: str,
+    turn_index: Optional[int] = None,
+    round_number: Optional[int] = None,
+    map_name: Optional[str] = None,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Reconstruct a player's culled board view from stored turn snapshots.
+
+    Claims are rebuilt from the recorded turnState (nothing new is persisted,
+    so the storage schema is unchanged) and run through the same contract_map
+    + board_view builders the notebooks use, returning the widget's
+    {"nodes": [...], "links": [...]} shape. `map_name` defaults to the
+    classic map; match records don't currently store which map was played.
+    """
+    try:
+        match_record = repository.get_match_record(match_id)
+    except KeyError as exc:
+        raise MatchNotFoundError(match_id) from exc
+
+    round_records = repository.get_round_records(match_id)
+    if round_number is not None:
+        round_records = [record for record in round_records if record["roundNumber"] == round_number]
+    if not round_records:
+        raise MatchNotFoundError(f"Match '{match_id}' has no round {round_number}.")
+
+    turn_records = repository.get_turn_records(round_records[0]["id"])
+    if turn_index is not None:
+        turn_records = [record for record in turn_records if record["turnIndex"] == turn_index]
+    if not turn_records:
+        raise MatchNotFoundError(f"Match '{match_id}' has no turn {turn_index}.")
+    turn_state = turn_records[-1]["turnState"]
+
+    player_count = len(match_record.get("players", [])) or 4
+    map_graph = MapGraph(player_count=player_count, map_name=map_name)
+    claimed_by = claimed_by_from_turn_state(turn_state)
+    culled = contract_map(map_graph.routes, map_graph.player_count, claimed_by, player_id)
+
+    return {"nodes": build_culled_nodes(culled), "links": build_culled_edges(culled)}
 
 
 def compute_average_scores(players: List[PlayerRecord], rounds: List[RoundPayload]) -> List[AverageScoreRecord]:

@@ -214,5 +214,12 @@ class MatchPayload(BaseModel):
     averageScores: List[AverageScoreRecord]
 
 
+class CulledBoardResponse(BaseModel):
+    """A player's contracted board view, in the RouteGraphWidget data shape."""
+
+    nodes: List[Dict[str, Any]]
+    links: List[Dict[str, Any]]
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
