@@ -2,9 +2,9 @@
   "name": "route-graph-widget-build",
   "private": true,
   "version": "0.0.0",
-  "description": "Build-only project: bundles a forked graph_widget (vasturiano/force-graph) into a single offline-capable anywidget JS file for the notebook harness.",
+  "description": "Build-only project: bundles the notebook harness anywidget JS sources (including a forked graph_widget / vasturiano force-graph) into offline-capable files under ../static.",
   "scripts": {
-    "build": "esbuild src/route_graph_widget.js --bundle --format=esm --outfile=../static/route_graph_widget.js"
+    "build": "esbuild src/route_graph_widget.js src/player_list_widget.js src/info_bar_widget.js --bundle --format=esm --outdir=../static"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"

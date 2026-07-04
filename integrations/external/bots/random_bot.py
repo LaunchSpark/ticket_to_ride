@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.23.13"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -129,21 +129,26 @@ def _(harness_game, mo):
 def _(harness_game, mo):
     # Created once per game (not per slider step) so the force simulation
     # keeps running instead of restarting from scratch on every step.
+    from notebook_harness.info_bar_widget import InfoBarWidget
+    from notebook_harness.player_list_widget import PlayerListWidget
     from notebook_harness.route_graph_widget import RouteGraphWidget, build_graph_data
 
     initial_nodes, initial_edges = harness_game.board_at(0)
     graph = mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(initial_nodes, initial_edges)))
-    return build_graph_data, graph
+    player_list = mo.ui.anywidget(PlayerListWidget(players=harness_game.roster()))
+    # Placeholder: will show the market & per-color draw odds (public info only).
+    info_bar = mo.ui.anywidget(InfoBarWidget())
+    return build_graph_data, graph, info_bar, player_list
 
 
 @app.cell
-def _(build_graph_data, graph, harness_game, step_slider):
+def _(build_graph_data, graph, harness_game, info_bar, mo, player_list, step_slider):
     # Pushes each step's board state into the existing widget instance
     # instead of constructing a new one, so node positions persist across
     # steps and only the diff (newly claimed routes) animates.
     nodes, edges = harness_game.board_at(int(step_slider.value["value"]))
     graph.data = build_graph_data(nodes, edges)
-    graph
+    mo.vstack([mo.hstack([graph, player_list], align="start", justify="start"), info_bar])
     return
 
 

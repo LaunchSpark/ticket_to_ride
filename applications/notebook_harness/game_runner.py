@@ -32,6 +32,16 @@ class HarnessGame:
     def snapshot_count(self) -> int:
         return len(self.logger.snapshots)
 
+    def roster(self) -> List[Dict[str, str]]:
+        """Return one {id, name, color} dict per seat, in seating order.
+
+        This is the shape PlayerListWidget's `players` trait expects.
+        """
+        return [
+            {"id": player.player_id, "name": player.name, "color": player.color}
+            for player in self.players
+        ]
+
     def board_at(self, step_index: int) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Return (nodes, edges) for the board as of the given recorded turn."""
         snapshot = self.logger.snapshots[step_index]

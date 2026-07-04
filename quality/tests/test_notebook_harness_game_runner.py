@@ -20,6 +20,19 @@ class GameRunnerTests(unittest.TestCase):
         self.assertEqual(harness_game.players[0].color, "red")
         self.assertEqual(harness_game.players[1].color, "blue")
 
+    def test_roster_lists_every_seat_with_id_name_and_color(self) -> None:
+        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])
+
+        roster = harness_game.roster()
+
+        self.assertEqual(
+            roster,
+            [
+                {"id": "bot_0", "name": harness_game.players[0].name, "color": "red"},
+                {"id": "bot_1", "name": harness_game.players[1].name, "color": "blue"},
+            ],
+        )
+
     def test_playing_a_game_records_snapshots_and_board_at_returns_nodes_and_edges(self) -> None:
         harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])
 

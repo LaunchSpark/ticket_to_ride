@@ -1,0 +1,35 @@
+.player-list-widget {
+    min-width: 160px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fafafa;
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+}
+
+.player-list-heading {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.player-list-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+
+.player-list-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    flex: none;
+}
+
+.player-list-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
