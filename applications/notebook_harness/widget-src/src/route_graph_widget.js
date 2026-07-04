@@ -276,12 +276,19 @@ function render({ model, el }) {
             .nodePointerAreaPaint((node, color, ctx) => {
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, node_radius(node), 0, 2 * Math.PI, false);
+                // Slightly padded so small circles are forgiving to grab.
+                ctx.arc(node.x, node.y, node_radius(node) + 3, 0, 2 * Math.PI, false);
                 ctx.fill();
             })
             .cooldownTime(5000)
             .warmupTicks(10)
-            .nodeLabel("label")
+            // Our nodes carry "name", not "label" - upstream's accessor made
+            // every tooltip resolve to undefined, i.e. no tooltip at all.
+            .nodeLabel("name")
+            .linkLabel((link) => {
+                const length = link.data && link.data.length;
+                return length ? `${link.id} (${length})` : link.id;
+            })
             // Claimed links hide the default line entirely; paint_train_spaces
             // strokes a full-width claim band in its place. (Safe for hover:
             // the pointer-picking shadow canvas colors links by __indexColor,

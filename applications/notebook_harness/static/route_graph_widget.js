@@ -12210,9 +12210,12 @@ function render3({ model, el }) {
     return forceGraph()(el).width(width).height(height).graphData(data2).nodePointerAreaPaint((node, color2, ctx) => {
       ctx.fillStyle = color2;
       ctx.beginPath();
-      ctx.arc(node.x, node.y, node_radius(node), 0, 2 * Math.PI, false);
+      ctx.arc(node.x, node.y, node_radius(node) + 3, 0, 2 * Math.PI, false);
       ctx.fill();
-    }).cooldownTime(5e3).warmupTicks(10).nodeLabel("label").linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
+    }).cooldownTime(5e3).warmupTicks(10).nodeLabel("name").linkLabel((link) => {
+      const length = link.data && link.data.length;
+      return length ? `${link.id} (${length})` : link.id;
+    }).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
       plot.zoomToFit(400);
       create_rtree(data2["nodes"]);
     });
