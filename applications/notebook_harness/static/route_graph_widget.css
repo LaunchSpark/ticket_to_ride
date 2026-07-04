@@ -1,3 +1,7 @@
-canvas {
-    border: 1px solid black;   
+/* Colors come from marimo's theme variables (light-dark() aware), with
+   light-theme fallbacks for non-marimo hosts. The canvas itself needs no
+   theming: it has a transparent background and paints explicit colors. */
+
+.force-graph-container canvas {
+    border: 1px solid var(--border, #000);
 }

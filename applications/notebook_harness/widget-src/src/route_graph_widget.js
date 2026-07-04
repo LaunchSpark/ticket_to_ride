@@ -118,6 +118,19 @@ const create_node_canvas_object = (plot, node_scale, node_size_feature) => {
     });
 };
 
+// Train spaces get an outline contrasting their own fill (not the page
+// background), so dark spaces stay visible on dark themes and light spaces
+// on light themes without the painter knowing the notebook's theme at all.
+const is_dark_color = (color) => {
+    const hex = /^#?([0-9a-f]{6})$/i.exec(color || "");
+    if (!hex) return false;
+    const value = parseInt(hex[1], 16);
+    const r = (value >> 16) & 255;
+    const g = (value >> 8) & 255;
+    const b = value & 255;
+    return (r * 299 + g * 587 + b * 114) / 1000 < 90;
+};
+
 // Quadratic bezier helpers matching force-graph's own curved-link geometry
 // (it stores the single control point in link.__controlPoints).
 const bezier_point = (t, p0, cp, p1) => {
@@ -227,7 +240,7 @@ function render({ model, el }) {
             ctx.fillStyle = baseColor;
             ctx.fillRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
             ctx.lineWidth = 0.6;
-            ctx.strokeStyle = "rgba(0,0,0,0.4)";
+            ctx.strokeStyle = is_dark_color(baseColor) ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)";
             ctx.strokeRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
 
             if (link.claimedColor) {

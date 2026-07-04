@@ -12107,6 +12107,15 @@ var create_node_canvas_object = (plot2, node_scale, node_size_feature2) => {
     ctx.globalAlpha = 1;
   });
 };
+var is_dark_color = (color2) => {
+  const hex2 = /^#?([0-9a-f]{6})$/i.exec(color2 || "");
+  if (!hex2) return false;
+  const value = parseInt(hex2[1], 16);
+  const r2 = value >> 16 & 255;
+  const g2 = value >> 8 & 255;
+  const b2 = value & 255;
+  return (r2 * 299 + g2 * 587 + b2 * 114) / 1e3 < 90;
+};
 var bezier_point = (t3, p0, cp, p1) => {
   const u2 = 1 - t3;
   return {
@@ -12180,7 +12189,7 @@ function render3({ model, el }) {
       ctx.fillStyle = baseColor;
       ctx.fillRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
       ctx.lineWidth = 0.6;
-      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.strokeStyle = is_dark_color(baseColor) ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)";
       ctx.strokeRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
       if (link.claimedColor) {
         const inset = train_space_width * claim_inset_fraction;

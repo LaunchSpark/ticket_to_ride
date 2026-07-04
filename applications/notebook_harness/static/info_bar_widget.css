@@ -1,17 +1,21 @@
+/* Colors come from marimo's theme variables (light-dark() aware, they
+   follow the notebook's light/dark setting automatically), with light-theme
+   fallbacks for non-marimo hosts. */
+
 .info-bar-widget {
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 64px;
     padding: 8px 12px;
-    border: 1px dashed #ccc;
+    border: 1px dashed var(--border, #ccc);
     border-radius: 6px;
-    background: #fafafa;
+    background: var(--card, #fafafa);
     font-family: system-ui, sans-serif;
 }
 
 .info-bar-placeholder {
-    color: #999;
+    color: var(--muted-foreground, #999);
     font-size: 13px;
     font-style: italic;
 }

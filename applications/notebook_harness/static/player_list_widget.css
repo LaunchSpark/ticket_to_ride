@@ -1,9 +1,14 @@
+/* Colors come from marimo's theme variables (light-dark() aware, they
+   follow the notebook's light/dark setting automatically), with light-theme
+   fallbacks for non-marimo hosts. */
+
 .player-list-widget {
     min-width: 160px;
     padding: 8px 12px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border, #ddd);
     border-radius: 6px;
-    background: #fafafa;
+    background: var(--card, #fafafa);
+    color: var(--card-foreground, inherit);
     font-family: system-ui, sans-serif;
     font-size: 14px;
 }
@@ -24,19 +29,21 @@
 }
 
 .player-list-row:hover {
-    background: #eee;
+    background: color-mix(in srgb, var(--foreground, #000) 10%, transparent);
 }
 
 .player-list-row.selected {
-    background: #dbe9ff;
-    box-shadow: inset 0 0 0 1px #7aa7e0;
+    background: var(--accent, #dbe9ff);
+    color: var(--accent-foreground, inherit);
+    box-shadow: inset 0 0 0 1px
+        color-mix(in srgb, var(--accent-foreground, #7aa7e0) 50%, transparent);
 }
 
 .player-list-swatch {
     width: 14px;
     height: 14px;
     border-radius: 3px;
-    border: 1px solid rgba(0, 0, 0, 0.3);
+    border: 1px solid color-mix(in srgb, var(--foreground, #000) 35%, transparent);
     flex: none;
 }
 
