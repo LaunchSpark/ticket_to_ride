@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
-from ticket_to_ride.engine.state.map import MapGraph, Route
+from ticket_to_ride.engine.state.map import CulledMap, MapGraph, Route
 
 # Curvature step between adjacent parallel edges, in force-graph's
 # linkCurvature units (roughly: fraction of the edge's on-screen length that
@@ -57,16 +57,19 @@ def _city_pair_key(route: Route) -> Tuple[str, str]:
     return tuple(sorted((route.city1, route.city2)))
 
 
-def _curvature_by_route_id(map_graph: MapGraph) -> Dict[str, float]:
-    """Assign a symmetric curvature offset to every route sharing a city pair.
+def _curvatures_for(
+    routes: List[Route], pair_key: Callable[[Route], Tuple[str, str]]
+) -> Dict[str, float]:
+    """Assign a symmetric curvature offset to every route sharing an endpoint pair.
 
-    A single route between two cities gets 0 (straight line). Routes that
-    share a city pair with others - parallel/double routes - get evenly
-    spaced offsets centered on 0, so they bow apart instead of overlapping.
+    A single route between two endpoints gets 0 (straight line). Routes that
+    share an endpoint pair with others - parallel/double routes, or routes
+    made parallel by contraction - get evenly spaced offsets centered on 0,
+    so they bow apart instead of overlapping.
     """
     routes_by_pair: Dict[Tuple[str, str], List[Route]] = defaultdict(list)
-    for route in map_graph.routes:
-        routes_by_pair[_city_pair_key(route)].append(route)
+    for route in routes:
+        routes_by_pair[pair_key(route)].append(route)
 
     curvature_by_route_id: Dict[str, float] = {}
     for parallel_routes in routes_by_pair.values():
@@ -74,6 +77,49 @@ def _curvature_by_route_id(map_graph: MapGraph) -> Dict[str, float]:
         for index, route in enumerate(sorted(parallel_routes, key=lambda r: r.route_id)):
             curvature_by_route_id[route.route_id] = (index - (count - 1) / 2) * _PARALLEL_EDGE_CURVATURE_STEP
     return curvature_by_route_id
+
+
+def _curvature_by_route_id(map_graph: MapGraph) -> Dict[str, float]:
+    return _curvatures_for(map_graph.routes, _city_pair_key)
+
+
+def build_culled_nodes(culled: CulledMap) -> List[Dict[str, Any]]:
+    """Node dicts for a player's culled map; merged nodes read as "A + B"."""
+    return [{"id": node, "name": node.replace("+", " + ")} for node in sorted(culled.nodes)]
+
+
+def build_culled_edges(culled: CulledMap) -> List[Dict[str, Any]]:
+    """Edge dicts for a player's culled map, same schema as build_edges.
+
+    Every surviving route is by definition unclaimed and claimable by the
+    viewpoint player, so claimedColor/claimedBy are always None. Contraction
+    routinely makes previously separate routes parallel (they now join the
+    same merged nodes), so curvature is regrouped by contracted endpoints.
+    """
+    curvature_by_route_id = _curvatures_for(
+        culled.routes, lambda route: tuple(sorted(culled.endpoints(route)))
+    )
+
+    edges: List[Dict[str, Any]] = []
+    for route in culled.routes:
+        source, target = culled.endpoints(route)
+        edges.append(
+            {
+                "id": route.route_id,
+                "source": source,
+                "target": target,
+                "width": route.length,
+                "color": _edge_color(route),
+                "claimedColor": None,
+                "curvature": curvature_by_route_id[route.route_id],
+                "data": {
+                    "length": route.length,
+                    "color": route.color,
+                    "claimedBy": None,
+                },
+            }
+        )
+    return edges
 
 
 def build_edges(

@@ -6,10 +6,16 @@ from typing import Any, Dict, List, Tuple
 from ticket_to_ride.engine.game import Game
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
-from ticket_to_ride.engine.state.map import DEFAULT_MAP_NAME, available_maps
+from ticket_to_ride.engine.state.map import DEFAULT_MAP_NAME, available_maps, contract_map
 
 from notebook_harness.in_memory_logger import InMemoryGameLogger
-from notebook_harness.rendering import build_edges, build_nodes, claimed_by_from_snapshot
+from notebook_harness.rendering import (
+    build_culled_edges,
+    build_culled_nodes,
+    build_edges,
+    build_nodes,
+    claimed_by_from_snapshot,
+)
 
 _SEAT_COLORS = ["red", "blue", "green", "yellow", "black"]
 
@@ -42,13 +48,24 @@ class HarnessGame:
             for player in self.players
         ]
 
-    def board_at(self, step_index: int) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Return (nodes, edges) for the board as of the given recorded turn."""
+    def board_at(
+        self, step_index: int, viewpoint: 'str | None' = None
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Return (nodes, edges) for the board as of the given recorded turn.
+
+        With a `viewpoint` player id, returns that player's culled view
+        instead: their claimed network contracted into merged nodes, showing
+        only routes they could still claim as of that turn.
+        """
         snapshot = self.logger.snapshots[step_index]
         map_graph = self.game.context.get_map()
-        player_colors = {player.player_id: player.color for player in self.players}
         claimed_by = claimed_by_from_snapshot(snapshot["turnState"])
 
+        if viewpoint is not None:
+            culled = contract_map(map_graph.routes, map_graph.player_count, claimed_by, viewpoint)
+            return build_culled_nodes(culled), build_culled_edges(culled)
+
+        player_colors = {player.player_id: player.color for player in self.players}
         return build_nodes(map_graph), build_edges(map_graph, claimed_by, player_colors)
 
 

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from ticket_to_ride.engine.state.map import MapGraph
+from ticket_to_ride.engine.state.map import MapGraph, Route, contract_map
 
 from notebook_harness.rendering import (
+    build_culled_edges,
+    build_culled_nodes,
     build_edges,
     build_nodes,
     claimed_by_from_snapshot,
@@ -101,6 +103,49 @@ class RenderingTests(unittest.TestCase):
 
         edges_by_id = {edge["id"]: edge for edge in edges}
         self.assertEqual(edges_by_id[solo_route.route_id]["curvature"], 0)
+
+
+class CulledRenderingTests(unittest.TestCase):
+    def make_culled(self):
+        routes = [
+            Route("A", "B", 1, "R", "A-B-1"),
+            Route("B", "C", 2, "U", "B-C-1"),
+            Route("A", "C", 5, "Y", "A-C-1"),
+            Route("C", "D", 3, "X", "C-D-1"),
+        ]
+        return contract_map(routes, player_count=4, claimed_by={"A-B-1": "me"}, player_id="me")
+
+    def test_build_culled_nodes_emits_merged_nodes_with_readable_names(self) -> None:
+        nodes = build_culled_nodes(self.make_culled())
+
+        nodes_by_id = {node["id"]: node for node in nodes}
+        self.assertIn("A+B", nodes_by_id)
+        self.assertEqual(nodes_by_id["A+B"]["name"], "A + B")
+        self.assertIn("C", nodes_by_id)
+
+    def test_build_culled_edges_remaps_endpoints_and_shows_no_claims(self) -> None:
+        edges = build_culled_edges(self.make_culled())
+
+        edges_by_id = {edge["id"]: edge for edge in edges}
+        # B-C and A-C now both connect A+B <-> C.
+        self.assertEqual(
+            {edges_by_id["B-C-1"]["source"], edges_by_id["B-C-1"]["target"]},
+            {"A+B", "C"},
+        )
+        for edge in edges:
+            self.assertIsNone(edge["claimedColor"])
+            self.assertIsNone(edge["data"]["claimedBy"])
+
+    def test_build_culled_edges_bows_routes_that_become_parallel_after_contraction(self) -> None:
+        edges = build_culled_edges(self.make_culled())
+
+        edges_by_id = {edge["id"]: edge for edge in edges}
+        first = edges_by_id["B-C-1"]["curvature"]
+        second = edges_by_id["A-C-1"]["curvature"]
+        self.assertNotEqual(first, 0)
+        self.assertEqual(first, -second)
+        # C-D stays alone between its endpoints: straight.
+        self.assertEqual(edges_by_id["C-D-1"]["curvature"], 0)
 
 
 if __name__ == "__main__":

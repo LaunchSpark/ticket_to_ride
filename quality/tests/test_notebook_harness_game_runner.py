@@ -51,6 +51,30 @@ class GameRunnerTests(unittest.TestCase):
             if owner is not None:
                 self.assertIn(owner, player_ids)
 
+    def test_board_at_with_viewpoint_returns_the_culled_view(self) -> None:
+        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])
+        harness_game.play()
+
+        last_step = harness_game.snapshot_count() - 1
+        nodes, edges = harness_game.board_at(last_step, viewpoint="bot_0")
+
+        # By game end bot_0 has claimed routes, so at least one merged node exists.
+        self.assertTrue(any("+" in node["id"] for node in nodes))
+        # The culled view never shows claims: every surviving edge is claimable.
+        for edge in edges:
+            self.assertIsNone(edge["claimedColor"])
+            self.assertIsNone(edge["data"]["claimedBy"])
+
+        # And it must be a historical reconstruction: the step-0 culled view
+        # has no merged nodes yet (nobody has claimed anything on turn 0).
+        first_nodes, _ = harness_game.board_at(0, viewpoint="bot_0")
+        bot_0_claims_at_start = [
+            r
+            for r in harness_game.logger.snapshots[0]["turnState"]["player"]["claimedRoutes"]
+        ]
+        if not bot_0_claims_at_start:
+            self.assertFalse(any("+" in node["id"] for node in first_nodes))
+
 
 if __name__ == "__main__":
     unittest.main()
