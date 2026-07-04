@@ -3,13 +3,14 @@ import marimo
 __generated_with = "0.23.13"
 app = marimo.App(width="medium")
 
-with app.setup:
+with app.setup(hide_code=True):
     import random
     from typing import List
 
     from external.contracts.base_bot import BaseBot
     from ticket_to_ride.engine.state.map import Route
     from ticket_to_ride.engine.state.decks import DestinationTicket
+    from wigglystuff import PlaySlider
 
     BOT_META = {
         "schema_version": 1,
@@ -89,7 +90,7 @@ class RandomBot(BaseBot):
         return None
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
 
@@ -99,14 +100,14 @@ def _():
     return initialize_game, list_maps, mo
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(list_maps, mo):
     map_picker = mo.ui.dropdown(options=list_maps(), value=list_maps()[0], label="Map")
     map_picker
     return (map_picker,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(initialize_game, map_picker):
     # Runs the freshly-edited RandomBot against a second copy of itself.
     harness_game = initialize_game([RandomBot(), RandomBot()], map_name=map_picker.value)
@@ -114,18 +115,7 @@ def _(initialize_game, map_picker):
     return (harness_game,)
 
 
-@app.cell
-def _(harness_game, mo):
-    from wigglystuff import PlaySlider
-
-    step_slider = mo.ui.anywidget(
-        PlaySlider(min_value=0, max_value=harness_game.snapshot_count() - 1, step=1, interval_ms=300)
-    )
-    step_slider
-    return (step_slider,)
-
-
-@app.cell
+@app.cell(hide_code=True)
 def _(harness_game, mo):
     # Created once per game (not per slider step) so the force simulation
     # keeps running instead of restarting from scratch on every step.
@@ -138,17 +128,32 @@ def _(harness_game, mo):
     player_list = mo.ui.anywidget(PlayerListWidget(players=harness_game.roster()))
     # Placeholder: will show the market & per-color draw odds (public info only).
     info_bar = mo.ui.anywidget(InfoBarWidget())
-    return build_graph_data, graph, info_bar, player_list
+    # Must be created in a different cell than the one reading its value:
+    # marimo never re-runs a UI element's defining cell on interaction, so a
+    # same-cell read would freeze the map at step 0. It still *displays* in
+    # the layout cell below.
+    step_slider = mo.ui.anywidget(
+        PlaySlider(min_value=0, max_value=harness_game.snapshot_count() - 1, step=1, interval_ms=300)
+    )
+    return build_graph_data, graph, info_bar, player_list, step_slider
 
 
-@app.cell
-def _(build_graph_data, graph, harness_game, info_bar, mo, player_list, step_slider):
+@app.cell(hide_code=True)
+def _(
+    build_graph_data,
+    graph,
+    harness_game,
+    info_bar,
+    mo,
+    player_list,
+    step_slider,
+):
     # Pushes each step's board state into the existing widget instance
     # instead of constructing a new one, so node positions persist across
     # steps and only the diff (newly claimed routes) animates.
     nodes, edges = harness_game.board_at(int(step_slider.value["value"]))
     graph.data = build_graph_data(nodes, edges)
-    mo.vstack([mo.hstack([graph, player_list], align="start", justify="start"), info_bar])
+    mo.vstack([step_slider, mo.hstack([graph, player_list], align="start", justify="start"), info_bar])
     return
 
 
