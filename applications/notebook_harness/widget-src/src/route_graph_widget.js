@@ -573,8 +573,31 @@ function render({ model, el }) {
         if (brush_active) { disactivate_brush(); }
     });
 
+    // force-graph sizes its canvas backing stores from window.devicePixelRatio
+    // once per width/height change. If the DPR changes afterwards - browser
+    // cmd +/- zoom (Chrome persists it per site), or dragging the window
+    // between a retina and a non-retina display - the pointer hit-map scales
+    // away from the visible pixels, anchored at the top-left corner, and most
+    // nodes silently stop responding to hover and drag. Watch for it and
+    // force a canvas resize (re-setting width/height re-runs force-graph's
+    // adjustCanvasSize with the fresh DPR; Kapsule fires onChange even for
+    // unchanged values), restoring the view afterwards since the resize
+    // recentering math assumes the DPR didn't move.
+    let last_device_pixel_ratio = window.devicePixelRatio;
+    const device_pixel_ratio_watch = setInterval(() => {
+        if (window.devicePixelRatio === last_device_pixel_ratio) return;
+        last_device_pixel_ratio = window.devicePixelRatio;
+        const center = plot.centerAt();
+        const zoom_level = plot.zoom();
+        plot.width(width).height(height);
+        plot.centerAt(center.x, center.y);
+        plot.zoom(zoom_level);
+    }, 500);
+
     // Debug handle (used by the repo's headless probes; harmless otherwise).
     window.__routeGraphDebug = { plot, el };
+
+    return () => clearInterval(device_pixel_ratio_watch);
 }
 
 export default { render };

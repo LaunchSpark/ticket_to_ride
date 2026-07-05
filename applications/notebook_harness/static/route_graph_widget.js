@@ -12409,7 +12409,18 @@ function render3({ model, el }) {
       disactivate_brush();
     }
   });
+  let last_device_pixel_ratio = window.devicePixelRatio;
+  const device_pixel_ratio_watch = setInterval(() => {
+    if (window.devicePixelRatio === last_device_pixel_ratio) return;
+    last_device_pixel_ratio = window.devicePixelRatio;
+    const center = plot.centerAt();
+    const zoom_level = plot.zoom();
+    plot.width(width).height(height);
+    plot.centerAt(center.x, center.y);
+    plot.zoom(zoom_level);
+  }, 500);
   window.__routeGraphDebug = { plot, el };
+  return () => clearInterval(device_pixel_ratio_watch);
 }
 var route_graph_widget_default = { render: render3 };
 export {
