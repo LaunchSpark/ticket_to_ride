@@ -303,18 +303,19 @@ function render({ model, el }) {
             .d3AlphaDecay(0.001)
             .minZoom(0.001)
             .nodeCanvasObjectMode(() => "replace")
-            // graphData()'s setter always resets alpha to 1 and restarts the
-            // cooldown countdown ("re-heat the simulation"), even when it
-            // preserves existing node positions - so autoPauseRedraw's
-            // default (only repaint while the engine is actively ticking)
-            // would otherwise mean our in-place cosmetic mutations below
-            // (update_data) never actually get painted once the simulation
-            // has settled and gone idle between board-state updates.
+            // Repaint every frame regardless of engine state, so board
+            // updates always show immediately even when the layout is idle.
             .autoPauseRedraw(false)
+            // Give drags full live physics: playback updates freeze the
+            // tick budget (see update_data), so un-freeze when a drag
+            // starts. The engine then runs its natural cooldown after
+            // release (neighbors react, springs relax) until the next
+            // board update freezes it again.
+            .onNodeDrag(() => plot.cooldownTicks(Infinity))
             .onEngineStop(() => {
                 // Fit only after an initial or topology-change settle - the
-                // engine also stops after every drag release and after each
-                // frozen re-ingest (update_data), which must not re-zoom.
+                // engine also stops after every frozen playback ingest and
+                // after drag cooldowns, which must not re-zoom.
                 if (zoom_to_fit_pending) {
                     zoom_to_fit_pending = false;
                     plot.zoomToFit(400);
@@ -342,79 +343,79 @@ function render({ model, el }) {
 
     plot = create_plot(data);
 
-    // Calling plot.graphData() again - even just to recolor a claimed route -
-    // unconditionally resets the simulation's alpha to 1 and restarts its
-    // cooldown countdown (see force-graph's own graphData setter: `.stop()
-    // .alpha(1) // re-heat the simulation`). With updates arriving every
-    // ~300ms from a PlaySlider and a 5s cooldownTime, that means the engine
-    // never gets to settle - it looks like the simulation restarting on
-    // every step, because it genuinely is.
+    // Rebuild the graph from the incoming payload on every update, seeding
+    // each node's position (and velocity / drag-pin) from the node it
+    // replaces, so the layout carries over from turn to turn and there is
+    // only ever one dataset. Every update goes through graphData()
+    // ingestion, which re-registers the objects' hidden hit-testing colors
+    // from scratch - so hover/drag registrations can never go stale.
     //
-    // For our case the board's topology never actually changes mid-game -
-    // only which routes are colored as claimed - so instead of handing
-    // graphData() a fresh dataset (which re-randomizes positions), mutate
-    // the *same* live node/link objects in place (matched by id), keeping
-    // the settled layout. autoPauseRedraw(false) above ensures the canvas
-    // still repaints on the next frame to pick up the new colors even once
-    // the engine has gone idle.
-    //
-    // Then re-ingest those same objects through graphData() with the engine
-    // tick-frozen (cooldownTicks(0): the forced reheat stops before a single
-    // tick, and identical objects keep their x/y). Ingestion is what
-    // (re)validates every object's hidden hit-testing color against
-    // force-graph's color registry - objects that stay out of it keep stale
-    // colors, and if anything resets the registry mid-session those colors
-    // die silently: nodes/routes stop responding to hover and drag until
-    // re-registered. Re-ingesting every update makes that self-healing.
-    // Only a genuine topology change (culled-view switches) gets an
-    // unfrozen reload with a fresh settle + zoomToFit.
+    // Engine heat is the one thing managed carefully: graphData()'s setter
+    // always resets alpha to 1, and a 300ms playback stream that keeps
+    // alpha pinned at 1 makes the layout diverge instead of converging
+    // (measured: positions inflate without bound). So same-topology
+    // playback updates ingest with a frozen tick budget (cooldownTicks(0)
+    // + warmupTicks(0): zero ticks, seeded positions stay exactly put),
+    // while topology changes (culled-view switches) and drags (see
+    // onNodeDrag above) restore the budget for a real live settle.
     const update_data = () => {
         const newData = model.get("data");
         const currentData = plot.graphData();
+        const currentNodesById = new Map(currentData.nodes.map((node) => [node.id, node]));
 
         const sameTopology =
             idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) &&
             idSetsEqual(idSet(currentData.links), idSet(newData.links));
 
-        if (sameTopology) {
-            const newNodesById = new Map(newData.nodes.map((node) => [node.id, node]));
-            currentData.nodes.forEach((node) => {
-                const updated = newNodesById.get(node.id);
-                if (!updated) return;
-                node.name = updated.name;
-                node.size = updated.size;
-                node.color = updated.color;
-                node.data = updated.data;
+        if (sameTopology && zoom_to_fit_pending) {
+            // Layout still settling: apply the update's colors in place so
+            // a playing step slider can't keep resetting the settle. The
+            // first post-settle update does a proper seeded rebuild.
+            newData.nodes.forEach((node) => {
+                const current = currentNodesById.get(node.id);
+                if (!current) return;
+                current.name = node.name;
+                current.color = node.color;
+                current.data = node.data;
             });
-
-            const newLinksById = new Map(newData.links.map((link) => [link.id, link]));
-            currentData.links.forEach((link) => {
-                const updated = newLinksById.get(link.id);
-                if (!updated) return;
-                link.name = updated.name;
-                link.width = updated.width;
-                link.color = updated.color;
-                link.claimedColor = updated.claimedColor;
-                link.curvature = updated.curvature;
-                link.data = updated.data;
+            const currentLinksById = new Map(currentData.links.map((link) => [link.id, link]));
+            newData.links.forEach((link) => {
+                const current = currentLinksById.get(link.id);
+                if (!current) return;
+                current.width = link.width;
+                current.color = link.color;
+                current.claimedColor = link.claimedColor;
+                current.curvature = link.curvature;
+                current.data = link.data;
             });
-
             data = currentData;
-            if (!zoom_to_fit_pending) {
-                // Settled: safe to freeze-reingest. (While the initial or
-                // post-topology-change layout is still running, skip it so
-                // the 300ms update stream can't keep resetting the settle.)
-                // warmupTicks would otherwise still advance the layout a few
-                // ticks per re-ingest, making the settled graph creep.
+        } else {
+            // Seed the incoming nodes from the ones they replace so the
+            // layout carries over; unmatched ids (fresh merged nodes on a
+            // culled-view switch) start unseeded and settle normally.
+            newData.nodes.forEach((node) => {
+                const previous = currentNodesById.get(node.id);
+                if (!previous) return;
+                node.x = previous.x;
+                node.y = previous.y;
+                node.vx = previous.vx;
+                node.vy = previous.vy;
+                if (previous.fx !== undefined) node.fx = previous.fx;
+                if (previous.fy !== undefined) node.fy = previous.fy;
+            });
+
+            if (sameTopology) {
+                // Settled playback tick: swap the dataset without letting
+                // the ingestion's forced reheat advance the layout.
                 plot.cooldownTicks(0);
                 plot.warmupTicks(0);
-                plot.graphData(data);
+            } else {
+                // Topology change: full settle + one zoomToFit.
+                zoom_to_fit_pending = true;
+                plot.cooldownTicks(Infinity);
+                plot.warmupTicks(10);
             }
-        } else {
             data = newData;
-            zoom_to_fit_pending = true;
-            plot.cooldownTicks(Infinity);
-            plot.warmupTicks(10);
             plot.graphData(data);
         }
 
@@ -426,7 +427,6 @@ function render({ model, el }) {
     const update_repulsion = () => {
         const repulsion = model.get("repulsion") ?? default_repulsion;
         plot.d3Force("charge", forceManyBody().strength(-repulsion));
-        plot.cooldownTicks(Infinity); // undo update_data's tick freeze so the re-layout animates
         plot.d3ReheatSimulation();
     };
     model.on("change:repulsion", update_repulsion);
@@ -438,7 +438,6 @@ function render({ model, el }) {
                 .id((d) => d.id)
                 .distance((link) => link_distance_for(model, link)),
         );
-        plot.cooldownTicks(Infinity); // undo update_data's tick freeze so the re-layout animates
         plot.d3ReheatSimulation();
     };
     model.on("change:link_distance_base", update_link_distance);

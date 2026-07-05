@@ -12215,7 +12215,7 @@ function render3({ model, el }) {
     }).cooldownTime(5e3).warmupTicks(10).nodeLabel("name").linkLabel((link) => {
       const length = link.data && link.data.length;
       return length ? `${link.id} (${length})` : link.id;
-    }).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
+    }).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onNodeDrag(() => plot.cooldownTicks(Infinity)).onEngineStop(() => {
       if (zoom_to_fit_pending) {
         zoom_to_fit_pending = false;
         plot.zoomToFit(400);
@@ -12240,39 +12240,47 @@ function render3({ model, el }) {
   const update_data = () => {
     const newData = model.get("data");
     const currentData = plot.graphData();
+    const currentNodesById = new Map(currentData.nodes.map((node) => [node.id, node]));
     const sameTopology = idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) && idSetsEqual(idSet(currentData.links), idSet(newData.links));
-    if (sameTopology) {
-      const newNodesById = new Map(newData.nodes.map((node) => [node.id, node]));
-      currentData.nodes.forEach((node) => {
-        const updated = newNodesById.get(node.id);
-        if (!updated) return;
-        node.name = updated.name;
-        node.size = updated.size;
-        node.color = updated.color;
-        node.data = updated.data;
+    if (sameTopology && zoom_to_fit_pending) {
+      newData.nodes.forEach((node) => {
+        const current = currentNodesById.get(node.id);
+        if (!current) return;
+        current.name = node.name;
+        current.color = node.color;
+        current.data = node.data;
       });
-      const newLinksById = new Map(newData.links.map((link) => [link.id, link]));
-      currentData.links.forEach((link) => {
-        const updated = newLinksById.get(link.id);
-        if (!updated) return;
-        link.name = updated.name;
-        link.width = updated.width;
-        link.color = updated.color;
-        link.claimedColor = updated.claimedColor;
-        link.curvature = updated.curvature;
-        link.data = updated.data;
+      const currentLinksById = new Map(currentData.links.map((link) => [link.id, link]));
+      newData.links.forEach((link) => {
+        const current = currentLinksById.get(link.id);
+        if (!current) return;
+        current.width = link.width;
+        current.color = link.color;
+        current.claimedColor = link.claimedColor;
+        current.curvature = link.curvature;
+        current.data = link.data;
       });
       data = currentData;
-      if (!zoom_to_fit_pending) {
+    } else {
+      newData.nodes.forEach((node) => {
+        const previous = currentNodesById.get(node.id);
+        if (!previous) return;
+        node.x = previous.x;
+        node.y = previous.y;
+        node.vx = previous.vx;
+        node.vy = previous.vy;
+        if (previous.fx !== void 0) node.fx = previous.fx;
+        if (previous.fy !== void 0) node.fy = previous.fy;
+      });
+      if (sameTopology) {
         plot.cooldownTicks(0);
         plot.warmupTicks(0);
-        plot.graphData(data);
+      } else {
+        zoom_to_fit_pending = true;
+        plot.cooldownTicks(Infinity);
+        plot.warmupTicks(10);
       }
-    } else {
       data = newData;
-      zoom_to_fit_pending = true;
-      plot.cooldownTicks(Infinity);
-      plot.warmupTicks(10);
       plot.graphData(data);
     }
     build_colour_scale();
@@ -12282,7 +12290,6 @@ function render3({ model, el }) {
   const update_repulsion = () => {
     const repulsion = model.get("repulsion") ?? default_repulsion;
     plot.d3Force("charge", manyBody_default2().strength(-repulsion));
-    plot.cooldownTicks(Infinity);
     plot.d3ReheatSimulation();
   };
   model.on("change:repulsion", update_repulsion);
@@ -12291,7 +12298,6 @@ function render3({ model, el }) {
       "link",
       link_default2().id((d2) => d2.id).distance((link) => link_distance_for(model, link))
     );
-    plot.cooldownTicks(Infinity);
     plot.d3ReheatSimulation();
   };
   model.on("change:link_distance_base", update_link_distance);
