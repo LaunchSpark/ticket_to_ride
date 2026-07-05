@@ -4,4 +4,33 @@
 
 .force-graph-container canvas {
     border: 1px solid var(--border, #000);
+    display: block;
+    user-select: none;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.force-graph-container .grabbable {
+    cursor: grab;
+}
+
+.force-graph-container .grabbable:active {
+    cursor: grabbing;
+}
+
+/* Vendored from float-tooltip (force-graph's tooltip library). It injects
+   this into document.head at runtime, which never reaches marimo's
+   shadow-DOM outputs - leaving the tooltip position:static, rendered in
+   flow below the canvas instead of at the cursor. anywidget injects this
+   file into the widget's own root, so it works in shadow DOM too. */
+.float-tooltip-kap {
+    position: absolute;
+    width: max-content;
+    max-width: max(50%, 150px);
+    padding: 3px 5px;
+    border-radius: 3px;
+    font: 12px sans-serif;
+    color: #eee;
+    background: rgba(0, 0, 0, 0.6);
+    pointer-events: none;
 }

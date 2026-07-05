@@ -12394,11 +12394,22 @@ function render3({ model, el }) {
       activate_brush();
     }
   });
-  window.addEventListener("dblclick", (e3) => {
+  window.addEventListener("keyup", (e3) => {
+    if (!e3.metaKey && brush_active) {
+      disactivate_brush();
+    }
+  });
+  window.addEventListener("blur", () => {
     if (brush_active) {
       disactivate_brush();
     }
   });
+  window.addEventListener("dblclick", () => {
+    if (brush_active) {
+      disactivate_brush();
+    }
+  });
+  window.__routeGraphDebug = { plot, el };
 }
 var route_graph_widget_default = { render: render3 };
 export {

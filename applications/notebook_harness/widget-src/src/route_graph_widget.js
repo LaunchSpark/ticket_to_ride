@@ -555,12 +555,26 @@ function render({ model, el }) {
         .extent([[0, 0], [width, height]])
         .on("start brush end", brushed);
 
+    // Brush mode is held, not toggled: active only while the meta key is
+    // down. Upstream armed it on any meta keydown and only released it on a
+    // double-click - on macOS, where cmd-S (save), cmd-Tab, etc. are pressed
+    // constantly, that silently set pointer-events:none on the whole widget
+    // and killed node dragging/hover until a stray double-click revived it.
     window.addEventListener("keydown", (e) => {
         if (e.metaKey && !brush_active) { activate_brush(); }
     });
-    window.addEventListener("dblclick", (e) => {
+    window.addEventListener("keyup", (e) => {
+        if (!e.metaKey && brush_active) { disactivate_brush(); }
+    });
+    window.addEventListener("blur", () => {
         if (brush_active) { disactivate_brush(); }
     });
+    window.addEventListener("dblclick", () => {
+        if (brush_active) { disactivate_brush(); }
+    });
+
+    // Debug handle (used by the repo's headless probes; harmless otherwise).
+    window.__routeGraphDebug = { plot, el };
 }
 
 export default { render };
