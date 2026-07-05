@@ -312,7 +312,13 @@ function render({ model, el }) {
             // has settled and gone idle between board-state updates.
             .autoPauseRedraw(false)
             .onEngineStop(() => {
-                plot.zoomToFit(400);
+                // Fit only after an initial or topology-change settle - the
+                // engine also stops after every drag release and after each
+                // frozen re-ingest (update_data), which must not re-zoom.
+                if (zoom_to_fit_pending) {
+                    zoom_to_fit_pending = false;
+                    plot.zoomToFit(400);
+                }
                 create_rtree(data["nodes"]);
             });
     };
@@ -321,6 +327,9 @@ function render({ model, el }) {
     const idSetsEqual = (a, b) => a.size === b.size && [...a].every((id) => b.has(id));
 
     let data = model.get("data");
+    // True while an initial or topology-change layout is still settling;
+    // cleared by onEngineStop after the one zoomToFit it gates.
+    let zoom_to_fit_pending = true;
     let node_scale = model.get("node_scale") || default_node_scale;
     let width = model.get("width") || default_width;
     let height = model.get("height") || default_height;
@@ -342,14 +351,23 @@ function render({ model, el }) {
     // every step, because it genuinely is.
     //
     // For our case the board's topology never actually changes mid-game -
-    // only which routes are colored as claimed - so instead of calling
-    // graphData() again, mutate the *same* live node/link objects in place
-    // (matched by id) and let the existing, already-settled simulation keep
-    // running undisturbed. autoPauseRedraw(false) above ensures the canvas
+    // only which routes are colored as claimed - so instead of handing
+    // graphData() a fresh dataset (which re-randomizes positions), mutate
+    // the *same* live node/link objects in place (matched by id), keeping
+    // the settled layout. autoPauseRedraw(false) above ensures the canvas
     // still repaints on the next frame to pick up the new colors even once
-    // the engine has gone idle. Only fall back to a full graphData() reload
-    // if the set of node/link ids actually changed (a genuine topology
-    // change, which none of our current notebooks trigger mid-game).
+    // the engine has gone idle.
+    //
+    // Then re-ingest those same objects through graphData() with the engine
+    // tick-frozen (cooldownTicks(0): the forced reheat stops before a single
+    // tick, and identical objects keep their x/y). Ingestion is what
+    // (re)validates every object's hidden hit-testing color against
+    // force-graph's color registry - objects that stay out of it keep stale
+    // colors, and if anything resets the registry mid-session those colors
+    // die silently: nodes/routes stop responding to hover and drag until
+    // re-registered. Re-ingesting every update makes that self-healing.
+    // Only a genuine topology change (culled-view switches) gets an
+    // unfrozen reload with a fresh settle + zoomToFit.
     const update_data = () => {
         const newData = model.get("data");
         const currentData = plot.graphData();
@@ -382,8 +400,21 @@ function render({ model, el }) {
             });
 
             data = currentData;
+            if (!zoom_to_fit_pending) {
+                // Settled: safe to freeze-reingest. (While the initial or
+                // post-topology-change layout is still running, skip it so
+                // the 300ms update stream can't keep resetting the settle.)
+                // warmupTicks would otherwise still advance the layout a few
+                // ticks per re-ingest, making the settled graph creep.
+                plot.cooldownTicks(0);
+                plot.warmupTicks(0);
+                plot.graphData(data);
+            }
         } else {
             data = newData;
+            zoom_to_fit_pending = true;
+            plot.cooldownTicks(Infinity);
+            plot.warmupTicks(10);
             plot.graphData(data);
         }
 
@@ -395,6 +426,7 @@ function render({ model, el }) {
     const update_repulsion = () => {
         const repulsion = model.get("repulsion") ?? default_repulsion;
         plot.d3Force("charge", forceManyBody().strength(-repulsion));
+        plot.cooldownTicks(Infinity); // undo update_data's tick freeze so the re-layout animates
         plot.d3ReheatSimulation();
     };
     model.on("change:repulsion", update_repulsion);
@@ -406,6 +438,7 @@ function render({ model, el }) {
                 .id((d) => d.id)
                 .distance((link) => link_distance_for(model, link)),
         );
+        plot.cooldownTicks(Infinity); // undo update_data's tick freeze so the re-layout animates
         plot.d3ReheatSimulation();
     };
     model.on("change:link_distance_base", update_link_distance);

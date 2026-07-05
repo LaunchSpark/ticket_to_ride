@@ -12216,13 +12216,17 @@ function render3({ model, el }) {
       const length = link.data && link.data.length;
       return length ? `${link.id} (${length})` : link.id;
     }).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
-      plot.zoomToFit(400);
+      if (zoom_to_fit_pending) {
+        zoom_to_fit_pending = false;
+        plot.zoomToFit(400);
+      }
       create_rtree(data2["nodes"]);
     });
   };
   const idSet = (items) => new Set(items.map((item) => item.id));
   const idSetsEqual = (a3, b2) => a3.size === b2.size && [...a3].every((id2) => b2.has(id2));
   let data = model.get("data");
+  let zoom_to_fit_pending = true;
   let node_scale = model.get("node_scale") || default_node_scale;
   let width = model.get("width") || default_width;
   let height = model.get("height") || default_height;
@@ -12259,8 +12263,16 @@ function render3({ model, el }) {
         link.data = updated.data;
       });
       data = currentData;
+      if (!zoom_to_fit_pending) {
+        plot.cooldownTicks(0);
+        plot.warmupTicks(0);
+        plot.graphData(data);
+      }
     } else {
       data = newData;
+      zoom_to_fit_pending = true;
+      plot.cooldownTicks(Infinity);
+      plot.warmupTicks(10);
       plot.graphData(data);
     }
     build_colour_scale();
@@ -12270,6 +12282,7 @@ function render3({ model, el }) {
   const update_repulsion = () => {
     const repulsion = model.get("repulsion") ?? default_repulsion;
     plot.d3Force("charge", manyBody_default2().strength(-repulsion));
+    plot.cooldownTicks(Infinity);
     plot.d3ReheatSimulation();
   };
   model.on("change:repulsion", update_repulsion);
@@ -12278,6 +12291,7 @@ function render3({ model, el }) {
       "link",
       link_default2().id((d2) => d2.id).distance((link) => link_distance_for(model, link))
     );
+    plot.cooldownTicks(Infinity);
     plot.d3ReheatSimulation();
   };
   model.on("change:link_distance_base", update_link_distance);
