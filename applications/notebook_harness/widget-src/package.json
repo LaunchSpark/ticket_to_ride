@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "description": "Build-only project: bundles the notebook harness anywidget JS sources (including a forked graph_widget / vasturiano force-graph) into offline-capable files under ../static.",
   "scripts": {
-    "build": "esbuild src/route_graph_widget.js src/player_list_widget.js src/info_bar_widget.js --bundle --format=esm --outdir=../static"
+    "build": "esbuild src/route_graph_widget.js src/player_list_widget.js src/info_bar_widget.js --bundle --format=esm --outdir=../static --define:__RG_BUILD__=\"\\\"$(date -u +%Y%m%d-%H%M%SZ)\\\"\""
   },
   "devDependencies": {
     "esbuild": "^0.24.0"
@@ -12,6 +12,7 @@
   "dependencies": {
     "d3-array": "^3.2.4",
     "d3-brush": "^3.0.0",
+    "d3-drag": "^3.0.0",
     "d3-force": "^3.0.0",
     "d3-scale": "^4.0.2",
     "d3-scale-chromatic": "^3.1.0",

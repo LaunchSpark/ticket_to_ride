@@ -23,6 +23,7 @@ import ForceGraph from "force-graph";
 import { select } from "d3-selection";
 import { extent, min, max } from "d3-array";
 import { brush } from "d3-brush";
+import { drag as node_drag } from "d3-drag";
 import { forceManyBody, forceLink } from "d3-force";
 import { scaleLinear, scaleOrdinal, scaleIdentity } from "d3-scale";
 import { schemeCategory10 } from "d3-scale-chromatic";
@@ -267,32 +268,18 @@ function render({ model, el }) {
             .width(width)
             .height(height)
             .graphData(data)
-            // Pointer hit-testing happens on a hidden shadow canvas that
-            // knows nothing about our custom node painter: without this, it
-            // falls back to the default radius (sqrt(val||1) * nodeRelSize =
-            // 4 graph units) while the visible circles are node_radius()
-            // (15 by default) - making nodes only grabbable in their exact
-            // center. Paint the hit area at the same radius we draw.
-            .nodePointerAreaPaint((node, color, ctx) => {
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                // Slightly padded so small circles are forgiving to grab.
-                ctx.arc(node.x, node.y, node_radius(node) + 3, 0, 2 * Math.PI, false);
-                ctx.fill();
-            })
+            // Hover, tooltips and node dragging are implemented below from
+            // node/route coordinates - the same always-current data the
+            // brush selection uses - instead of force-graph's hidden
+            // hit-testing canvas (a pixel/color-registry pipeline that
+            // proved fragile across long notebook sessions). Disabling the
+            // built-in pointer interaction turns all of it off.
+            .enablePointerInteraction(false)
+            .enableNodeDrag(false)
             .cooldownTime(5000)
             .warmupTicks(10)
-            // Our nodes carry "name", not "label" - upstream's accessor made
-            // every tooltip resolve to undefined, i.e. no tooltip at all.
-            .nodeLabel("name")
-            .linkLabel((link) => {
-                const length = link.data && link.data.length;
-                return length ? `${link.id} (${length})` : link.id;
-            })
             // Claimed links hide the default line entirely; paint_train_spaces
-            // strokes a full-width claim band in its place. (Safe for hover:
-            // the pointer-picking shadow canvas colors links by __indexColor,
-            // not this accessor.)
+            // strokes a full-width claim band in its place.
             .linkColor((link) => (link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999"))
             // Thin roadbed only - the visible route body is the train spaces
             // painted on top in "after" mode.
@@ -306,12 +293,6 @@ function render({ model, el }) {
             // Repaint every frame regardless of engine state, so board
             // updates always show immediately even when the layout is idle.
             .autoPauseRedraw(false)
-            // Give drags full live physics: playback updates freeze the
-            // tick budget (see update_data), so un-freeze when a drag
-            // starts. The engine then runs its natural cooldown after
-            // release (neighbors react, springs relax) until the next
-            // board update freezes it again.
-            .onNodeDrag(() => plot.cooldownTicks(Infinity))
             .onEngineStop(() => {
                 // Fit only after an initial or topology-change settle - the
                 // engine also stops after every frozen playback ingest and
@@ -342,6 +323,155 @@ function render({ model, el }) {
     let global_selected_ids = model.get("selected_ids");
 
     plot = create_plot(data);
+
+    // ------------------------------------------------------------------
+    // Coordinate-based pointer interaction (hover, tooltip, drag).
+    //
+    // Hits are computed from the live node/route coordinates - the exact
+    // data the painter draws and the brush selection queries - so they can
+    // never drift from the picture the way force-graph's pixel-based
+    // hit-canvas could (stale color registries, buffer/DPR desyncs).
+    // ------------------------------------------------------------------
+
+    const container = el.querySelector(".force-graph-container");
+    const canvas = container.querySelector("canvas");
+
+    const graph_coords_from_event = (ev) => {
+        const rect = canvas.getBoundingClientRect();
+        return plot.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+    };
+
+    const node_at = (gx, gy) => {
+        let best = null;
+        let best_distance = Infinity;
+        for (const node of data.nodes) {
+            if (typeof node.x !== "number") continue;
+            const distance = Math.hypot(gx - node.x, gy - node.y);
+            // Slightly padded so small circles are forgiving to grab.
+            if (distance <= node_radius(node) + 3 && distance < best_distance) {
+                best = node;
+                best_distance = distance;
+            }
+        }
+        return best;
+    };
+
+    const point_segment_distance = (px, py, a, b) => {
+        const abx = b.x - a.x;
+        const aby = b.y - a.y;
+        const lengthSq = abx * abx + aby * aby;
+        const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - a.x) * abx + (py - a.y) * aby) / lengthSq));
+        return Math.hypot(px - (a.x + t * abx), py - (a.y + t * aby));
+    };
+
+    const link_at = (gx, gy) => {
+        const threshold = train_space_width / 2 + 2;
+        let best = null;
+        let best_distance = Infinity;
+        for (const link of data.links) {
+            const start = link.source;
+            const end = link.target;
+            if (!start || !end || typeof start.x !== "number" || typeof end.x !== "number") continue;
+            // Walk the same straight line / quadratic bezier the painter draws.
+            const controlPoints = link.__controlPoints;
+            const cp = controlPoints && controlPoints.length === 2 ? { x: controlPoints[0], y: controlPoints[1] } : null;
+            const steps = cp ? 12 : 1;
+            let previous = { x: start.x, y: start.y };
+            for (let i = 1; i <= steps; i++) {
+                const point = cp ? bezier_point(i / steps, start, cp, end) : { x: end.x, y: end.y };
+                const distance = point_segment_distance(gx, gy, previous, point);
+                if (distance < best_distance) {
+                    best_distance = distance;
+                    best = link;
+                }
+                previous = point;
+            }
+        }
+        return best_distance <= threshold ? best : null;
+    };
+
+    // Tooltip: reuses the .float-tooltip-kap styling vendored into the
+    // widget CSS, positioned by us within the (position:relative) container.
+    const tooltip = document.createElement("div");
+    tooltip.className = "float-tooltip-kap route-graph-tooltip";
+    tooltip.style.display = "none";
+    container.appendChild(tooltip);
+
+    let dragged_node = null;
+
+    container.addEventListener("pointermove", (ev) => {
+        if (dragged_node) return; // no hover churn mid-drag
+        const coords = graph_coords_from_event(ev);
+        const node = node_at(coords.x, coords.y);
+        const link = node ? null : link_at(coords.x, coords.y);
+
+        const label = node
+            ? node.name
+            : link
+                ? (link.data && link.data.length ? `${link.id} (${link.data.length})` : link.id)
+                : "";
+        if (label) {
+            const rect = canvas.getBoundingClientRect();
+            tooltip.textContent = label;
+            tooltip.style.display = "";
+            tooltip.style.left = `${ev.clientX - rect.left + 10}px`;
+            tooltip.style.top = `${ev.clientY - rect.top + 10}px`;
+        } else {
+            tooltip.style.display = "none";
+        }
+        canvas.style.cursor = node ? "grab" : "";
+    });
+    container.addEventListener("pointerleave", () => {
+        tooltip.style.display = "none";
+        canvas.style.cursor = "";
+    });
+
+    // Node dragging (same math as force-graph's own: d3-drag accumulates
+    // pointer deltas onto the subject's coordinates, scaled by the zoom).
+    // The pan filter below keeps d3-zoom's panning off while a drag starts
+    // on a node.
+    let drag_start_position = null;
+    select(canvas).call(
+        node_drag()
+            .filter((ev) => !ev.button && !ev.metaKey) // meta belongs to the brush
+            .subject((ev) => {
+                const coords = graph_coords_from_event(ev.sourceEvent ?? ev);
+                return node_at(coords.x, coords.y);
+            })
+            .on("start", (ev) => {
+                dragged_node = ev.subject;
+                drag_start_position = { x: dragged_node.x, y: dragged_node.y };
+                dragged_node.fx = dragged_node.x;
+                dragged_node.fy = dragged_node.y;
+                tooltip.style.display = "none";
+                canvas.style.cursor = "grabbing";
+                // Playback updates freeze the tick budget; give the drag
+                // fully live physics for its duration + natural cooldown.
+                plot.cooldownTicks(Infinity);
+            })
+            .on("drag", (ev) => {
+                const zoom_level = plot.zoom();
+                dragged_node.fx = dragged_node.x = drag_start_position.x + (ev.x - drag_start_position.x) / zoom_level;
+                dragged_node.fy = dragged_node.y = drag_start_position.y + (ev.y - drag_start_position.y) / zoom_level;
+                plot.d3ReheatSimulation();
+            })
+            .on("end", () => {
+                if (dragged_node) {
+                    dragged_node.fx = undefined;
+                    dragged_node.fy = undefined;
+                }
+                dragged_node = null;
+                drag_start_position = null;
+                canvas.style.cursor = "";
+            }),
+    );
+
+    // Don't pan the canvas when the gesture starts on a node - that's a drag.
+    plot.enablePanInteraction((ev) => {
+        if (!ev || typeof ev.clientX !== "number") return true;
+        const coords = graph_coords_from_event(ev);
+        return node_at(coords.x, coords.y) === null;
+    });
 
     // Rebuild the graph from the incoming payload on every update, seeding
     // each node's position (and velocity / drag-pin) from the node it
@@ -527,7 +657,6 @@ function render({ model, el }) {
     apply_select_feature();
 
     let brush_active = false;
-    let container = el.querySelector(".force-graph-container");
 
     let overlay = select(container)
         .append("svg")
@@ -627,7 +756,11 @@ function render({ model, el }) {
     }, 500);
 
     // Debug handle (used by the repo's headless probes; harmless otherwise).
-    window.__routeGraphDebug = { plot, el };
+    // `build` is stamped by the npm build script - check it in the browser
+    // console to confirm which bundle a session is actually running.
+    const build_tag = typeof __RG_BUILD__ === "string" ? __RG_BUILD__ : "dev";
+    console.log(`route_graph_widget build ${build_tag}`);
+    window.__routeGraphDebug = { plot, el, build: build_tag };
 
     return () => clearInterval(device_pixel_ratio_watch);
 }

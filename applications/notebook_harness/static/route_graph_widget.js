@@ -12207,15 +12207,7 @@ function render3({ model, el }) {
     }
   };
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).nodePointerAreaPaint((node, color2, ctx) => {
-      ctx.fillStyle = color2;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, node_radius(node) + 3, 0, 2 * Math.PI, false);
-      ctx.fill();
-    }).cooldownTime(5e3).warmupTicks(10).nodeLabel("name").linkLabel((link) => {
-      const length = link.data && link.data.length;
-      return length ? `${link.id} (${length})` : link.id;
-    }).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onNodeDrag(() => plot.cooldownTicks(Infinity)).onEngineStop(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).enablePointerInteraction(false).enableNodeDrag(false).cooldownTime(5e3).warmupTicks(10).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
       if (zoom_to_fit_pending) {
         zoom_to_fit_pending = false;
         plot.zoomToFit(400);
@@ -12237,6 +12229,115 @@ function render3({ model, el }) {
   select_feature_value = model.get("select_feature_value");
   let global_selected_ids = model.get("selected_ids");
   plot = create_plot(data);
+  const container = el.querySelector(".force-graph-container");
+  const canvas = container.querySelector("canvas");
+  const graph_coords_from_event = (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    return plot.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+  };
+  const node_at = (gx, gy) => {
+    let best = null;
+    let best_distance = Infinity;
+    for (const node of data.nodes) {
+      if (typeof node.x !== "number") continue;
+      const distance2 = Math.hypot(gx - node.x, gy - node.y);
+      if (distance2 <= node_radius(node) + 3 && distance2 < best_distance) {
+        best = node;
+        best_distance = distance2;
+      }
+    }
+    return best;
+  };
+  const point_segment_distance = (px, py, a3, b2) => {
+    const abx = b2.x - a3.x;
+    const aby = b2.y - a3.y;
+    const lengthSq = abx * abx + aby * aby;
+    const t3 = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - a3.x) * abx + (py - a3.y) * aby) / lengthSq));
+    return Math.hypot(px - (a3.x + t3 * abx), py - (a3.y + t3 * aby));
+  };
+  const link_at = (gx, gy) => {
+    const threshold = train_space_width / 2 + 2;
+    let best = null;
+    let best_distance = Infinity;
+    for (const link of data.links) {
+      const start2 = link.source;
+      const end = link.target;
+      if (!start2 || !end || typeof start2.x !== "number" || typeof end.x !== "number") continue;
+      const controlPoints = link.__controlPoints;
+      const cp = controlPoints && controlPoints.length === 2 ? { x: controlPoints[0], y: controlPoints[1] } : null;
+      const steps = cp ? 12 : 1;
+      let previous = { x: start2.x, y: start2.y };
+      for (let i2 = 1; i2 <= steps; i2++) {
+        const point = cp ? bezier_point(i2 / steps, start2, cp, end) : { x: end.x, y: end.y };
+        const distance2 = point_segment_distance(gx, gy, previous, point);
+        if (distance2 < best_distance) {
+          best_distance = distance2;
+          best = link;
+        }
+        previous = point;
+      }
+    }
+    return best_distance <= threshold ? best : null;
+  };
+  const tooltip = document.createElement("div");
+  tooltip.className = "float-tooltip-kap route-graph-tooltip";
+  tooltip.style.display = "none";
+  container.appendChild(tooltip);
+  let dragged_node = null;
+  container.addEventListener("pointermove", (ev) => {
+    if (dragged_node) return;
+    const coords = graph_coords_from_event(ev);
+    const node = node_at(coords.x, coords.y);
+    const link = node ? null : link_at(coords.x, coords.y);
+    const label = node ? node.name : link ? link.data && link.data.length ? `${link.id} (${link.data.length})` : link.id : "";
+    if (label) {
+      const rect = canvas.getBoundingClientRect();
+      tooltip.textContent = label;
+      tooltip.style.display = "";
+      tooltip.style.left = `${ev.clientX - rect.left + 10}px`;
+      tooltip.style.top = `${ev.clientY - rect.top + 10}px`;
+    } else {
+      tooltip.style.display = "none";
+    }
+    canvas.style.cursor = node ? "grab" : "";
+  });
+  container.addEventListener("pointerleave", () => {
+    tooltip.style.display = "none";
+    canvas.style.cursor = "";
+  });
+  let drag_start_position = null;
+  select_default2(canvas).call(
+    drag_default().filter((ev) => !ev.button && !ev.metaKey).subject((ev) => {
+      const coords = graph_coords_from_event(ev.sourceEvent ?? ev);
+      return node_at(coords.x, coords.y);
+    }).on("start", (ev) => {
+      dragged_node = ev.subject;
+      drag_start_position = { x: dragged_node.x, y: dragged_node.y };
+      dragged_node.fx = dragged_node.x;
+      dragged_node.fy = dragged_node.y;
+      tooltip.style.display = "none";
+      canvas.style.cursor = "grabbing";
+      plot.cooldownTicks(Infinity);
+    }).on("drag", (ev) => {
+      const zoom_level = plot.zoom();
+      dragged_node.fx = dragged_node.x = drag_start_position.x + (ev.x - drag_start_position.x) / zoom_level;
+      dragged_node.fy = dragged_node.y = drag_start_position.y + (ev.y - drag_start_position.y) / zoom_level;
+      plot.d3ReheatSimulation();
+    }).on("end", () => {
+      if (dragged_node) {
+        dragged_node.fx = void 0;
+        dragged_node.fy = void 0;
+      }
+      dragged_node = null;
+      drag_start_position = null;
+      canvas.style.cursor = "";
+    })
+  );
+  plot.enablePanInteraction((ev) => {
+    if (!ev || typeof ev.clientX !== "number") return true;
+    const coords = graph_coords_from_event(ev);
+    return node_at(coords.x, coords.y) === null;
+  });
   const update_data = () => {
     const newData = model.get("data");
     const currentData = plot.graphData();
@@ -12372,7 +12473,6 @@ function render3({ model, el }) {
   update_node_size_feature();
   apply_select_feature();
   let brush_active = false;
-  let container = el.querySelector(".force-graph-container");
   let overlay = select_default2(container).append("svg").attr("id", "overlay").style("position", "absolute").style("top", 0).style("left", 0).style("width", "100%").style("height", "100%").style("pointer-events", "none");
   let activate_brush = () => {
     brush_active = true;
@@ -12439,7 +12539,9 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  window.__routeGraphDebug = { plot, el };
+  const build_tag = true ? "20260705-212720Z" : "dev";
+  console.log(`route_graph_widget build ${build_tag}`);
+  window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => clearInterval(device_pixel_ratio_watch);
 }
 var route_graph_widget_default = { render: render3 };
