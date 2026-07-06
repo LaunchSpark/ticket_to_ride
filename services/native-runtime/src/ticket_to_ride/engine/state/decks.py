@@ -26,8 +26,9 @@ class TrainCardDeck:
         "L": 14   # Locomotive (wild)
     }
 
-    def __init__(self):
+    def __init__(self, rng: 'random.Random | None' = None):
         """Create and shuffle the deck used during the gameplay loop."""
+        self._rng = rng or random.Random()
         self._deck: List[str] = []
         self._discard_pile: List[str] = []
         self._face_up: List[str] = []
@@ -36,7 +37,7 @@ class TrainCardDeck:
         for abbrev, count in self.COLOR_COUNTS.items():
             self._deck.extend([abbrev] * count)
 
-        random.shuffle(self._deck)
+        self._rng.shuffle(self._deck)
         self._refill_face_up_slot()
 
         # Mulligan rule enforcement
@@ -93,7 +94,7 @@ class TrainCardDeck:
         if not self._discard_pile:
             return
         self._deck.extend(self._discard_pile)
-        random.shuffle(self._deck)
+        self._rng.shuffle(self._deck)
         self._discard_pile.clear()
 
     def _too_many_locomotives(self) -> bool:
@@ -132,11 +133,11 @@ class DestinationTicket:
 # TicketDeck – loads tickets from CSV and manages draws
 # ────────────────────────────────────────────────────────────────────────────────
 class TicketDeck:
-    def __init__(self, csv_path: str | Path = TICKETS_CSV_PATH):
+    def __init__(self, csv_path: str | Path = TICKETS_CSV_PATH, rng: 'random.Random | None' = None):
         """Load destination tickets and prepare the draw stack."""
         self._master: List[DestinationTicket] = self._load_tickets_from_csv(csv_path)
         self._stack: Deque[DestinationTicket] = deque(self._master)
-        self._rng = random.Random()
+        self._rng = rng or random.Random()
         self._shuffle_stack()
 
     def deal_unique(self, n: int) -> List[DestinationTicket]:

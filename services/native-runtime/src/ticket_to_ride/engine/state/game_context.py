@@ -1,4 +1,5 @@
 import logging
+import random
 
 from ticket_to_ride.engine.state.map import MapGraph
 from ticket_to_ride.engine.state.decks import TrainCardDeck, TicketDeck
@@ -10,12 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 class GameContext:
-    def __init__(self, player_ids, map_name: Optional[str] = None):
-        """Holds shared state used throughout the gameplay loop."""
+    def __init__(self, player_ids, map_name: Optional[str] = None, seed: Optional[int] = None):
+        """Holds shared state used throughout the gameplay loop.
+
+        All engine randomness (deck shuffles, market refills, ticket deals)
+        flows from `self.rng`, so a (seed, action sequence) pair replays to
+        an identical game.
+        """
         logger.info("Initializing GameContext...")
+        self.seed = seed if seed is not None else random.randrange(2**32)
+        self.rng = random.Random(self.seed)
         self.map_graph = MapGraph(player_count=len(player_ids), map_name=map_name)
-        self.train_deck = TrainCardDeck()
-        self.ticket_deck = TicketDeck()
+        self.train_deck = TrainCardDeck(rng=self.rng)
+        self.ticket_deck = TicketDeck(rng=self.rng)
         self.turn_num = 0
         # initialize score dictionary for all players
         # each player starts with a score of 0
