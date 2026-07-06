@@ -51,3 +51,32 @@ class BaseBot(Interface, ABC):
     @abstractmethod
     def select_ticket_offer(self, offer) -> List[Any]:
         raise NotImplementedError
+
+
+class ActionBot(BaseBot):
+    """New-style bot: implement act(view, legal_actions) -> action.
+
+    view is a ticket_to_ride PlayerView; legal_actions is a non-empty list
+    of engine Action dataclasses. Returning anything outside the list makes
+    the engine take legal_actions[0] instead. The legacy choose_* contract
+    is stubbed out — the engine never calls it on a bot that defines act().
+    """
+
+    @abstractmethod
+    def act(self, view: Any, legal_actions: List[Any]) -> Any:
+        raise NotImplementedError
+
+    def choose_turn_action(self):
+        raise RuntimeError("action bots decide via act()")
+
+    def choose_draw_train_action(self) -> int:
+        raise RuntimeError("action bots decide via act()")
+
+    def choose_route_to_claim(self, claimable_routes):
+        raise RuntimeError("action bots decide via act()")
+
+    def choose_color_to_spend(self, route, color_options):
+        raise RuntimeError("action bots decide via act()")
+
+    def select_ticket_offer(self, offer) -> List[Any]:
+        raise RuntimeError("action bots decide via act()")
