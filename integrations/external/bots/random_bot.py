@@ -7,7 +7,7 @@ with app.setup(hide_code=True):
     import random
     from typing import List
 
-    from external.contracts.base_bot import BaseBot
+    from external.contracts.base_bot import ActionBot, BaseBot
     from ticket_to_ride.engine.state.map import Route
     from ticket_to_ride.engine.state.decks import DestinationTicket
     from wigglystuff import PlaySlider
@@ -24,60 +24,20 @@ with app.setup(hide_code=True):
 
 
 @app.class_definition
-class RandomBot(BaseBot):
-    """Baseline bot that makes random choices.
+class RandomBot(ActionBot):
+    """Baseline bot: picks a uniformly random legal action.
 
-    Helpful functions and attributes
-    -------------------------------
-    ``self.player`` is assigned by the game engine and exposes many helpers for
-    making decisions. Some commonly used ones are listed below.
-
-    ``self._view`` -> :class:`PlayerView`
-        Data-only view of everything your seat may see, rebuilt each turn.
-        Commonly used: ``self._view.affordable_routes()`` (routes you can
-        afford plus locomotives required), ``self._view.tickets``,
-        ``self._view.hand``, ``self._view.trains_remaining``,
-        ``self._view.face_up_cards``, and ``self._view.culled_map()``.
+    ``act`` receives a ``PlayerView`` (data-only view of everything the
+    seat may see: ``hand``, ``tickets``, ``face_up_cards``, ``opponents``,
+    ``affordable_routes()``, ``culled_map()``) and a non-empty list of legal
+    engine actions. Whatever it returns is applied; anything outside the
+    list is replaced with the first legal action.
     """
 
     META = BOT_META
 
-    # used to determine weather to
-    # 1 = Draw
-    # 2 = Claim
-    # 3 = draw a destination ticket
-    @property
-    def _view(self):
-        """The engine-built PlayerView for the current decision."""
-        return self.player.context
-
-    def choose_turn_action(self):
-        """Decide which action to take this turn."""
-        if not [t for t in self._view.tickets if not t.is_completed]:
-            return 3
-        if self._view.affordable_routes():
-            return 2
-        return 1
-
-    # choose what cards to draw
-    def choose_draw_train_action(self) -> int:
-        """Choose which face-up index to draw or ``-1`` for the deck."""
-        return random.randrange(-1, 5)
-
-    # choose what routes to claim
-    def choose_route_to_claim(self, claimable_routes: 'List[tuple[Route,int]]') -> 'tuple[Route,int]':
-        """Select a route and number of locomotives to spend."""
-        return claimable_routes[random.randrange(0, len(claimable_routes))]
-
-    # choose what color to spend on a gray route
-    def choose_color_to_spend(self, route: Route, color_options: List[str]) -> "str | None":
-        """Pick a color to spend on gray routes."""
-        return None
-
-    # choose which destination tickets to keep
-    def select_ticket_offer(self, offer) -> List[DestinationTicket]:
-        """Choose which destination tickets to keep."""
-        return [offer[0], offer[1]]
+    def act(self, view, legal_actions):
+        return random.choice(legal_actions)
 
     def path_finder(self, city1, city2):
         """Placeholder for path-finding logic."""
