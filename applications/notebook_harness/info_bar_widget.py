@@ -7,11 +7,13 @@ import traitlets
 
 
 class InfoBarWidget(anywidget.AnyWidget):
-    """Placeholder bar shown below the map and player list.
+    """Market bar shown below the map: the five face-up cards, draw and
+    discard pile counters, and a pie of draw odds.
 
-    Will eventually display the train-card market and the odds of drawing
-    each card color, computed from public information only. For now it just
-    reserves the space so the notebook layout is already in its final shape.
+    The notebook pushes one `market` dict per (turn-slider step, selected
+    player) — see HarnessGame.market_at() for the payload shape. Card and
+    pie colors arrive inside the payload (from board_view.card_color_hex),
+    so recoloring routes recolors the market automatically.
     See ``applications/notebook_harness/widget-src/`` for the JS source this
     is bundled from.
     """
@@ -19,4 +21,4 @@ class InfoBarWidget(anywidget.AnyWidget):
     _esm = files("notebook_harness").joinpath("static/info_bar_widget.js")
     _css = files("notebook_harness").joinpath("static/info_bar_widget.css")
 
-    placeholder_text = traitlets.Unicode("Market & draw odds — coming soon").tag(sync=True)
+    market = traitlets.Dict({}).tag(sync=True)
