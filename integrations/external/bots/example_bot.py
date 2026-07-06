@@ -9,7 +9,14 @@ with app.setup:
     from itertools import combinations
     from typing import List
 
-    from external.contracts.base_bot import BaseBot
+    from external.contracts.base_bot import ActionBot, BaseBot
+    from ticket_to_ride.engine.actions import (
+        ClaimRoute,
+        DrawBlind,
+        DrawFaceUp,
+        DrawTickets,
+        KeepTickets,
+    )
     from ticket_to_ride.engine.state.map import Route
     from ticket_to_ride.engine.state.decks import DestinationTicket
 
@@ -25,7 +32,7 @@ with app.setup:
 
 
 @app.class_definition(hide_code=True)
-class ExampleBot(BaseBot):
+class ExampleBot(ActionBot):
     """The most basic intelligent strategy - not optimal, just sensible.
 
     Plan: pick the destination-ticket pair with the best cost-to-points
@@ -54,16 +61,18 @@ class ExampleBot(BaseBot):
         # choose_draw_train_action is called twice back-to-back before any
         # card moves, so both picks are planned on the first call and the
         # second is remembered here.
-        self._queued_draw: 'int | None' = None
 
     # ------------------------------------------------------------------
     # Pathfinding over the culled map (point-value weights)
     # ------------------------------------------------------------------
 
-    @property
-    def _view(self):
-        """The engine-built PlayerView for the current decision."""
-        return self.player.context
+    def act(self, view, legal_actions):
+        self._view = view
+        if view.decision == "keep_tickets":
+            return self._keep_action(view, legal_actions)
+        if view.decision == "draw_second":
+            return self._draw_action(view, legal_actions)
+        return self._turn_action(view, legal_actions)
 
     def _culled(self):
         return self._view.culled_map()
@@ -291,21 +300,60 @@ class ExampleBot(BaseBot):
     # Engine-facing decisions
     # ------------------------------------------------------------------
 
-    # 1 = draw train cards, 2 = claim a route, 3 = draw destination tickets
-    def choose_turn_action(self):
+    def _turn_action(self, view, legal_actions):
         """Tickets all scored -> draw more; else claim if a planned route is
         affordable; else draw train cards."""
-        if not self._unscored_tickets():
-            if self._view.tickets_in_deck >= 3:
-                return 3
-            # Deck can't serve an offer: score points instead of stalling.
-            return 2 if self._view.affordable_routes() else 1
-        self._replan()
-        if self._claimable_planned(self._view.affordable_routes()):
-            return 2
-        return 1
+        claims = [a for a in legal_actions if isinstance(a, ClaimRoute)]
+        draws = [a for a in legal_actions if isinstance(a, (DrawBlind, DrawFaceUp))]
+        tickets_offered = any(isinstance(a, DrawTickets) for a in legal_actions)
 
-    def choose_route_to_claim(self, claimable_routes: 'List[tuple[Route, int]]') -> 'tuple[Route, int]':
+        if not self._unscored_tickets():
+            if tickets_offered:
+                return DrawTickets()
+            # Deck can't serve an offer: score points instead of stalling.
+            if claims:
+                return self._claim_action(view, claims)
+            if draws:
+                return self._draw_action(view, draws)
+            return legal_actions[0]
+
+        self._replan()
+        if claims and self._claimable_planned(self._picks_from_claims(view, claims)):
+            return self._claim_action(view, claims)
+        if draws:
+            return self._draw_action(view, draws)
+        if claims:  # forced: train deck is dry
+            return self._claim_action(view, claims)
+        if tickets_offered:
+            return DrawTickets()
+        return legal_actions[0]
+
+    @staticmethod
+    def _picks_from_claims(view, claims):
+        """Rebuild (route, locomotives) picks — one per route at its minimum
+        locomotive spend — so the pre-action planning helpers keep working."""
+        best = {}
+        for action in claims:
+            current = best.get(action.route_id)
+            if current is None or action.locomotives < current[1]:
+                best[action.route_id] = (view.route_by_id(action.route_id), action.locomotives)
+        return list(best.values())
+
+    def _claim_action(self, view, claims):
+        picks = self._picks_from_claims(view, claims)
+        route, locomotives = self._choose_route_pick(picks)
+        candidates = [a for a in claims if a.route_id == route.route_id and a.locomotives == locomotives]
+        if not candidates:
+            candidates = [a for a in claims if a.route_id == route.route_id] or claims
+        if len(candidates) == 1:
+            return candidates[0]
+        # Gray route: spend the color the plan needs least (largest surplus
+        # stack first, so reserved colors stay untouched).
+        needs = self._card_needs()
+        hand = view.hand
+        return min(candidates, key=lambda a: (needs.get(a.color, 0), -hand.get(a.color, 0)))
+
+    def _choose_route_pick(self, claimable_routes: 'List[tuple[Route, int]]') -> 'tuple[Route, int]':
         """Most expensive affordable planned route; forced claims dump the
         least-needed cards on the shortest gray route available."""
         self._replan()
@@ -323,65 +371,41 @@ class ExampleBot(BaseBot):
             return min(gray, key=lambda pick: pick[0].length)
         return min(options, key=lambda pick: (needs.get(pick[0].color, 0), pick[0].length))
 
-    def choose_color_to_spend(self, route: Route, color_options: List[str]) -> 'str | None':
-        """On gray routes, spend the color the plan needs least (largest
-        surplus stack first, so reserved colors stay untouched)."""
-        needs = self._card_needs()
-        hand = self._view.hand
-        return min(color_options, key=lambda c: (needs.get(c, 0), -hand.get(c, 0)))
+    def _draw_action(self, view, draw_actions):
+        """Best single pick against the market as it is right now: biggest
+        deficit color first, never a face-up locomotive, else the deck.
 
-    def choose_draw_train_action(self) -> int:
-        if self._queued_draw is not None:
-            pick = self._queued_draw
-            self._queued_draw = None
-            return pick
-        first, second = self._plan_draws()
-        self._queued_draw = second
-        return first
-
-    def _plan_draws(self) -> 'tuple[int, int]':
-        """Pick both face-up indices (or -1 for the deck) for this turn.
-
-        If the market shows two copies of a color the plan needs two of,
-        grab both. Otherwise work down the deficit priority list, and hit
-        the deck when the market has nothing useful. Face-up locomotives
-        are never taken: they'd forfeit the second draw.
+        (The old two-pick planning and its _queued_draw hack are obsolete:
+        the engine now shows the refreshed market before the second pick.)
         """
         self._replan()
         needs = self._card_needs()
-        market = list(self._view.face_up_cards)
+        useful = [
+            a for a in draw_actions
+            if isinstance(a, DrawFaceUp) and a.card != "L" and needs.get(a.card, 0) > 0
+        ]
+        if useful:
+            return max(useful, key=lambda a: needs[a.card])
+        for action in draw_actions:
+            if isinstance(action, DrawBlind):
+                return action
+        return draw_actions[0]
 
-        indices_by_color: 'dict[str, list[int]]' = {}
-        for index, letter in enumerate(market):
-            if letter != "L":
-                indices_by_color.setdefault(letter, []).append(index)
+    def _keep_action(self, view, legal_actions):
+        kept = self._select_tickets(view.ticket_offer)
+        indices = tuple(sorted(view.ticket_offer.index(t) for t in kept))
+        choice = KeepTickets(indices)
+        if choice in legal_actions:
+            return choice
+        supersets = [
+            a for a in legal_actions
+            if isinstance(a, KeepTickets) and set(indices) <= set(a.indices)
+        ]
+        if supersets:
+            return min(supersets, key=lambda a: len(a.indices))
+        return legal_actions[0]
 
-        priorities = sorted(
-            (color for color in self._CARD_COLORS if needs.get(color, 0) > 0),
-            key=lambda color: -needs[color],
-        )
-
-        for color in priorities:
-            if needs[color] >= 2 and len(indices_by_color.get(color, [])) >= 2:
-                return indices_by_color[color][0], indices_by_color[color][1]
-
-        picks: 'list[int]' = []
-        taken: 'set[int]' = set()
-        for color in priorities:
-            remaining = needs[color]
-            for index in indices_by_color.get(color, []):
-                if index in taken or remaining <= 0:
-                    continue
-                picks.append(index)
-                taken.add(index)
-                remaining -= 1
-                if len(picks) == 2:
-                    return picks[0], picks[1]
-        while len(picks) < 2:
-            picks.append(-1)
-        return picks[0], picks[1]
-
-    def select_ticket_offer(self, offer: List[DestinationTicket]) -> List[DestinationTicket]:
+    def _select_tickets(self, offer: List[DestinationTicket]) -> List[DestinationTicket]:
         """Initial offer: keep the pair with the best Steiner cost/points
         ratio, plus a third ticket if it adds < 4 extra cost. Later offers:
         keep everything already completed plus the single best-ratio viable

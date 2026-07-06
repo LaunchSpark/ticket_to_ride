@@ -25,6 +25,7 @@ class ExampleBotTests(unittest.TestCase):
         self.assertGreater(len(claimed), 0)
 
     def test_example_bot_initial_offer_keeps_a_ticket_pair(self) -> None:
+        from ticket_to_ride.engine.actions import legal_keep_actions
         from ticket_to_ride.engine.state.views import PlayerView
 
         example_bot = ExampleBot()
@@ -34,10 +35,14 @@ class ExampleBotTests(unittest.TestCase):
         # Tickets are normally dealt when play() starts; wire the context up
         # manually so the offer can be driven directly.
         player.attach(game.context, game.players)
-        player.set_context(PlayerView(player.player_id, game.context, game.players), False)
 
         offer = game.context.get_ticket_deck().deal_unique(3)
-        kept = example_bot.select_ticket_offer(offer)
+        view = PlayerView(
+            player.player_id, game.context, game.players,
+            decision="keep_tickets", ticket_offer=offer,
+        )
+        choice = example_bot.act(view, legal_keep_actions(len(offer), 2))
+        kept = [offer[i] for i in choice.indices]
 
         # Fresh board: everything is viable, so the pair logic keeps the best
         # two (plus optionally a cheap third).
