@@ -63,11 +63,7 @@ class Game:
         if not self.turn_index % 15:
             logger.info("Turn %s reached", self.turn_index)
         # have that player take their turn
-        player.take_turn({
-            "draw_train": False,
-            "claim_route": False,
-            "draw_destination": False
-        })
+        player.take_turn()
 
         # incriment the turn counter
         self.turn_index += 1

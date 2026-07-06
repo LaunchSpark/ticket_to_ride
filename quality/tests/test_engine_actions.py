@@ -80,5 +80,57 @@ class LegalMenuTests(unittest.TestCase):
         self.assertEqual(legal, [Pass()])
 
 
+class _FirstLegalBot:
+    """Claims when possible, otherwise takes the first legal action."""
+    def set_player(self, player):
+        self.player = player
+    def act(self, view, legal_actions):
+        for action in legal_actions:
+            if isinstance(action, ClaimRoute):
+                return action
+        return legal_actions[0]
+
+
+class _IllegalBot:
+    def set_player(self, player):
+        self.player = player
+    def act(self, view, legal_actions):
+        return "nonsense"
+
+
+class _NullLogger:
+    def record_turn(self, *args, **kwargs):
+        return None
+
+
+class ActTurnFlowTests(unittest.TestCase):
+    def _run(self, bot_classes, seed=21):
+        from ticket_to_ride.engine.game import Game
+        players = [Player(f"p{i}", cls(), f"p{i}", "red") for i, cls in enumerate(bot_classes)]
+        context = GameContext([p.player_id for p in players], seed=seed)
+        game = Game(context, players, _NullLogger(), 0)
+        game.play()
+        return game
+
+    def test_full_game_with_act_bots(self):
+        game = self._run([_FirstLegalBot, _FirstLegalBot])
+        self.assertTrue(any(p.trains_remaining <= 2 for p in game.players))
+        deck = game.context.get_train_deck()
+        total = (
+            len(deck) + len(deck.get_discard_pile()) + len(deck.get_face_up())
+            + sum(p.get_card_count() for p in game.players)
+        )
+        self.assertEqual(total, 110)
+
+    def test_illegal_action_falls_back_and_completes(self):
+        game = self._run([_IllegalBot, _FirstLegalBot])
+        self.assertGreater(game.turn_index, 0)
+
+    def test_setup_keeps_at_least_two_tickets(self):
+        game = self._run([_FirstLegalBot, _FirstLegalBot])
+        for p in game.players:
+            self.assertGreaterEqual(len(p.get_tickets()), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
