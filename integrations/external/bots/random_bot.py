@@ -100,8 +100,7 @@ def _(harness_game, mo):
     initial_nodes, initial_edges = harness_game.board_at(0)
     graph = mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(initial_nodes, initial_edges)))
     player_list = mo.ui.anywidget(PlayerListWidget(players=harness_game.roster()))
-    # Placeholder: will show the market & per-color draw odds (public info only).
-    info_bar = mo.ui.anywidget(InfoBarWidget())
+    info_bar = mo.ui.anywidget(InfoBarWidget(market=harness_game.market_at(0)))
     # Must be created in a different cell than the one reading its value:
     # marimo never re-runs a UI element's defining cell on interaction, so a
     # same-cell read would freeze the map at step 0. It still *displays* in
@@ -129,8 +128,12 @@ def _(
     # network merged into single nodes, showing only routes they could still
     # claim (that topology change intentionally restarts the simulation).
     viewpoint = player_list.value["selected_player"] or None
-    nodes, edges = harness_game.board_at(int(step_slider.value["value"]), viewpoint)
+    step = int(step_slider.value["value"])
+    nodes, edges = harness_game.board_at(step, viewpoint)
     graph.data = build_graph_data(nodes, edges)
+    # Market follows the same step + selection: spectator sees the true draw
+    # pile; a selected player sees their public-information odds pool.
+    info_bar.market = harness_game.market_at(step, viewpoint)
     mo.vstack([step_slider, mo.hstack([graph, player_list], align="start", justify="start"), info_bar])
     return
 
