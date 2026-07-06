@@ -66,6 +66,10 @@ class GameLogSerializer:
             for player in players
         ]
 
+    @staticmethod
+    def _routes_claimed_by(view: PlayerView, player_id: str) -> List[Any]:
+        return [route for route in view.routes if view.claimed_by.get(route.route_id) == player_id]
+
     def serialize_turn_state(self, player_list: List[Player], context: PlayerView) -> Dict[str, Any]:
         player = next((candidate for candidate in player_list if candidate.player_id == context.player_id), None)
         if player is None:
@@ -75,7 +79,7 @@ class GameLogSerializer:
             "playerId": context.player_id,
             "score": context.score,
             "remainingTrains": player.trains_remaining,
-            "claimedRoutes": self.serialize_claimed_routes(context.map.get_claimed_routes(player.player_id)),
+            "claimedRoutes": self.serialize_claimed_routes(self._routes_claimed_by(context, player.player_id)),
             "destinationTickets": [
                 {
                     "from": ticket.city1,
@@ -93,7 +97,7 @@ class GameLogSerializer:
                 "playerId": opponent.player_id,
                 "score": opponent.score,
                 "remainingTrains": opponent.remaining_trains,
-                "claimedRoutes": self.serialize_claimed_routes(context.map.get_claimed_routes(opponent.player_id)),
+                "claimedRoutes": self.serialize_claimed_routes(self._routes_claimed_by(context, opponent.player_id)),
                 "destinationTicketCount": opponent.destination_ticket_count,
                 "hand": {
                     "public": self._serialize_hand(opponent.exposed_hand),

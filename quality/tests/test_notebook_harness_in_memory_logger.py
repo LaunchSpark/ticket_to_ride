@@ -19,6 +19,8 @@ class InMemoryGameLoggerTests(unittest.TestCase):
         logger = InMemoryGameLogger(players)
         context = GameContext([player.player_id for player in players])
 
+        for p in players:
+            p.attach(context, players)
         players[0].set_context(PlayerView(players[0].player_id, context, players), True)
         players[1].set_context(PlayerView(players[1].player_id, context, players), True)
 
@@ -39,6 +41,8 @@ class InMemoryGameLoggerTests(unittest.TestCase):
         logger = InMemoryGameLogger(players)
         context = GameContext([player.player_id for player in players])
 
+        for p in players:
+            p.attach(context, players)
         players[0].set_context(PlayerView(players[0].player_id, context, players), True)
 
         logger.record_turn(0, players[0].context)

@@ -17,6 +17,7 @@ def build_test_players() -> list[Player]:
     ]
     context = GameContext([player.player_id for player in players])
     for player in players:
+        player.attach(context, players)
         player.set_context(PlayerView(player.player_id, context, players))
     return players
 

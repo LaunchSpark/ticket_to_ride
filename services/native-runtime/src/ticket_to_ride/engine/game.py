@@ -36,6 +36,8 @@ class Game:
         self.context = context
         self.players = players
         self.turn_index = 0
+        for p in players:
+            p.attach(context, players)
 
     def play(self) -> None:
         """Run the core gameplay loop until an end condition is reached."""

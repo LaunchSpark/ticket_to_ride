@@ -264,8 +264,8 @@ def _serialize_player_state(
             "faceUpCards": list(context.face_up_cards),
             "turnNumber": context.turn_number,
             "score": context.score,
-            "trainDeckCount": len(context.train_deck),
-            "ticketDeckCount": len(context.ticket_deck),
+            "trainDeckCount": context.train_cards_in_deck,
+            "ticketDeckCount": context.tickets_in_deck,
             "remainingTimeMs": remaining_time_ms,
             "initialTimeMs": initial_time_ms,
             "incrementMs": increment_ms,
@@ -281,7 +281,7 @@ def _serialize_player_state(
                 for opponent in context.opponents
             ],
             "map": {
-                "routes": [route_payload(route) for route in context.map.routes],
+                "routes": [route_payload(route) for route in context.routes],
             },
         },
     }

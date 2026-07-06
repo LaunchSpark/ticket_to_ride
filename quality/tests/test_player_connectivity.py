@@ -38,7 +38,7 @@ class FakeMap:
 
 def make_player(fake_map, tickets=(), player_id="me") -> Player:
     player = Player(player_id, StubInterface(), player_id, "red")
-    player.context = SimpleNamespace(map=fake_map)
+    player.attach(SimpleNamespace(get_map=lambda: fake_map), [player])
     # Tickets are normally drawn from the deck; inject directly for the test.
     player._Player__tickets.extend(tickets)
     return player

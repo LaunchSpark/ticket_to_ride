@@ -65,6 +65,7 @@ class ScriptedGame:
 
     def play(self) -> None:
         for player in self.players:
+            player.attach(self.base_context, self.players)
             player.set_context(PlayerView(player.player_id, self.base_context, self.players))
             self.logger.record_turn(self.round_number, player.context)
             interface = player.get_interface()

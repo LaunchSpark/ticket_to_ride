@@ -23,6 +23,19 @@ class Player:
         self.__interface.set_player(self)
         self.has_longest_path: bool = False
         self.my_longest_path_length: int = 0
+        self._game = None      # GameContext; set by attach()
+        self._players = []     # full seat list; set by attach()
+
+    def attach(self, game_context, players: 'List[Player]') -> None:
+        """Bind the live GameContext (the engine's mutation channel) and the
+        seat list. Views handed to bots never carry these."""
+        self._game = game_context
+        self._players = list(players)
+
+    @property
+    def game_context(self):
+        """The live GameContext. Engine-internal: bots get PlayerViews."""
+        return self._game
 
     # sets the view for the player
     def set_context(self, context: PlayerView, setup: bool = False):
@@ -53,9 +66,9 @@ class Player:
 
                 # Check if there are enough cards in the deck to draw; if not, shuffle in the discard and check again.
                 # If there are still less than 2 cards in the deck, force the player to claim a route if they can afford one, or to pass the turn if they can't
-                if len(self.context.train_deck) < 2:
-                    self.context.train_deck._reshuffle_discard()
-                    if len(self.context.train_deck) < 2:
+                if len(self._game.get_train_deck()) < 2:
+                    self._game.get_train_deck()._reshuffle_discard()
+                    if len(self._game.get_train_deck()) < 2:
                         fault_flags['draw_train'] = True
 
                 if turn_choice == 1 and not fault_flags['draw_train']: ## Draw Cards
@@ -80,7 +93,7 @@ class Player:
                     if fault_flags['draw_destination']:
                         self.__draw_train_cards([-1] * 2)
                         break
-                    if len(self.context.ticket_deck) < 3:
+                    if len(self._game.get_ticket_deck()) < 3:
                         fault_flags['draw_destination'] = True
                         logger.info("There aren't enough destination tickets left for %s. Trying something else.", self.name)
                         continue
@@ -114,7 +127,7 @@ class Player:
         locomotive becomes a face-down draw instead.
         """
         draw_choices = [self.__interface.choose_draw_train_action() for _ in range(2)] if draws is None else draws
-        train_deck = self.context.train_deck
+        train_deck = self._game.get_train_deck()
 
         for position, choice in enumerate(draw_choices):
             if choice >= 0:
@@ -186,7 +199,7 @@ class Player:
     def __draw_destination_tickets(self) -> bool:
         """Offer destination tickets and keep the chosen ones."""
         try:
-            offer = self.context.ticket_deck.deal_unique(3)
+            offer = self._game.get_ticket_deck().deal_unique(3)
         except Exception as e:
             logger.warning("Ticket draw failed for player %s: %s", self.player_id, e)
             return False
@@ -202,7 +215,7 @@ class Player:
 
         self.__tickets.extend(kept)
         returned = [t for t in offer if t not in kept]
-        self.context.ticket_deck.return_tickets(returned)
+        self._game.get_ticket_deck().return_tickets(returned)
         return True
 
     # Helpers
@@ -232,7 +245,7 @@ class Player:
     def _spend_cards(self, cards: List[str]) -> None:
         """Spend cards from the player's hand and discard them."""
         self.__train_hand.subtract(cards)
-        self.context.train_deck.discard(cards)
+        self._game.get_train_deck().discard(cards)
         self.exposed.subtract(cards)
         # clamp in place: views hold a live reference to this Counter
         for color, count in list(self.exposed.items()):
@@ -242,7 +255,7 @@ class Player:
     def __claim_route(self, route: Route) -> None:
         """Mark a route as claimed and update train count."""
         self.trains_remaining -= route.length
-        self.context.map.claim_route(route, self.player_id)
+        self._game.get_map().claim_route(route, self.player_id)
 
     def __hand_counts(self) -> 'Counter[str]':
         """Return a copy of the player's full hand counts."""
@@ -273,7 +286,7 @@ class Player:
         most_common_num = max(colors.values(), default=0)
         affordable_routes = []
 
-        for r in self.context.map.get_available_routes(self.player_id):
+        for r in self._game.get_map().get_available_routes(self.player_id):
             if r.length > self.trains_remaining:
                 continue
             for n in range(locomotives + 1):
@@ -286,9 +299,9 @@ class Player:
     
     def update_longest_path(self, new_route: Route):
         """Notify the map that this player claimed a new route."""
-        self.context.map.update_longest_path(self.player_id, new_route)
-        self.my_longest_path_length = self.context.map.longest_paths[self.player_id]
-        self.has_longest_path = (self.context.map.longest_path_holder == self.player_id)
+        self._game.get_map().update_longest_path(self.player_id, new_route)
+        self.my_longest_path_length = self._game.get_map().longest_paths[self.player_id]
+        self.has_longest_path = (self._game.get_map().longest_path_holder == self.player_id)
 
     def get_culled_map(self):
         """This player's contracted view of the board (see MapGraph.culled_map_for).
@@ -297,7 +310,7 @@ class Player:
         could still claim survive - so shortest paths over it answer "what
         would it cost to connect X and Y from here?".
         """
-        return self.context.map.culled_map_for(self.player_id)
+        return self._game.get_map().culled_map_for(self.player_id)
 
     def is_connected(self, city1: str, city2: str) -> bool:
         """True if this player's claimed routes already join the two cities."""

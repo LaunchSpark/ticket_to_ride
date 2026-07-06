@@ -30,14 +30,6 @@ class FakeRoute:
         return self.route_id
 
 
-class FakeMap:
-    def __init__(self, claimed_routes):
-        self.claimed_routes = claimed_routes
-
-    def get_claimed_routes(self, player_id: str):
-        return self.claimed_routes.get(player_id, [])
-
-
 class LoggerIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         repository = InMemoryMatchRepository()
@@ -70,7 +62,8 @@ class LoggerIntegrationTests(unittest.TestCase):
         context = SimpleNamespace(
             player_id="bot_1",
             score=4,
-            map=FakeMap({"bot_1": [FakeRoute("Seattle-Portland-1", "Seattle-Portland-X")], "bot_2": []}),
+            routes=[FakeRoute("Seattle-Portland-1", "Seattle-Portland-X")],
+            claimed_by={"Seattle-Portland-1": "bot_1"},
             face_up_cards=["R", "G", "L", "U", "W"],
             opponents=[
                 SimpleNamespace(

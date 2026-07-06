@@ -60,8 +60,13 @@ class ExampleBot(BaseBot):
     # Pathfinding over the culled map (point-value weights)
     # ------------------------------------------------------------------
 
+    @property
+    def _view(self):
+        """The engine-built PlayerView for the current decision."""
+        return self.player.context
+
     def _culled(self):
-        return self.player.get_culled_map()
+        return self._view.culled_map()
 
     def _route_points(self, route: Route) -> int:
         return self._ROUTE_POINTS.get(route.length, route.length)
@@ -194,7 +199,7 @@ class ExampleBot(BaseBot):
     # ------------------------------------------------------------------
 
     def _unscored_tickets(self):
-        return [t for t in self.player.get_tickets() if not t.is_completed and not t.is_impossible]
+        return [t for t in self._view.tickets if not t.is_completed and not t.is_impossible]
 
     def _replan(self):
         """Recompute the planned route set for every unscored ticket.
@@ -249,7 +254,7 @@ class ExampleBot(BaseBot):
             else:
                 reserved[route.color] += route.length
 
-        hand = self.player.get_hand()
+        hand = self._view.hand
         deficits = {c: max(0, reserved[c] - hand.get(c, 0)) for c in self._CARD_COLORS}
         surplus = {c: max(0, hand.get(c, 0) - reserved[c]) for c in self._CARD_COLORS}
 
@@ -291,12 +296,12 @@ class ExampleBot(BaseBot):
         """Tickets all scored -> draw more; else claim if a planned route is
         affordable; else draw train cards."""
         if not self._unscored_tickets():
-            if len(self.player.context.ticket_deck) >= 3:
+            if self._view.tickets_in_deck >= 3:
                 return 3
             # Deck can't serve an offer: score points instead of stalling.
-            return 2 if self.player.get_affordable_routes() else 1
+            return 2 if self._view.affordable_routes() else 1
         self._replan()
-        if self._claimable_planned(self.player.get_affordable_routes()):
+        if self._claimable_planned(self._view.affordable_routes()):
             return 2
         return 1
 
@@ -322,7 +327,7 @@ class ExampleBot(BaseBot):
         """On gray routes, spend the color the plan needs least (largest
         surplus stack first, so reserved colors stay untouched)."""
         needs = self._card_needs()
-        hand = self.player.get_hand()
+        hand = self._view.hand
         return min(color_options, key=lambda c: (needs.get(c, 0), -hand.get(c, 0)))
 
     def choose_draw_train_action(self) -> int:
@@ -344,7 +349,7 @@ class ExampleBot(BaseBot):
         """
         self._replan()
         needs = self._card_needs()
-        market = list(self.player.context.face_up_cards)
+        market = list(self._view.face_up_cards)
 
         indices_by_color: 'dict[str, list[int]]' = {}
         for index, letter in enumerate(market):
@@ -389,10 +394,10 @@ class ExampleBot(BaseBot):
         viable = []
         for ticket in candidates:
             trains = culled.cheapest_connection(ticket.city1, ticket.city2)
-            if trains is not None and trains <= self.player.trains_remaining:
+            if trains is not None and trains <= self._view.trains_remaining:
                 viable.append(ticket)
 
-        if not self.player.get_tickets():
+        if not self._view.tickets:
             keep.extend(self._pick_initial_tickets(culled, viable))
         elif viable:
             self._replan()

@@ -14,23 +14,9 @@ class FakeRoute:
         return self.route_id
 
 
-class FakeMap:
-    def __init__(self, claimed_routes):
-        self.claimed_routes = claimed_routes
-
-    def get_claimed_routes(self, player_id: str):
-        return self.claimed_routes.get(player_id, [])
-
-
 class SerializerTests(unittest.TestCase):
     def test_serialize_turn_state_matches_viewer_shape(self) -> None:
         serializer = GameLogSerializer()
-        fake_map = FakeMap(
-            {
-                "bot_1": [FakeRoute("Seattle-Portland-1", "Seattle-Portland-X")],
-                "bot_2": [FakeRoute("Helena-Denver-1", "Helena-Denver-G")],
-            }
-        )
 
         current_player = SimpleNamespace(
             player_id="bot_1",
@@ -43,10 +29,15 @@ class SerializerTests(unittest.TestCase):
             get_hand=lambda: Counter({"R": 2, "L": 1}),
         )
 
+        routes = [
+            FakeRoute("Seattle-Portland-1", "Seattle-Portland-X"),
+            FakeRoute("Helena-Denver-1", "Helena-Denver-G"),
+        ]
         context = SimpleNamespace(
             player_id="bot_1",
             score=12,
-            map=fake_map,
+            routes=routes,
+            claimed_by={"Seattle-Portland-1": "bot_1", "Helena-Denver-1": "bot_2"},
             face_up_cards=["R", "G", "L", "U", "W"],
             opponents=[
                 SimpleNamespace(

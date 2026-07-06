@@ -33,9 +33,10 @@ class ExampleBotTests(unittest.TestCase):
         player = game.players[0]
         # Tickets are normally dealt when play() starts; wire the context up
         # manually so the offer can be driven directly.
+        player.attach(game.context, game.players)
         player.set_context(PlayerView(player.player_id, game.context, game.players), False)
 
-        offer = player.context.ticket_deck.deal_unique(3)
+        offer = game.context.get_ticket_deck().deal_unique(3)
         kept = example_bot.select_ticket_offer(offer)
 
         # Fresh board: everything is viable, so the pair logic keeps the best

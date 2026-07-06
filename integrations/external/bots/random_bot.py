@@ -32,21 +32,12 @@ class RandomBot(BaseBot):
     ``self.player`` is assigned by the game engine and exposes many helpers for
     making decisions. Some commonly used ones are listed below.
 
-    ``self.player.get_affordable_routes()`` -> ``List[tuple[Route, int]]``
-        Returns the routes you can currently afford and the locomotives required.
-
-    ``self.player.get_tickets()`` -> ``List[DestinationTicket]``
-        Your destination tickets. Each ticket has ``city1``, ``city2``,
-        ``value`` and ``is_completed`` attributes.
-
-    ``self.player.get_hand()`` -> ``Counter[str]``
-        Current train cards in hand, keyed by color letter.
-
-    ``self.player.trains_remaining``
-        How many trains you still have available.
-
-    ``self.player.context`` -> :class:`PlayerContext`
-        Snapshot of public game state each turn.
+    ``self._view`` -> :class:`PlayerView`
+        Data-only view of everything your seat may see, rebuilt each turn.
+        Commonly used: ``self._view.affordable_routes()`` (routes you can
+        afford plus locomotives required), ``self._view.tickets``,
+        ``self._view.hand``, ``self._view.trains_remaining``,
+        ``self._view.face_up_cards``, and ``self._view.culled_map()``.
     """
 
     META = BOT_META
@@ -55,15 +46,18 @@ class RandomBot(BaseBot):
     # 1 = Draw
     # 2 = Claim
     # 3 = draw a destination ticket
+    @property
+    def _view(self):
+        """The engine-built PlayerView for the current decision."""
+        return self.player.context
+
     def choose_turn_action(self):
         """Decide which action to take this turn."""
-        affordable_routes = self.player.get_affordable_routes() if self.player else None
-        if not len([t for t in self.player.get_tickets() if not t.is_completed]):
+        if not [t for t in self._view.tickets if not t.is_completed]:
             return 3
-        elif affordable_routes:
+        if self._view.affordable_routes():
             return 2
-        else:
-            return 1
+        return 1
 
     # choose what cards to draw
     def choose_draw_train_action(self) -> int:
