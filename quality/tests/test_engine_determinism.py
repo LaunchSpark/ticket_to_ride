@@ -26,6 +26,16 @@ class SeededDecksTests(unittest.TestCase):
             [b.draw_face_down() for _ in range(10)],
         )
 
+    def test_draw_face_up_with_exhausted_piles_leaves_market_short(self):
+        deck = TrainCardDeck(rng=random.Random(5))
+        while len(deck):
+            deck.draw_face_down()
+        # both piles empty: taking a face-up card must not hang, and the
+        # market just stays one card short
+        before = len(deck.get_face_up())
+        deck.draw_face_up(0)
+        self.assertEqual(len(deck.get_face_up()), before - 1)
+
     def test_same_seed_same_ticket_order(self):
         a = TicketDeck(rng=random.Random(7))
         b = TicketDeck(rng=random.Random(7))

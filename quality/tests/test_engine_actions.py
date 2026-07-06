@@ -68,11 +68,31 @@ class LegalMenuTests(unittest.TestCase):
         route = context.get_map().routes[0]
         self.assertIs(context.get_map().route_by_id(route.route_id), route)
 
+    def test_single_card_still_allows_drawing(self):
+        context, player = _game_and_player()
+        deck = context.get_train_deck()
+        while len(deck) > 1:
+            deck.draw_face_down()
+        legal = legal_turn_actions(player)
+        self.assertIn(DrawBlind(), legal)
+        self.assertTrue(any(isinstance(a, DrawFaceUp) for a in legal))
+
+    def test_face_up_takeable_when_piles_are_empty(self):
+        context, player = _game_and_player()
+        deck = context.get_train_deck()
+        while len(deck):
+            deck.draw_face_down()
+        legal = legal_turn_actions(player)
+        self.assertNotIn(DrawBlind(), legal)          # nothing to draw blind
+        self.assertTrue(any(isinstance(a, DrawFaceUp) for a in legal))
+
     def test_empty_menu_is_pass(self):
         context, player = _game_and_player()
         deck = context.get_train_deck()
         while len(deck):
             deck.draw_face_down()
+        while deck.get_face_up():
+            deck.draw_face_up(0)
         ticket_deck = context.get_ticket_deck()
         while len(ticket_deck) >= 3:
             ticket_deck.deal_unique(3)

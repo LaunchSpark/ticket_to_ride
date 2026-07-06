@@ -55,18 +55,18 @@ class KeepTickets(Action):
 def legal_turn_actions(player) -> List[Action]:
     """Everything the player may open their turn with.
 
-    Mirrors the old fault-flag rules: drawing needs 2+ cards in the deck
-    (after folding the discard back in), tickets need a 3-card offer.
+    Rules as written: a blind draw needs at least one card across the draw
+    and discard piles (the deck reshuffles the moment it empties), face-up
+    cards are takeable whenever the market has any, tickets need a 3-card
+    offer.
     """
     game = player.game_context
     actions: List[Action] = []
 
     deck = game.get_train_deck()
-    if len(deck) < 2:
-        deck._reshuffle_discard()
-    if len(deck) >= 2:
+    if len(deck) or deck.get_discard_pile():
         actions.append(DrawBlind())
-        actions.extend(DrawFaceUp(i, card) for i, card in enumerate(deck.get_face_up()))
+    actions.extend(DrawFaceUp(i, card) for i, card in enumerate(deck.get_face_up()))
 
     actions.extend(legal_claim_actions(player))
 

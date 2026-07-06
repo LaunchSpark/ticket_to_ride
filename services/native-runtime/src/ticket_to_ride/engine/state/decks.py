@@ -80,12 +80,17 @@ class TrainCardDeck:
             self._discard_pile.extend(cards)
 
     def _refill_face_up_slot(self):
-        """Maintain five cards in the market, reshuffling as needed."""
+        """Maintain five cards in the market, reshuffling as needed.
+
+        If both the draw and discard piles are exhausted the market simply
+        stays short — there is nothing left to refill from.
+        """
         while len(self._face_up) < 5:
             if not self._deck:
                 self._reshuffle_discard()
-            if self._deck:
-                self._face_up.append(self._deck.pop())
+            if not self._deck:
+                break
+            self._face_up.append(self._deck.pop())
             if self._too_many_locomotives():
                 self._mulligan_face_up()
 
