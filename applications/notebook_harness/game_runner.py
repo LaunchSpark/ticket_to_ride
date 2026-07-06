@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
 
+from ticket_to_ride.board_view import card_color_hex
 from ticket_to_ride.engine.game import Game
 from ticket_to_ride.engine.player import Player
+from ticket_to_ride.engine.replay import record_of, replay_to_turn
 from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.engine.state.map import DEFAULT_MAP_NAME, available_maps, contract_map
-from ticket_to_ride.engine.state.views import GlobalPrivateView, GlobalPublicView
+from ticket_to_ride.engine.state.views import GlobalPrivateView, GlobalPublicView, PlayerView
 
 from notebook_harness.in_memory_logger import InMemoryGameLogger
 from notebook_harness.rendering import (
@@ -48,6 +50,7 @@ class HarnessGame:
     game: Game
     players: List[Player]
     logger: InMemoryGameLogger
+    _market_games: Dict[int, Game] = field(default_factory=dict, repr=False)
 
     def play(self) -> None:
         """Run the game to completion, recording one snapshot per turn."""
@@ -96,6 +99,48 @@ class HarnessGame:
 
         player_colors = {player.player_id: player.color for player in self.players}
         return build_nodes(map_graph), build_edges(map_graph, claimed_by, player_colors)
+
+    def _replayed_game(self, step_index: int) -> Game:
+        """Game state as of recorded step `step_index`, rebuilt by replaying
+        the action log with the game's seed (and cached per step)."""
+        game = self._market_games.get(step_index)
+        if game is None:
+            game = replay_to_turn(record_of(self.game), step_index)
+            self._market_games[step_index] = game
+        return game
+
+    def market_at(self, step_index: int, viewpoint: 'str | None' = None) -> Dict[str, Any]:
+        """Market payload for the InfoBarWidget as of the given recorded turn.
+
+        Without a viewpoint the pie is the true draw-pile composition
+        (spectator view). With a viewpoint player id it is that player's
+        public-information unknown pool (draw pile + opponents' hidden
+        cards) — the exact distribution PlayerView.draw_odds() gives bots.
+        """
+        replayed = self._replayed_game(step_index)
+        deck = replayed.context.get_train_deck()
+
+        if viewpoint is None:
+            pie_counts = deck.deck_composition()
+            pie_label = "Draw pile"
+        else:
+            view = PlayerView(viewpoint, replayed.context, replayed.players)
+            pie_counts = view.unknown_pool()
+            names = {p["id"]: p["name"] for p in self.roster()}
+            pie_label = f"Unknown to {names.get(viewpoint, viewpoint)} (deck + hidden hands)"
+
+        return {
+            "face_up": deck.get_face_up(),
+            "deck_count": len(deck),
+            "discard_count": len(deck.get_discard_pile()),
+            "pie": [
+                {"color": color, "count": count}
+                for color, count in sorted(pie_counts.items())
+                if count > 0
+            ],
+            "pie_label": pie_label,
+            "colors": card_color_hex(),
+        }
 
 
 def initialize_game(

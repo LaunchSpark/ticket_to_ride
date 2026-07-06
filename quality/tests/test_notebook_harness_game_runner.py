@@ -85,5 +85,50 @@ class GameRunnerTests(unittest.TestCase):
             self.assertFalse(any("+" in node["id"] for node in first_nodes))
 
 
+class MarketAtTests(unittest.TestCase):
+    def _played_game(self):
+        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()], seed=41)
+        harness_game.play()
+        return harness_game
+
+    def test_market_at_step_zero_shows_the_post_setup_market(self):
+        harness_game = self._played_game()
+        market = harness_game.market_at(0)
+        self.assertEqual(len(market["face_up"]), 5)
+        # 110 cards - 5 face-up - 4 dealt to each of 2 seats, split between
+        # the draw pile and any cards the locomotive mulligan discarded
+        # during deck construction.
+        self.assertEqual(market["deck_count"] + market["discard_count"], 110 - 5 - 8)
+        # spectator pie = true draw pile
+        self.assertEqual(sum(seg["count"] for seg in market["pie"]), market["deck_count"])
+        self.assertIn("L", market["colors"])
+        self.assertIn("R", market["colors"])
+
+    def test_market_at_with_viewpoint_uses_the_public_pool(self):
+        harness_game = self._played_game()
+        step = harness_game.snapshot_count() - 1
+        spectator = harness_game.market_at(step)
+        viewer = harness_game.market_at(step, "bot_0")
+        pie_total = sum(seg["count"] for seg in viewer["pie"])
+        # public pool = draw pile + opponents' hidden cards >= true draw pile
+        self.assertGreaterEqual(pie_total, spectator["deck_count"])
+        self.assertEqual(viewer["deck_count"], spectator["deck_count"])
+
+    def test_market_at_is_cached_and_consistent(self):
+        harness_game = self._played_game()
+        first = harness_game.market_at(3)
+        second = harness_game.market_at(3)
+        self.assertEqual(first["face_up"], second["face_up"])
+        self.assertEqual(first["deck_count"], second["deck_count"])
+
+    def test_card_color_hex_covers_all_card_colors(self):
+        from ticket_to_ride.board_view import card_color_hex
+
+        colors = card_color_hex()
+        for letter in ["R", "B", "U", "G", "O", "P", "W", "Y", "L"]:
+            self.assertRegex(colors[letter], r"^#[0-9a-fA-F]{6}$")
+        self.assertNotIn("X", colors)   # gray is a route color, not a card
+
+
 if __name__ == "__main__":
     unittest.main()

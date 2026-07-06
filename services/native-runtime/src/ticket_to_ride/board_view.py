@@ -32,6 +32,22 @@ _ROUTE_COLOR_HEX: Dict[str, str] = {
     "X": "#999999",
 }
 
+# Locomotive card color for market/odds displays. Routes never use this
+# letter; teal is distinct from all eight route colors above.
+_LOCOMOTIVE_HEX = "#17becf"
+
+
+def card_color_hex() -> Dict[str, str]:
+    """Card-color letter -> hex for market/odds displays.
+
+    Derived from the same _ROUTE_COLOR_HEX map the route graph renders from
+    (minus gray "X", which is a route color, not a card), plus the
+    locomotive. Change a color in _ROUTE_COLOR_HEX and every widget updates.
+    """
+    colors = {letter: hex_ for letter, hex_ in _ROUTE_COLOR_HEX.items() if letter != "X"}
+    colors["L"] = _LOCOMOTIVE_HEX
+    return colors
+
 
 def build_nodes(map_graph: MapGraph) -> List[Dict[str, Any]]:
     """Build node dicts, one per city on the map."""
