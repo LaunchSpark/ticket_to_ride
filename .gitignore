@@ -52,3 +52,5 @@ operations/data/pocketbase/*.db-wal
 # applications/notebook_harness/static/, so this doesn't need to ship.
 applications/notebook_harness/widget-src/node_modules/
 .claude/settings.json
+operations/tools/pocketbase/pocketbase
+operations/data/pb_migrations/

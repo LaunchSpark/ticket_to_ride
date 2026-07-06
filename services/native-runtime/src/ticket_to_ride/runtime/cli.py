@@ -322,6 +322,8 @@ def pocketbase_binary_path() -> str | None:
         _repo_root() / "bin" / "pocketbase",
     ]
     for candidate in candidate_paths:
+        if candidate.suffix == ".exe" and os.name != "nt":
+            continue  # a Windows PE binary can't run here
         if candidate.exists():
             return str(candidate)
 
@@ -329,7 +331,8 @@ def pocketbase_binary_path() -> str | None:
 
 
 def recommended_pocketbase_binary_path() -> Path:
-    return _repo_root() / "operations" / "tools" / "pocketbase" / "pocketbase.exe"
+    binary_name = "pocketbase.exe" if os.name == "nt" else "pocketbase"
+    return _repo_root() / "operations" / "tools" / "pocketbase" / binary_name
 
 
 def pocketbase_data_dir() -> Path:
