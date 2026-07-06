@@ -39,10 +39,14 @@ class Game:
         for p in players:
             p.attach(context, players)
 
-    def play(self) -> None:
-        """Run the core gameplay loop until an end condition is reached."""
+    def setup(self) -> None:
+        """Deal starting hands and initial ticket offers to every seat."""
         for p in self.players:
             p.set_context(PlayerView(p.player_id, self.context, self.players), True)
+
+    def play(self) -> None:
+        """Run the core gameplay loop until an end condition is reached."""
+        self.setup()
         while not self._is_game_over():
             self.next_turn()
             self._score_game(False)

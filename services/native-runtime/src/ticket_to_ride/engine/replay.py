@@ -110,3 +110,27 @@ def replay_game(record: GameRecord) -> Game:
     game = Game(context, players, _SilentLogger(), 0)
     game.play()
     return game
+
+
+def replay_to_turn(record: GameRecord, turn_count: int) -> Game:
+    """Rebuild the game state as of the start of turn `turn_count`.
+
+    That is: setup plus the first `turn_count` full turns — the state the
+    logger snapshotted at slider step `turn_count`. Deterministic given the
+    record (same seed, same scripted actions).
+    """
+    scripts = {
+        player_id: [a for owner, a in record.actions if owner == player_id]
+        for player_id in record.player_ids
+    }
+    players = [
+        Player(player_id, ScriptedBot(scripts[player_id]), player_id, "gray")
+        for player_id in record.player_ids
+    ]
+    context = GameContext(record.player_ids, map_name=record.map_name, seed=record.seed)
+    game = Game(context, players, _SilentLogger(), 0)
+    game.setup()
+    for _ in range(turn_count):
+        game.next_turn()
+        game._score_game(False)
+    return game

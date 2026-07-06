@@ -53,5 +53,38 @@ class ReplayTests(unittest.TestCase):
         self.assertEqual(replayed.context.scores, original.context.scores)
 
 
+class PartialReplayTests(unittest.TestCase):
+    def test_replay_to_turn_is_deterministic_and_conserves_cards(self):
+        from ticket_to_ride.engine.replay import replay_to_turn
+
+        original = _play_recorded(seed=13)
+        record = record_of(original)
+        step = original.turn_index // 2
+
+        a = replay_to_turn(record, step)
+        b = replay_to_turn(record, step)
+        self.assertEqual(a.turn_index, step)
+        deck_a = a.context.get_train_deck()
+        deck_b = b.context.get_train_deck()
+        self.assertEqual(deck_a.get_face_up(), deck_b.get_face_up())
+        self.assertEqual(len(deck_a), len(deck_b))
+        self.assertEqual(len(deck_a.get_discard_pile()), len(deck_b.get_discard_pile()))
+        total = (
+            len(deck_a) + len(deck_a.get_discard_pile()) + len(deck_a.get_face_up())
+            + sum(p.get_card_count() for p in a.players)
+        )
+        self.assertEqual(total, 110)
+
+    def test_replay_to_turn_zero_is_post_setup(self):
+        from ticket_to_ride.engine.replay import replay_to_turn
+
+        original = _play_recorded(seed=13)
+        game = replay_to_turn(record_of(original), 0)
+        self.assertEqual(game.turn_index, 0)
+        for player in game.players:
+            self.assertEqual(player.get_card_count(), 4)   # setup deals 4 blind cards
+            self.assertGreaterEqual(len(player.get_tickets()), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
