@@ -1,7 +1,7 @@
 import logging
 import random
 import csv
-from collections import deque
+from collections import Counter, deque
 from pathlib import Path
 from typing import List, Union, Deque
 
@@ -51,6 +51,14 @@ class TrainCardDeck:
     def get_discard_pile(self) -> List[str]:
         """Return the current discard pile."""
         return self._discard_pile[:]
+
+    def deck_composition(self) -> 'Counter[str]':
+        """Color counts of the face-down draw pile (contents, not order).
+
+        This is hidden information: expose it only through GlobalPrivateView,
+        never to bots.
+        """
+        return Counter(self._deck)
 
     def __get_full_deck(self) -> List[str]:
         """Internal helper to expose the deck for testing."""

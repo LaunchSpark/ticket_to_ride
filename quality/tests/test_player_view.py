@@ -57,5 +57,49 @@ class PlayerViewTests(unittest.TestCase):
         self.assertEqual(from_view, from_player)
 
 
+class DrawOddsTests(unittest.TestCase):
+    def setUp(self):
+        self.context = GameContext(["p0", "p1"], seed=9)
+        self.players = _make_players(self.context)
+
+    def test_unknown_pool_accounts_for_all_public_information(self):
+        deck = self.context.get_train_deck()
+        # deal real cards (not invented ones) so 110-card conservation holds
+        p0_cards = [deck.draw_face_down() for _ in range(3)]
+        p1_cards = [deck.draw_face_down() for _ in range(3)]
+        self.players[0].get_hand().update(p0_cards)
+        self.players[1].get_hand().update(p1_cards)
+        self.players[1].exposed.update(p1_cards[:2])   # third card stays hidden
+        deck.discard([deck.draw_face_down() for _ in range(3)])
+
+        view = PlayerView("p0", self.context, self.players)
+        pool = view.unknown_pool()
+
+        # pool = full composition - face-up - discard - own hand - exposed
+        # (mulligans during deck construction may also have discarded cards,
+        # so compute the discard size instead of hardcoding 3)
+        discard_size = len(deck.get_discard_pile())
+        self.assertEqual(pool.total(), 110 - 5 - discard_size - 3 - 2)
+        # equivalently: draw pile + p1's one hidden card
+        self.assertEqual(pool.total(), len(deck) + 1)
+        self.assertEqual(view.discard_pile.total(), discard_size)
+
+    def test_draw_odds_sum_to_one(self):
+        view = PlayerView("p0", self.context, self.players)
+        odds = view.draw_odds()
+        self.assertAlmostEqual(sum(odds.values()), 1.0)
+        self.assertTrue(all(0 <= p <= 1 for p in odds.values()))
+
+    def test_private_view_sees_true_deck_composition(self):
+        from ticket_to_ride.engine.state.views import GlobalPrivateView
+
+        deck = self.context.get_train_deck()
+        composition = GlobalPrivateView(self.context, self.players).deck_composition()
+        self.assertEqual(composition.total(), len(deck))
+        drawn = deck.draw_face_down()
+        after = GlobalPrivateView(self.context, self.players).deck_composition()
+        self.assertEqual(after[drawn], composition[drawn] - 1)
+
+
 if __name__ == "__main__":
     unittest.main()

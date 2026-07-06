@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.engine.state.map import MapGraph, Route, _route_claimable_by, contract_map
-from ticket_to_ride.engine.state.decks import DestinationTicket
+from ticket_to_ride.engine.state.decks import DestinationTicket, TrainCardDeck
 
 if TYPE_CHECKING:
     from ticket_to_ride.engine.player import Player
@@ -58,6 +58,7 @@ class PlayerView:
         self.turn_number: int = context.turn_num
         self.score: int = context.get_score(player_id)
         self.face_up_cards: List[str] = train_deck.get_face_up()
+        self.discard_pile: 'Counter[str]' = Counter(train_deck.get_discard_pile())
         self.train_cards_in_deck: int = len(train_deck)
         self.tickets_in_deck: int = len(context.get_ticket_deck())
         self.hand: 'Counter[str]' = Counter(player.get_hand())
@@ -97,6 +98,30 @@ class PlayerView:
 
     def connection_cost(self, city1: str, city2: str) -> 'int | None':
         return self.culled_map().cheapest_connection(city1, city2)
+
+    def unknown_pool(self) -> 'Counter[str]':
+        """Color counts of every card this player cannot see: the draw pile
+        plus opponents' hidden (face-down-drawn) cards. Computed purely from
+        public information: the full 110-card composition minus the face-up
+        market, the discard pile, opponents' exposed cards, and this
+        player's own hand."""
+        pool = Counter(TrainCardDeck.COLOR_COUNTS)
+        pool.subtract(self.face_up_cards)
+        pool.subtract(self.discard_pile)
+        pool.subtract(self.hand)
+        for opponent in self.opponents:
+            pool.subtract(opponent.exposed_hand)
+        return +pool  # drop zero/negative entries
+
+    def draw_odds(self) -> Dict[str, float]:
+        """Probability the next blind draw is each color, from this player's
+        public information (the unknown pool). Empty dict if nothing is
+        drawable."""
+        pool = self.unknown_pool()
+        total = pool.total()
+        if not total:
+            return {}
+        return {color: count / total for color, count in sorted(pool.items())}
 
     def affordable_routes(self) -> 'List[Tuple[Route, int]]':
         """(route, locomotives) pairs this player could claim right now —
@@ -210,6 +235,10 @@ class GlobalPrivateView(GlobalPublicView):
 
     def tickets(self) -> Dict[str, List[DestinationTicket]]:
         return {p.player_id: list(p.get_tickets()) for p in self._players}
+
+    def deck_composition(self) -> 'Counter[str]':
+        """True color counts of the face-down draw pile (spectator only)."""
+        return self._context.get_train_deck().deck_composition()
 
 
 # Alias from before the snapshot -> view rename.
