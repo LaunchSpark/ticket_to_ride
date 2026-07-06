@@ -28,6 +28,9 @@ class GameContext:
         # initialize score dictionary for all players
         # each player starts with a score of 0
         self.scores = {p: 0 for p in player_ids}
+        # Every action a player chose, in play order: (player_id, Action).
+        # With self.seed this replays to an identical game (engine/replay.py).
+        self.action_log: List[tuple] = []
 
 
     def set_score(self, player_id, score):

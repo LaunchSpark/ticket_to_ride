@@ -98,6 +98,7 @@ class Player:
                 self.player_id, action, decision, legal[0],
             )
             action = legal[0]
+        self._game.action_log.append((self.player_id, action))
         return action
 
     def __apply_draw(self, action) -> bool:
