@@ -230,6 +230,7 @@ class MapGraph:
         # Topology is immutable after load: index siblings once so
         # claimability checks are O(group) instead of scanning every route.
         self._route_set: Set[Route] = set(self.routes)
+        self._routes_by_id: Dict[str, Route] = {route.route_id: route for route in self.routes}
         self._siblings_by_key: Dict[tuple, List[Route]] = {}
         for route in self.routes:
             self._siblings_by_key.setdefault(route.sibling_group_key(), []).append(route)
@@ -271,6 +272,9 @@ class MapGraph:
             self._adj.setdefault(route.city1, []).append(route)
             self._adj.setdefault(route.city2, []).append(route)
         return self._adj
+
+    def route_by_id(self, route_id: str) -> Route:
+        return self._routes_by_id[route_id]
 
     def get_sibling_routes(self, route: Route) -> List[Route]:
         group = self._siblings_by_key.get(route.sibling_group_key(), [])
