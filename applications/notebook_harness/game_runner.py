@@ -98,12 +98,20 @@ class HarnessGame:
         return build_nodes(map_graph), build_edges(map_graph, claimed_by, player_colors)
 
 
-def initialize_game(bots: List[Any], map_name: str = DEFAULT_MAP_NAME, round_number: int = 0) -> HarnessGame:
+def initialize_game(
+    bots: List[Any],
+    map_name: str = DEFAULT_MAP_NAME,
+    round_number: int = 0,
+    seed: 'int | None' = None,
+) -> HarnessGame:
     """Build a HarnessGame seating one Player per bot instance, in order.
 
     `bots` are BaseBot instances (or anything implementing the same
     choose_*/select_* interface, like BootstrapRandomBot). The Nth bot
     becomes player "bot_N" with a distinct default color.
+
+    Pass an int `seed` to make the whole game reproducible; leave None for
+    a random one (the generated value lands on `game.context.seed`).
     """
     if not bots:
         raise ValueError("initialize_game requires at least one bot.")
@@ -121,7 +129,7 @@ def initialize_game(bots: List[Any], map_name: str = DEFAULT_MAP_NAME, round_num
         for index in range(len(bots))
     ]
 
-    context = GameContext(player_ids, map_name=map_name)
+    context = GameContext(player_ids, map_name=map_name, seed=seed)
     logger = InMemoryGameLogger(players)
     game = Game(context, players, logger, round_number)
 

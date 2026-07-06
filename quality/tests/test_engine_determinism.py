@@ -51,5 +51,22 @@ class SeededContextTests(unittest.TestCase):
         self.assertIsInstance(context.seed, int)
 
 
+class HarnessSeedTests(unittest.TestCase):
+    def test_initialize_game_forwards_seed(self):
+        from notebook_harness.game_runner import initialize_game
+
+        class StubBot:
+            def set_player(self, player):
+                self.player = player
+
+        a = initialize_game([StubBot(), StubBot()], seed=1234)
+        b = initialize_game([StubBot(), StubBot()], seed=1234)
+        self.assertEqual(a.game.context.seed, 1234)
+        self.assertEqual(
+            a.game.context.get_train_deck().get_face_up(),
+            b.game.context.get_train_deck().get_face_up(),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
