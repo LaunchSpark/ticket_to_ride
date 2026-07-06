@@ -7,6 +7,7 @@ from ticket_to_ride.engine.game import Game
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.engine.state.map import DEFAULT_MAP_NAME, available_maps, contract_map
+from ticket_to_ride.engine.state.views import GlobalPrivateView, GlobalPublicView
 
 from notebook_harness.in_memory_logger import InMemoryGameLogger
 from notebook_harness.rendering import (
@@ -54,6 +55,17 @@ class HarnessGame:
 
     def snapshot_count(self) -> int:
         return len(self.logger.snapshots)
+
+    def public_view(self) -> GlobalPublicView:
+        """Live view of everything publicly observable: board, market, deck
+        counts, scores, and each player's public info. Build once, query
+        whenever — every accessor reads the current game state."""
+        return self.game.public_view()
+
+    def private_view(self) -> GlobalPrivateView:
+        """The omniscient extension of public_view(): full hands and tickets
+        per player. For notebook analysis only — never hand it to a bot."""
+        return self.game.private_view()
 
     def roster(self) -> List[Dict[str, str]]:
         """Return one {id, name, color} dict per seat, in seating order.

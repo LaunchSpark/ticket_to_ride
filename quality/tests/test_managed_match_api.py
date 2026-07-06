@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from ticket_to_ride.backend.app import create_app
 from ticket_to_ride.backend.runtime import BotExecutor, ExecutionResult, ManagedMatchRuntimeManager
 from ticket_to_ride.backend.repository import InMemoryMatchRepository
-from ticket_to_ride.engine.state.player_context import PlayerContext
+from ticket_to_ride.engine.state.views import PlayerView
 
 
 class FakeExecutor(BotExecutor):
@@ -65,7 +65,7 @@ class ScriptedGame:
 
     def play(self) -> None:
         for player in self.players:
-            player.set_context(PlayerContext(player.player_id, self.base_context, self.players))
+            player.set_context(PlayerView(player.player_id, self.base_context, self.players))
             self.logger.record_turn(self.round_number, player.context)
             interface = player.get_interface()
             interface.begin_turn()

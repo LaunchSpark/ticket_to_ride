@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from ticket_to_ride.engine.player import Player
-from ticket_to_ride.engine.state.player_context import PlayerContext
+from ticket_to_ride.engine.state.views import PlayerView
 from ticket_to_ride.logging.game_logger import GameLogSerializer
 
 
@@ -23,7 +23,7 @@ class InMemoryGameLogger:
     def set_player_list(self, players: List[Player]) -> None:
         self.player_list = players
 
-    def record_turn(self, round_number: int, context: PlayerContext) -> Dict[str, Any]:
+    def record_turn(self, round_number: int, context: PlayerView) -> Dict[str, Any]:
         snapshot = {
             "roundNumber": round_number,
             "turnIndex": len(self.snapshots),

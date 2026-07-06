@@ -51,3 +51,4 @@ operations/data/pocketbase/*.db-wal
 # bundled build/ output it produces is committed under
 # applications/notebook_harness/static/, so this doesn't need to ship.
 applications/notebook_harness/widget-src/node_modules/
+.claude/settings.json

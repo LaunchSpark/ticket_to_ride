@@ -1,8 +1,11 @@
+import logging
 import random
 import csv
 from collections import deque
 from pathlib import Path
 from typing import List, Union, Deque
+
+logger = logging.getLogger(__name__)
 
 
 TICKETS_CSV_PATH = Path(__file__).resolve().parents[6] / "operations" / "data" / "Destination_tickets.csv"
@@ -56,8 +59,8 @@ class TrainCardDeck:
         """Draw a visible card from the market."""
         card = self._face_up.pop(idx)
         self._refill_face_up_slot()
-        if len(self.get_face_up()) < 5 and len(self._deck) >= 1:
-            print("unable to refill")
+        if len(self._face_up) < 5 and len(self._deck) >= 1:
+            logger.warning("Unable to refill the face-up market to five cards.")
         return card
 
     def draw_face_down(self) -> str:
@@ -77,7 +80,7 @@ class TrainCardDeck:
 
     def _refill_face_up_slot(self):
         """Maintain five cards in the market, reshuffling as needed."""
-        while len(self.get_face_up()) < 5:
+        while len(self._face_up) < 5:
             if not self._deck:
                 self._reshuffle_discard()
             if self._deck:
@@ -86,10 +89,10 @@ class TrainCardDeck:
                 self._mulligan_face_up()
 
     def _reshuffle_discard(self):
-        """Move the discard pile back into the deck and shuffle."""
+        """Shuffle the discard pile into the deck, keeping any remaining cards."""
         if not self._discard_pile:
             return
-        self._deck = self._discard_pile[:]
+        self._deck.extend(self._discard_pile)
         random.shuffle(self._deck)
         self._discard_pile.clear()
 

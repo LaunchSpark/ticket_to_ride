@@ -41,6 +41,9 @@ class Route:
         self.route_id = route_id
         self.route_label = f"{self.city1.replace(' ', '_')}-{self.city2.replace(' ', '_')}-{self.color}"
         self.claimed_by = None
+        # Cities and length never change after load; cache the group key so
+        # hot-loop claimability checks don't re-sort it on every call.
+        self._sibling_group_key = (tuple(sorted((city1, city2))), length)
 
     def other_city(self, city: str) -> str:
         """Return the opposite endpoint of the route."""
@@ -51,7 +54,7 @@ class Route:
         return {self.city1, self.city2}
 
     def sibling_group_key(self) -> tuple[tuple[str, str], int]:
-        return (tuple(sorted((self.city1, self.city2))), self.length)
+        return self._sibling_group_key
     
     def __repr__(self):
         return self.route_id
@@ -214,17 +217,22 @@ class MapGraph:
         self.player_count = player_count
         self.map_name = map_name or DEFAULT_MAP_NAME
         self.longest_path_holder: str = ""
-        self.longest_paths: Dict[str,int] = {}
+        self.longest_paths: Dict[str, int] = {}
         self.routes: List[Route] = []
         self._load_routes_from_csv(resolve_map_path(map_name))
 
         #paths hold dicts that associate player_ids with a list comprised of tuples containing (sets of connected cities, longest path length)
         self.paths: 'Dict[str,List[tuple[set[str],int]]]' = {}
-        self.longest_paths: Dict[str,int]
-        self.longest_path_holder: str
 
         self._adj: Dict[str, List[Route]] = {}
         self._build_adjacency()
+
+        # Topology is immutable after load: index siblings once so
+        # claimability checks are O(group) instead of scanning every route.
+        self._route_set: Set[Route] = set(self.routes)
+        self._siblings_by_key: Dict[tuple, List[Route]] = {}
+        for route in self.routes:
+            self._siblings_by_key.setdefault(route.sibling_group_key(), []).append(route)
 
         # One union-find per player, updated on every claim: which cities has
         # this player already joined into one network? Feeds are_connected()
@@ -265,10 +273,11 @@ class MapGraph:
         return self._adj
 
     def get_sibling_routes(self, route: Route) -> List[Route]:
-        return [candidate for candidate in self.routes if candidate is not route and candidate.sibling_group_key() == route.sibling_group_key()]
+        group = self._siblings_by_key.get(route.sibling_group_key(), [])
+        return [candidate for candidate in group if candidate is not route]
 
     def is_route_claimable(self, route: Route, player_id: Optional[str] = None) -> bool:
-        if route not in self.routes:
+        if route not in self._route_set:
             return False
         return _route_claimable_by(
             route,
@@ -316,23 +325,25 @@ class MapGraph:
         starting_points: Set[str] = {new_route.city1, new_route.city2}
 
         # 2. Merge existing components that touch these cities
-        if player_id not in self.paths.keys():
-            self.paths[player_id] = []
-        for (cities, length) in self.paths[player_id]:
-            if new_route.city1 in cities or new_route.city2 in cities:
-                starting_points.update(cities)
-                self.paths[player_id].remove((cities,length))
-
+        components = self.paths.setdefault(player_id, [])
+        touching = [
+            (cities, length)
+            for (cities, length) in components
+            if new_route.city1 in cities or new_route.city2 in cities
+        ]
+        for entry in touching:
+            starting_points.update(entry[0])
+            components.remove(entry)
 
         # 3. Recompute this component's longest path length
         new_length = self.get_longest_path(player_id, starting_points)
 
         # 4. Update player's overall longest
-        other_best = max((l for (_, l) in self.paths[player_id]), default=0)
+        other_best = max((l for (_, l) in components), default=0)
         self.longest_paths[player_id] = max(new_length, other_best)
 
         # 5. Store the merged component
-        self.paths[player_id].append((starting_points, new_length))
+        components.append((starting_points, new_length))
 
         # 6. Possibly update the global longest-path holder
         holder_len = self.longest_paths.get(self.longest_path_holder, 0)
@@ -341,41 +352,21 @@ class MapGraph:
 
     def get_longest_path(self, player_id: str, cities: Set[str]) -> int:
         """Return the longest path length for a connected set of cities."""
-        # Build adjacency for this player
         adj = self._build_adjacency(player_id)
         max_length = 0
         for city in cities:
-            length = self.dfs(city, set(), 0,player_id)
+            length = self._longest_trail_from(city, set(), adj)
             max_length = max(max_length, length)
         return max_length
 
-    def dfs(self, current_city: str, visited: Set[Route], current_best: int, player_id: str) -> int:
-        """Depth-first search used by longest path calculations."""
-        # Explore all unvisited routes from current_city
-        adj = self._build_adjacency(player_id)
+    def _longest_trail_from(self, current_city: str, visited: Set[Route], adj: Dict[str, List[Route]]) -> int:
+        """Length of the longest trail (no route reused) starting at a city."""
         best = 0
-        children = [r for r in adj.get(current_city, []) if r not in visited]
-        if len(children) > 0:
-            for r in children:
-                nxt = r.other_city(current_city)
-                new_length = self.dfs(nxt, visited | {r},current_best + r.length, player_id)
-                best = max(best, new_length)
-        else:
-            group = self.is_city_in_groups(current_city, player_id)
-            set_to_add = set()
-            for r in visited:
-                set_to_add.update(r.get_cities())
-            if group:
-                group.update(set_to_add)
-            else:
-                self.paths[player_id].append((set_to_add,best))
+        for route in adj.get(current_city, []):
+            if route in visited:
+                continue
+            visited.add(route)
+            length = route.length + self._longest_trail_from(route.other_city(current_city), visited, adj)
+            visited.discard(route)
+            best = max(best, length)
         return best
-
-    
-
-    def is_city_in_groups(self,city: str,player_id:str) -> 'set[str] | None':
-        """Helper for tracking connected components on the map."""
-        for (g,l) in self.paths[player_id]:
-            if city in g:
-                return g
-        return None

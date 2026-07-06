@@ -7,7 +7,7 @@ from external.contracts.abstract_interface import Interface
 from ticket_to_ride.backend.runtime.executor import BotApiExecutor
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
-from ticket_to_ride.engine.state.player_context import PlayerContext
+from ticket_to_ride.engine.state.views import PlayerView
 
 
 def build_test_players() -> list[Player]:
@@ -17,7 +17,7 @@ def build_test_players() -> list[Player]:
     ]
     context = GameContext([player.player_id for player in players])
     for player in players:
-        player.set_context(PlayerContext(player.player_id, context, players))
+        player.set_context(PlayerView(player.player_id, context, players))
     return players
 
 

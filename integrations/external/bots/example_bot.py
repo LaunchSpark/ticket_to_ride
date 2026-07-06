@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.23.13"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -24,7 +24,7 @@ with app.setup:
     }
 
 
-@app.class_definition
+@app.class_definition(hide_code=True)
 class ExampleBot(BaseBot):
     """The most basic intelligent strategy - not optimal, just sensible.
 
@@ -439,7 +439,7 @@ class ExampleBot(BaseBot):
         return chosen
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
 
@@ -484,7 +484,7 @@ def _(initialize_game, map_picker, mo, seat_pickers):
     return (harness_game,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(harness_game, mo):
     # Created once per game (not per slider step) so the force simulation
     # keeps running instead of restarting from scratch on every step.
@@ -510,7 +510,15 @@ def _(harness_game, mo):
 
 
 @app.cell(hide_code=True)
-def _(build_graph_data, graph, harness_game, info_bar, mo, player_list, step_slider):
+def _(
+    build_graph_data,
+    graph,
+    harness_game,
+    info_bar,
+    mo,
+    player_list,
+    step_slider,
+):
     # Pushes each step's board state into the existing widget instance
     # instead of constructing a new one, so node positions persist across
     # steps and only the diff (newly claimed routes) animates.

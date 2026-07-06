@@ -25,7 +25,7 @@ class ExampleBotTests(unittest.TestCase):
         self.assertGreater(len(claimed), 0)
 
     def test_example_bot_initial_offer_keeps_a_ticket_pair(self) -> None:
-        from ticket_to_ride.engine.state.player_context import PlayerContext
+        from ticket_to_ride.engine.state.views import PlayerView
 
         example_bot = ExampleBot()
         harness_game = initialize_game([example_bot, BootstrapRandomBot()])
@@ -33,7 +33,7 @@ class ExampleBotTests(unittest.TestCase):
         player = game.players[0]
         # Tickets are normally dealt when play() starts; wire the context up
         # manually so the offer can be driven directly.
-        player.set_context(PlayerContext(player.player_id, game.context, game.players), False)
+        player.set_context(PlayerView(player.player_id, game.context, game.players), False)
 
         offer = player.context.ticket_deck.deal_unique(3)
         kept = example_bot.select_ticket_offer(offer)

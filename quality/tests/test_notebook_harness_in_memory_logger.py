@@ -4,7 +4,7 @@ import unittest
 
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
-from ticket_to_ride.engine.state.player_context import PlayerContext
+from ticket_to_ride.engine.state.views import PlayerView
 from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
 from notebook_harness.in_memory_logger import InMemoryGameLogger
@@ -19,8 +19,8 @@ class InMemoryGameLoggerTests(unittest.TestCase):
         logger = InMemoryGameLogger(players)
         context = GameContext([player.player_id for player in players])
 
-        players[0].set_context(PlayerContext(players[0].player_id, context, players), True)
-        players[1].set_context(PlayerContext(players[1].player_id, context, players), True)
+        players[0].set_context(PlayerView(players[0].player_id, context, players), True)
+        players[1].set_context(PlayerView(players[1].player_id, context, players), True)
 
         snapshot = logger.record_turn(0, players[0].context)
 
@@ -39,7 +39,7 @@ class InMemoryGameLoggerTests(unittest.TestCase):
         logger = InMemoryGameLogger(players)
         context = GameContext([player.player_id for player in players])
 
-        players[0].set_context(PlayerContext(players[0].player_id, context, players), True)
+        players[0].set_context(PlayerView(players[0].player_id, context, players), True)
 
         logger.record_turn(0, players[0].context)
         second_snapshot = logger.record_turn(0, players[0].context)

@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from ticket_to_ride.engine.state.player_context import PlayerContext
+from ticket_to_ride.engine.state.views import PlayerView
 from ticket_to_ride.engine.player import Player
 
 
@@ -66,7 +66,7 @@ class GameLogSerializer:
             for player in players
         ]
 
-    def serialize_turn_state(self, player_list: List[Player], context: PlayerContext) -> Dict[str, Any]:
+    def serialize_turn_state(self, player_list: List[Player], context: PlayerView) -> Dict[str, Any]:
         player = next((candidate for candidate in player_list if candidate.player_id == context.player_id), None)
         if player is None:
             raise ValueError(f"Player '{context.player_id}' was not found in the active player list.")
@@ -171,7 +171,7 @@ class GameLogger:
         self.turn_counts[round_number] = 0
         return round_id
 
-    def record_turn(self, round_number: int, context: PlayerContext) -> str:
+    def record_turn(self, round_number: int, context: PlayerView) -> str:
         match_id = self._require_match_id()
         round_id = self.round_ids.get(round_number)
         if round_id is None:
@@ -202,7 +202,7 @@ class GameLogger:
     def add_round(self) -> str:
         return self.start_round(len(self.round_ids))
 
-    def add_turn(self, round_number: int, context: PlayerContext) -> str:
+    def add_turn(self, round_number: int, context: PlayerView) -> str:
         return self.record_turn(round_number, context)
 
     def log_match_stats(self) -> Dict[str, Any]:
