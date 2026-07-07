@@ -208,6 +208,71 @@ class PocketBaseRepositoryTests(unittest.TestCase):
         )
         self.assertEqual([match["id"] for match in matches], ["newer", "older"])
 
+    def test_list_managed_matches_fetches_all_pages_and_sorts_locally(self) -> None:
+        repository = PocketBaseMatchRepository("http://127.0.0.1:8090")
+        page_one = {
+            "page": 1,
+            "perPage": 1,
+            "totalItems": 2,
+            "totalPages": 2,
+            "items": [
+                {
+                    "id": "older",
+                    "name": "older-managed-match",
+                    "status": "queued",
+                    "seats": [],
+                    "fallback_bot_id": "random_bot",
+                    "round_count": 3,
+                    "time_control": {"initialTimeMs": 60000, "incrementMs": 0},
+                    "timeout_policy": "loss_on_time",
+                    "execution_mode": "bot_api",
+                    "aggregate_results": [],
+                    "created": "2026-03-19 20:00:00.000Z",
+                },
+            ],
+        }
+        page_two = {
+            "page": 2,
+            "perPage": 1,
+            "totalItems": 2,
+            "totalPages": 2,
+            "items": [
+                {
+                    "id": "newer",
+                    "name": "newer-managed-match",
+                    "status": "queued",
+                    "seats": [],
+                    "fallback_bot_id": "random_bot",
+                    "round_count": 3,
+                    "time_control": {"initialTimeMs": 60000, "incrementMs": 0},
+                    "timeout_policy": "loss_on_time",
+                    "execution_mode": "bot_api",
+                    "aggregate_results": [],
+                    "created": "2026-03-19 21:00:00.000Z",
+                },
+            ],
+        }
+
+        with patch.object(repository, "_request_json", side_effect=[page_one, page_two]) as request_json:
+            matches = repository.list_managed_match_records()
+
+        self.assertEqual(
+            request_json.call_args_list,
+            [
+                unittest.mock.call(
+                    "GET",
+                    "/api/collections/managed_matches/records",
+                    query={"page": 1, "perPage": repository.RECORDS_PAGE_SIZE},
+                ),
+                unittest.mock.call(
+                    "GET",
+                    "/api/collections/managed_matches/records",
+                    query={"page": 2, "perPage": repository.RECORDS_PAGE_SIZE},
+                ),
+            ],
+        )
+        self.assertEqual([match["id"] for match in matches], ["newer", "older"])
+
     def test_get_round_records_fetches_all_pages(self) -> None:
         repository = PocketBaseMatchRepository("http://127.0.0.1:8090")
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import ipaddress
 import os
-import re
 import random
 import shutil
 import subprocess
@@ -17,8 +17,8 @@ from pathlib import Path
 from socket import create_connection
 from urllib.parse import urlencode, urlparse
 
+from ticket_to_ride.backend.bot_catalog import DEFAULT_BOT_API_BASE_URL
 from ticket_to_ride.backend.bootstrap_pocketbase import ensure_collections
-from ticket_to_ride.backend.service import create_match, create_round, create_turn, finalize_match, get_match, list_matches
 from ticket_to_ride.engine.game import Game
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
@@ -26,6 +26,9 @@ from ticket_to_ride.logging.game_logger import GameLogger, JsonHttpTransport, Lo
 
 DEFAULT_POCKETBASE_ADMIN_EMAIL = "admin@example.com"
 DEFAULT_POCKETBASE_ADMIN_PASSWORD = "12345678"
+DEFAULT_BOOTSTRAP_BOT_ID = "random_bot"
+DEFAULT_BOOTSTRAP_MATCH_NAME = "Random Bot vs Random Bot"
+BOT_API_ENABLE_ENV = "TICKET_TO_RIDE_ENABLE_BOT_API"
 
 
 @dataclass
@@ -42,6 +45,15 @@ class ViewerLaunchResult:
     process: subprocess.Popen[str] | None = None
     server: ThreadingHTTPServer | None = None
     message: str | None = None
+
+
+@dataclass
+class BotApiLaunchResult:
+    process: subprocess.Popen[str] | None
+    started: bool
+    reachable: bool
+    message: str | None = None
+    base_url: str | None = None
 
 
 class ViewerRequestHandler(SimpleHTTPRequestHandler):
@@ -72,94 +84,6 @@ class ViewerRequestHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
 
-class RepositoryLoggerTransport:
-    def __init__(self, repository) -> None:
-        self.repository = repository
-        self._round_ids_by_match: dict[str, dict[str, str]] = {}
-
-    def request(self, method: str, path: str, payload=None):
-        payload = payload or {}
-
-        if method == "POST" and path == "/matches":
-            match_id = create_match(
-                self.repository,
-                name=payload["name"],
-                players=[self._player_record(player) for player in payload["players"]],
-                player_names=list(payload.get("playerNames", [])),
-            )
-            return {"matchId": match_id}
-
-        if method == "POST" and path.endswith("/finalize"):
-            match_id = path.split("/")[2]
-            average_scores = finalize_match(self.repository, match_id)
-            return {"matchId": match_id, "status": "completed", "averageScores": [score.model_dump() for score in average_scores]}
-
-        if method == "GET" and path == "/matches":
-            return [match.model_dump() for match in list_matches(self.repository)]
-
-        if method == "GET" and path.startswith("/matches/"):
-            match_id = path.split("/")[2]
-            return get_match(self.repository, match_id).model_dump()
-
-        round_match = re.fullmatch(r"/matches/([^/]+)/rounds", path)
-        if method == "POST" and round_match:
-            match_id = round_match.group(1)
-            round_number = payload["roundNumber"]
-            round_id = create_round(self.repository, match_id, round_number)
-            self._round_ids_by_match.setdefault(match_id, {})[str(round_number)] = round_id
-            return {"roundId": round_id}
-
-        turn_match = re.fullmatch(r"/matches/([^/]+)/rounds/([^/]+)/turns", path)
-        if method == "POST" and turn_match:
-            match_id, round_id = turn_match.groups()
-            turn_id = create_turn(
-                self.repository,
-                match_id=match_id,
-                round_id=round_id,
-                turn_index=payload["turnIndex"],
-                turn_state=payload["turnState"],
-            )
-            return {"turnId": turn_id}
-
-        raise ValueError(f"Unsupported repository transport request: {method} {path}")
-
-    @staticmethod
-    def _player_record(player_payload):
-        from ticket_to_ride.backend.models import PlayerRecord
-
-        return PlayerRecord.model_validate(player_payload)
-
-
-class BootstrapRandomBot:
-    def __init__(self) -> None:
-        self.player = None
-
-    def set_player(self, player) -> None:
-        self.player = player
-
-    def choose_turn_action(self):
-        affordable_routes = self.player.get_affordable_routes() if self.player else None
-        if not len([ticket for ticket in self.player.get_tickets() if not ticket.is_completed]):
-            return 3
-        if affordable_routes:
-            return 2
-        return 1
-
-    def choose_draw_train_action(self) -> int:
-        return random.randrange(-1, 5)
-
-    def choose_route_to_claim(self, claimable_routes):
-        return claimable_routes[random.randrange(0, len(claimable_routes))]
-
-    def choose_color_to_spend(self, route, color_options):
-        return None
-
-    def select_ticket_offer(self, offer):
-        if len(offer) >= 2:
-            return [offer[0], offer[1]]
-        return list(offer)
-
-
 def build_viewer_url(viewer_host: str, viewer_port: int, backend_host: str, backend_port: int) -> str:
     query = urlencode({"api_base": f"http://{backend_host}:{backend_port}"})
     return f"http://{viewer_host}:{viewer_port}/index.html?{query}"
@@ -181,12 +105,45 @@ def pocketbase_admin_password() -> str:
     return os.getenv("POCKETBASE_ADMIN_PASSWORD", DEFAULT_POCKETBASE_ADMIN_PASSWORD)
 
 
+def bot_api_base_url() -> str:
+    return os.getenv("BOT_API_BASE_URL", DEFAULT_BOT_API_BASE_URL).rstrip("/")
+
+
+def bot_api_enabled() -> bool:
+    """Opt-in flag for the sandboxed bot-api startup flow.
+
+    The bot-api HTTP protocol still speaks the legacy choose_* contract, which
+    ActionBot-based bots do not implement, so managed matches created through
+    it cannot play yet. Off by default until the protocol migrates to act().
+    """
+    return os.getenv(BOT_API_ENABLE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def pocketbase_is_reachable() -> bool:
     parsed = urlparse(pocketbase_api_url())
     host = parsed.hostname or "127.0.0.1"
     default_port = 443 if parsed.scheme == "https" else 80
     port = parsed.port or default_port
     return _wait_for_port(host, port, timeout_seconds=1.0)
+
+
+def bot_api_is_reachable() -> bool:
+    parsed = urlparse(bot_api_base_url())
+    host = parsed.hostname or "127.0.0.1"
+    default_port = 443 if parsed.scheme == "https" else 80
+    port = parsed.port or default_port
+    return _wait_for_port(host, port, timeout_seconds=1.0)
+
+
+def _is_loopback_host(hostname: str | None) -> bool:
+    if not hostname:
+        return False
+    if hostname.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return False
 
 
 def _wait_for_port(host: str, port: int, timeout_seconds: float = 5.0) -> bool:
@@ -381,6 +338,100 @@ def _pocketbase_host_and_port() -> tuple[str, int]:
     return host, parsed.port or default_port
 
 
+def start_bot_api_process() -> BotApiLaunchResult:
+    base_url = bot_api_base_url()
+    parsed = urlparse(base_url)
+    scheme = parsed.scheme or "http"
+    if scheme != "http":
+        return BotApiLaunchResult(
+            process=None,
+            started=False,
+            reachable=False,
+            base_url=base_url,
+            message=f"Automatic external bot API startup currently expects an http URL, received {base_url}",
+        )
+    if not _is_loopback_host(parsed.hostname):
+        return BotApiLaunchResult(
+            process=None,
+            started=False,
+            reachable=False,
+            base_url=base_url,
+            message=(
+                "Automatic external bot API startup currently expects BOT_API_BASE_URL to use a local loopback host, "
+                f"received {base_url}"
+            ),
+        )
+    if parsed.path not in {"", "/"} or parsed.params or parsed.query or parsed.fragment:
+        return BotApiLaunchResult(
+            process=None,
+            started=False,
+            reachable=False,
+            base_url=base_url,
+            message=(
+                "Automatic external bot API startup currently expects BOT_API_BASE_URL without a path or query, "
+                f"received {base_url}"
+            ),
+        )
+
+    if bot_api_is_reachable():
+        return BotApiLaunchResult(
+            process=None,
+            started=False,
+            reachable=True,
+            base_url=base_url,
+            message=f"External bot API is already running at {base_url}",
+        )
+
+    host = parsed.hostname or "127.0.0.1"
+    default_port = 443 if scheme == "https" else 80
+    port = parsed.port or default_port
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "external.clients.bot_api.app:app",
+            "--host",
+            host,
+            "--port",
+            str(port),
+        ],
+        cwd=str(_repo_root()),
+        env=os.environ.copy(),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+
+    if not _wait_for_port(host, port, timeout_seconds=5.0):
+        _terminate_process(process)
+        return BotApiLaunchResult(
+            process=None,
+            started=False,
+            reachable=False,
+            base_url=base_url,
+            message=f"External bot API failed to start at {base_url}",
+        )
+
+    return BotApiLaunchResult(
+        process=process,
+        started=True,
+        reachable=True,
+        base_url=base_url,
+        message=f"Started external bot API at {base_url}",
+    )
+
+
+def _terminate_process(process: subprocess.Popen[str] | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        process.kill()
+
+
 def start_pocketbase_process() -> PocketBaseLaunchResult:
     if pocketbase_is_reachable():
         schema_ok, schema_message = ensure_pocketbase_schema()
@@ -476,22 +527,33 @@ def start_pocketbase_process() -> PocketBaseLaunchResult:
     )
 
 
+class BootstrapRandomActionBot:
+    """Minimal in-runtime random bot so seeding never imports integrations/external."""
+
+    def set_player(self, player) -> None:
+        self.player = player
+
+    def act(self, view, legal_actions):
+        return random.choice(legal_actions)
+
+
 def _bootstrap_players() -> list[Player]:
     player_names = ["random_1", "random_2"]
     player_colors = ["red", "blue"]
     return [
-        Player(f"bot_{index}", BootstrapRandomBot(), player_names[index], player_colors[index])
+        Player(f"bot_{index}", BootstrapRandomActionBot(), player_names[index], player_colors[index])
         for index in range(2)
     ]
 
 
-def seed_match_if_empty(repository, round_limit: int = 10) -> bool:
-    existing_matches = list_matches(repository)
-    if existing_matches:
+def seed_match_if_empty_via_api(api_base_url: str, round_limit: int = 10) -> bool:
+    transport = JsonHttpTransport(api_base_url)
+    probe_logger = GameLogger([], transport=transport)
+    if probe_logger.list_matches():
         return False
 
     players = _bootstrap_players()
-    logger = GameLogger(players, transport=RepositoryLoggerTransport(repository))
+    logger = GameLogger(players, transport=transport)
     logger.start_match("-".join(player.name for player in players))
 
     for round_number in range(round_limit):
@@ -522,30 +584,51 @@ def resolve_runtime_storage_backend(pocketbase_launch: PocketBaseLaunchResult) -
     return "memory"
 
 
-def seed_match_if_empty_via_api(api_base_url: str, round_limit: int = 10) -> bool:
+def _bootstrap_managed_match_request() -> dict[str, object]:
+    return {
+        "name": DEFAULT_BOOTSTRAP_MATCH_NAME,
+        "seats": [
+            {"seatId": "seat_1", "primaryBotId": DEFAULT_BOOTSTRAP_BOT_ID},
+            {"seatId": "seat_2", "primaryBotId": DEFAULT_BOOTSTRAP_BOT_ID},
+        ],
+        "fallbackBotId": DEFAULT_BOOTSTRAP_BOT_ID,
+        "roundCount": 3,
+        "timeControl": {
+            "initialTimeMs": 60000,
+            "incrementMs": 0,
+            "perCallSoftLimitMs": None,
+            "perCallHardLimitMs": None,
+        },
+        "timeoutPolicy": "loss_on_time",
+        "executionMode": "bot_api",
+    }
+
+
+def bootstrap_managed_random_match_via_api(api_base_url: str) -> bool:
     transport = JsonHttpTransport(api_base_url)
-    probe_logger = GameLogger([], transport=transport)
-    if probe_logger.list_matches():
+
+    try:
+        transport.request("POST", "/bots", {"botId": DEFAULT_BOOTSTRAP_BOT_ID})
+    except LoggerClientError as exc:
+        raise RuntimeError(
+            "Backend /bots registration failed for "
+            f"'{DEFAULT_BOOTSTRAP_BOT_ID}' while using BOT_API_BASE_URL {bot_api_base_url()}: {exc}"
+        ) from exc
+
+    try:
+        replay_matches = transport.request("GET", "/matches")
+        managed_matches = transport.request("GET", "/managed-matches")
+    except LoggerClientError as exc:
+        raise RuntimeError(f"Unable to inspect existing backend matches at {api_base_url}: {exc}") from exc
+
+    if replay_matches or managed_matches:
         return False
 
-    players = _bootstrap_players()
-    logger = GameLogger(players, transport=transport)
-    logger.start_match("-".join(player.name for player in players))
+    try:
+        transport.request("POST", "/managed-matches", _bootstrap_managed_match_request())
+    except LoggerClientError as exc:
+        raise RuntimeError(f"Unable to create the startup managed match at {api_base_url}: {exc}") from exc
 
-    for round_number in range(round_limit):
-        logger.start_round(round_number)
-        context = GameContext([player.player_id for player in players])
-        game = Game(context, players, logger, round_number)
-        game.play()
-
-        if round_number != round_limit - 1:
-            players = [
-                Player(player.player_id, player.get_interface(), player.name, player.color)
-                for player in players
-            ]
-            logger.set_player_list(players)
-
-    logger.finalize_match()
     return True
 
 
@@ -591,6 +674,7 @@ def run() -> None:
     if viewer_launch.message:
         print(viewer_launch.message)
     backend_process: subprocess.Popen[str] | None = None
+    bot_api_launch = BotApiLaunchResult(process=None, started=False, reachable=False)
     backend_env = os.environ.copy()
     runtime_storage_backend = resolve_runtime_storage_backend(pocketbase_launch)
     backend_env["MATCH_LOG_STORAGE_BACKEND"] = runtime_storage_backend
@@ -600,55 +684,55 @@ def run() -> None:
     try:
         backend_process = start_backend_process(host, port, env=backend_env)
         print(f"Backend is ready at http://{host}:{port}")
-    except RuntimeError as exc:
-        _stop_viewer_runtime(viewer_launch)
-        if pocketbase_launch.process is not None:
-            pocketbase_launch.process.terminate()
+        if bot_api_enabled():
+            bot_api_launch = start_bot_api_process()
+            if bot_api_launch.message:
+                print(bot_api_launch.message)
+            if not bot_api_launch.reachable:
+                raise RuntimeError(
+                    bot_api_launch.message
+                    or f"External bot API is unavailable at {bot_api_base_url()}."
+                )
+
+            bootstrapped = bootstrap_managed_random_match_via_api(f"http://{host}:{port}")
+            if bootstrapped:
+                print(
+                    "Registered random_bot and created a 3-round managed match with a 1-minute clock."
+                )
+            else:
+                print(
+                    "Registered random_bot. Existing replay or managed matches found, so the startup managed match was skipped."
+                )
+        else:
             try:
-                pocketbase_launch.process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                pocketbase_launch.process.kill()
-        raise RuntimeError(str(exc)) from exc
+                seeded = seed_match_if_empty_via_api(
+                    f"http://{host}:{port}",
+                    round_limit=int(os.getenv("TICKET_TO_RIDE_BOOTSTRAP_ROUNDS", "10")),
+                )
+                if seeded:
+                    print("No matches found. Seeded a bootstrap match with 2 random bots.")
+            except LoggerClientError as exc:
+                print(f"Skipping bootstrap match creation because the backend API is unavailable: {exc}")
 
-    try:
-        seeded = seed_match_if_empty_via_api(
-            f"http://{host}:{port}",
-            round_limit=int(os.getenv("TICKET_TO_RIDE_BOOTSTRAP_ROUNDS", "10")),
-        )
-        if seeded:
-            print("No matches found. Seeded a bootstrap match with 2 random bots.")
-    except LoggerClientError as exc:
-        print(f"Skipping bootstrap match creation because the backend API is unavailable: {exc}")
+        viewer_url = build_viewer_url(viewer_host, viewer_port, host, port)
+        _wait_for_port(viewer_host, viewer_port)
+        _open_default_browser(viewer_url)
+        if pocketbase_launch.reachable or pocketbase_is_reachable():
+            print(f"PocketBase admin UI available at {pocketbase_url()}")
+        else:
+            print(
+                f"PocketBase is unavailable. Admin UI expected at {pocketbase_url()}. "
+                f"Recommended local install path: {recommended_pocketbase_binary_path()}. "
+                "If PocketBase is installed elsewhere, set POCKETBASE_BINARY to the full executable path."
+            )
 
-    viewer_url = build_viewer_url(viewer_host, viewer_port, host, port)
-    _wait_for_port(viewer_host, viewer_port)
-    _open_default_browser(viewer_url)
-    if pocketbase_launch.reachable or pocketbase_is_reachable():
-        print(f"PocketBase admin UI available at {pocketbase_url()}")
-    else:
-        print(
-            f"PocketBase is unavailable. Admin UI expected at {pocketbase_url()}. "
-            f"Recommended local install path: {recommended_pocketbase_binary_path()}. "
-            "If PocketBase is installed elsewhere, set POCKETBASE_BINARY to the full executable path."
-        )
-
-    try:
         if backend_process is not None:
             backend_process.wait()
     finally:
         _stop_viewer_runtime(viewer_launch)
-        if backend_process is not None:
-            backend_process.terminate()
-            try:
-                backend_process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                backend_process.kill()
-        if pocketbase_launch.process is not None:
-            pocketbase_launch.process.terminate()
-            try:
-                pocketbase_launch.process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                pocketbase_launch.process.kill()
+        _terminate_process(backend_process)
+        _terminate_process(bot_api_launch.process)
+        _terminate_process(pocketbase_launch.process)
 
 
 def test() -> None:

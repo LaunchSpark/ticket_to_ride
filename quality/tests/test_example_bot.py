@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import unittest
 
+from external.bots.random_bot import RandomBot
 from external.bots.example_bot import ExampleBot
-from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
 from notebook_harness.game_runner import initialize_game
 
 
 class ExampleBotTests(unittest.TestCase):
     def test_example_bot_plays_a_full_game_without_faulting(self) -> None:
-        harness_game = initialize_game([ExampleBot(), BootstrapRandomBot()])
+        harness_game = initialize_game([ExampleBot(), RandomBot()])
 
         harness_game.play()
 
@@ -29,7 +29,7 @@ class ExampleBotTests(unittest.TestCase):
         from ticket_to_ride.engine.state.views import PlayerView
 
         example_bot = ExampleBot()
-        harness_game = initialize_game([example_bot, BootstrapRandomBot()])
+        harness_game = initialize_game([example_bot, RandomBot()])
         game = harness_game.game
         player = game.players[0]
         # Tickets are normally dealt when play() starts; wire the context up

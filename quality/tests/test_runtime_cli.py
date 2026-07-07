@@ -5,8 +5,14 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from ticket_to_ride.runtime.cli import (
+    bot_api_base_url,
+    bot_api_enabled,
+    bot_api_is_reachable,
+    bootstrap_managed_random_match_via_api,
+    seed_match_if_empty_via_api,
     ViewerRequestHandler,
     ViewerLaunchResult,
+    BotApiLaunchResult,
     build_viewer_url,
     ensure_pocketbase_schema,
     ensure_pocketbase_superuser,
@@ -19,8 +25,8 @@ from ticket_to_ride.runtime.cli import (
     PocketBaseLaunchResult,
     resolve_runtime_storage_backend,
     run,
-    seed_match_if_empty_via_api,
     start_backend_process,
+    start_bot_api_process,
     start_pocketbase_process,
 )
 
@@ -59,6 +65,21 @@ class RuntimeCliTests(unittest.TestCase):
     def test_pocketbase_admin_defaults_are_stable(self) -> None:
         self.assertEqual(pocketbase_admin_email(), "admin@example.com")
         self.assertEqual(pocketbase_admin_password(), "12345678")
+
+    def test_bot_api_base_url_defaults_to_local_service(self) -> None:
+        self.assertEqual(bot_api_base_url(), "http://127.0.0.1:8001")
+
+    def test_bot_api_is_disabled_by_default(self) -> None:
+        self.assertFalse(bot_api_enabled())
+
+    def test_bot_api_enabled_by_env_flag(self) -> None:
+        with patch.dict("os.environ", {"TICKET_TO_RIDE_ENABLE_BOT_API": "1"}):
+            self.assertTrue(bot_api_enabled())
+
+    def test_bot_api_is_reachable_uses_socket_probe(self) -> None:
+        with patch("ticket_to_ride.runtime.cli._wait_for_port", return_value=True) as wait_for_port:
+            self.assertTrue(bot_api_is_reachable())
+            wait_for_port.assert_called_once_with("127.0.0.1", 8001, timeout_seconds=1.0)
 
     def test_start_pocketbase_process_returns_none_when_already_running(self) -> None:
         with patch("ticket_to_ride.runtime.cli.pocketbase_is_reachable", return_value=True), \
@@ -152,16 +173,124 @@ class RuntimeCliTests(unittest.TestCase):
         self.assertIn("--port", command)
         wait_for_port.assert_called_once_with("127.0.0.1", 8000, timeout_seconds=5.0)
 
+    def test_start_bot_api_process_reuses_existing_instance_when_reachable(self) -> None:
+        with patch("ticket_to_ride.runtime.cli.bot_api_is_reachable", return_value=True):
+            result = start_bot_api_process()
+
+        self.assertTrue(result.reachable)
+        self.assertFalse(result.started)
+        self.assertIsNone(result.process)
+        self.assertIn("already running", result.message)
+
+    def test_start_bot_api_process_launches_uvicorn_and_waits_for_port(self) -> None:
+        fake_process = MagicMock()
+        with patch("ticket_to_ride.runtime.cli.bot_api_is_reachable", return_value=False), \
+             patch("ticket_to_ride.runtime.cli._wait_for_port", return_value=True) as wait_for_port, \
+             patch("ticket_to_ride.runtime.cli.subprocess.Popen", return_value=fake_process) as popen:
+            result = start_bot_api_process()
+
+        self.assertTrue(result.reachable)
+        self.assertTrue(result.started)
+        self.assertIs(result.process, fake_process)
+        command = popen.call_args.args[0]
+        self.assertEqual(command[:3], [sys.executable, "-m", "uvicorn"])
+        self.assertIn("external.clients.bot_api.app:app", command)
+        self.assertIn("--host", command)
+        self.assertIn("--port", command)
+        wait_for_port.assert_called_once_with("127.0.0.1", 8001, timeout_seconds=5.0)
+
+    def test_start_bot_api_process_rejects_non_loopback_base_url(self) -> None:
+        with patch.dict("os.environ", {"BOT_API_BASE_URL": "http://example.com:8001"}), \
+             patch("ticket_to_ride.runtime.cli.bot_api_is_reachable", return_value=False):
+            result = start_bot_api_process()
+
+        self.assertFalse(result.reachable)
+        self.assertFalse(result.started)
+        self.assertIn("loopback", result.message)
+
     def test_seed_match_if_empty_via_api_returns_false_when_matches_exist(self) -> None:
         with patch.object(seed_match_if_empty_via_api.__globals__["JsonHttpTransport"], "request", side_effect=[[{"matchId": "match-1"}]]):
             seeded = seed_match_if_empty_via_api("http://127.0.0.1:8000", round_limit=1)
 
         self.assertFalse(seeded)
 
+    def test_bootstrap_managed_random_match_via_api_returns_false_when_replay_matches_exist(self) -> None:
+        with patch.object(
+            bootstrap_managed_random_match_via_api.__globals__["JsonHttpTransport"],
+            "request",
+            side_effect=[
+                {"botId": "random_bot"},
+                [{"matchId": "match-1"}],
+                [],
+            ],
+        ):
+            bootstrapped = bootstrap_managed_random_match_via_api("http://127.0.0.1:8000")
+
+        self.assertFalse(bootstrapped)
+
+    def test_bootstrap_managed_random_match_via_api_returns_false_when_managed_matches_exist(self) -> None:
+        with patch.object(
+            bootstrap_managed_random_match_via_api.__globals__["JsonHttpTransport"],
+            "request",
+            side_effect=[
+                {"botId": "random_bot"},
+                [],
+                [{"matchId": "managed-1"}],
+            ],
+        ):
+            bootstrapped = bootstrap_managed_random_match_via_api("http://127.0.0.1:8000")
+
+        self.assertFalse(bootstrapped)
+
+    def test_bootstrap_managed_random_match_via_api_creates_expected_heads_up_payload(self) -> None:
+        with patch.object(
+            bootstrap_managed_random_match_via_api.__globals__["JsonHttpTransport"],
+            "request",
+            side_effect=[
+                {"botId": "random_bot"},
+                [],
+                [],
+                {"matchId": "managed-1"},
+            ],
+        ) as request:
+            bootstrapped = bootstrap_managed_random_match_via_api("http://127.0.0.1:8000")
+
+        self.assertTrue(bootstrapped)
+        self.assertEqual(
+            request.call_args_list,
+            [
+                unittest.mock.call("POST", "/bots", {"botId": "random_bot"}),
+                unittest.mock.call("GET", "/matches"),
+                unittest.mock.call("GET", "/managed-matches"),
+                unittest.mock.call(
+                    "POST",
+                    "/managed-matches",
+                    {
+                        "name": "Random Bot vs Random Bot",
+                        "seats": [
+                            {"seatId": "seat_1", "primaryBotId": "random_bot"},
+                            {"seatId": "seat_2", "primaryBotId": "random_bot"},
+                        ],
+                        "fallbackBotId": "random_bot",
+                        "roundCount": 3,
+                        "timeControl": {
+                            "initialTimeMs": 60000,
+                            "incrementMs": 0,
+                            "perCallSoftLimitMs": None,
+                            "perCallHardLimitMs": None,
+                        },
+                        "timeoutPolicy": "loss_on_time",
+                        "executionMode": "bot_api",
+                    },
+                ),
+            ],
+        )
+
     def test_run_starts_backend_then_seeds_then_opens_browser(self) -> None:
         fake_viewer_server = MagicMock()
         fake_backend_process = MagicMock()
-        fake_backend_process.wait.side_effect = KeyboardInterrupt()
+        fake_backend_process.poll.return_value = None
+        fake_backend_process.wait.side_effect = [KeyboardInterrupt(), None]
         startup_order: list[str] = []
         backend_envs: list[dict[str, str]] = []
 
@@ -170,7 +299,11 @@ class RuntimeCliTests(unittest.TestCase):
                  "ticket_to_ride.runtime.cli._start_viewer_runtime",
                  return_value=ViewerLaunchResult(server=fake_viewer_server, message=None),
              ), \
-             patch("ticket_to_ride.runtime.cli.seed_match_if_empty_via_api", side_effect=lambda api_base_url, round_limit=10: startup_order.append("seed") or True), \
+             patch("ticket_to_ride.runtime.cli.start_bot_api_process") as start_bot_api, \
+             patch(
+                 "ticket_to_ride.runtime.cli.seed_match_if_empty_via_api",
+                 side_effect=lambda api_base_url, round_limit=10: startup_order.append("seed") or True,
+             ), \
              patch(
                  "ticket_to_ride.runtime.cli.start_backend_process",
                  side_effect=lambda host, port, env=None: backend_envs.append(env or {}) or startup_order.append("backend") or fake_backend_process,
@@ -183,9 +316,92 @@ class RuntimeCliTests(unittest.TestCase):
 
         self.assertEqual(startup_order[:3], ["backend", "seed", "browser"])
         self.assertEqual(backend_envs[0]["MATCH_LOG_STORAGE_BACKEND"], "memory")
+        start_bot_api.assert_not_called()
         fake_viewer_server.shutdown.assert_called_once()
         fake_viewer_server.server_close.assert_called_once()
         fake_backend_process.terminate.assert_called_once()
+
+    def test_run_with_flag_starts_backend_then_bot_api_then_bootstraps_then_opens_browser(self) -> None:
+        fake_viewer_server = MagicMock()
+        fake_backend_process = MagicMock()
+        fake_backend_process.poll.return_value = None
+        fake_backend_process.wait.side_effect = [KeyboardInterrupt(), None]
+        startup_order: list[str] = []
+        backend_envs: list[dict[str, str]] = []
+        fake_bot_api_process = MagicMock()
+        fake_bot_api_process.poll.return_value = None
+        fake_bot_api_launch = BotApiLaunchResult(
+            process=fake_bot_api_process,
+            started=True,
+            reachable=True,
+            message=None,
+            base_url="http://127.0.0.1:8001",
+        )
+
+        with patch.dict("os.environ", {"TICKET_TO_RIDE_ENABLE_BOT_API": "1"}), \
+             patch("ticket_to_ride.runtime.cli.start_pocketbase_process", return_value=MagicMock(message=None, reachable=False, process=None)), \
+             patch(
+                 "ticket_to_ride.runtime.cli._start_viewer_runtime",
+                 return_value=ViewerLaunchResult(server=fake_viewer_server, message=None),
+             ), \
+             patch("ticket_to_ride.runtime.cli.start_bot_api_process", side_effect=lambda: startup_order.append("bot_api") or fake_bot_api_launch), \
+             patch(
+                 "ticket_to_ride.runtime.cli.bootstrap_managed_random_match_via_api",
+                 side_effect=lambda api_base_url: startup_order.append("bootstrap") or True,
+             ), \
+             patch(
+                 "ticket_to_ride.runtime.cli.start_backend_process",
+                 side_effect=lambda host, port, env=None: backend_envs.append(env or {}) or startup_order.append("backend") or fake_backend_process,
+             ), \
+             patch("ticket_to_ride.runtime.cli._wait_for_port", return_value=True), \
+             patch("ticket_to_ride.runtime.cli._open_default_browser", side_effect=lambda url: startup_order.append("browser")), \
+             patch("ticket_to_ride.runtime.cli.pocketbase_is_reachable", return_value=False):
+            with self.assertRaises(KeyboardInterrupt):
+                run()
+
+        self.assertEqual(startup_order[:4], ["backend", "bot_api", "bootstrap", "browser"])
+        self.assertEqual(backend_envs[0]["MATCH_LOG_STORAGE_BACKEND"], "memory")
+        fake_viewer_server.shutdown.assert_called_once()
+        fake_viewer_server.server_close.assert_called_once()
+        fake_backend_process.terminate.assert_called_once()
+        fake_bot_api_process.terminate.assert_called_once()
+
+    def test_run_raises_when_random_bot_registration_fails(self) -> None:
+        fake_viewer_server = MagicMock()
+        fake_backend_process = MagicMock()
+        fake_backend_process.poll.return_value = None
+        fake_bot_api_process = MagicMock()
+        fake_bot_api_process.poll.return_value = None
+        fake_bot_api_launch = BotApiLaunchResult(
+            process=fake_bot_api_process,
+            started=True,
+            reachable=True,
+            message=None,
+            base_url="http://127.0.0.1:8001",
+        )
+
+        with patch.dict("os.environ", {"TICKET_TO_RIDE_ENABLE_BOT_API": "1"}), \
+             patch("ticket_to_ride.runtime.cli.start_pocketbase_process", return_value=MagicMock(message=None, reachable=False, process=None)), \
+             patch(
+                 "ticket_to_ride.runtime.cli._start_viewer_runtime",
+                 return_value=ViewerLaunchResult(server=fake_viewer_server, message=None),
+             ), \
+             patch("ticket_to_ride.runtime.cli.start_backend_process", return_value=fake_backend_process), \
+             patch("ticket_to_ride.runtime.cli.start_bot_api_process", return_value=fake_bot_api_launch), \
+             patch(
+                 "ticket_to_ride.runtime.cli.bootstrap_managed_random_match_via_api",
+                 side_effect=RuntimeError(
+                     "Backend /bots registration failed for 'random_bot' while using BOT_API_BASE_URL http://127.0.0.1:8001"
+                 ),
+             ):
+            with self.assertRaises(RuntimeError) as exc:
+                run()
+
+        self.assertIn("Backend /bots registration failed", str(exc.exception))
+        fake_viewer_server.shutdown.assert_called_once()
+        fake_viewer_server.server_close.assert_called_once()
+        fake_backend_process.terminate.assert_called_once()
+        fake_bot_api_process.terminate.assert_called_once()
 
 
 if __name__ == "__main__":

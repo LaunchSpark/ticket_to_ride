@@ -41,6 +41,8 @@ ticket_to_ride/
 - `uv run run` starts the native backend stack
 - `uv run test` runs the native automated test suite
 - `uv run run` will auto-start PocketBase when the binary is available at `operations/tools/pocketbase/pocketbase.exe`
+- `uv run run` seeds a bootstrap replay match with 2 in-process random bots when no matches exist
+- With `TICKET_TO_RIDE_ENABLE_BOT_API=1`, `uv run run` instead auto-starts the external bot API (when `BOT_API_BASE_URL` points at a local loopback `http://` service), registers `random_bot`, and creates a 3-round managed `Random Bot vs Random Bot` match with a 1-minute clock when both replay matches and managed matches are empty. Off by default until the bot-api HTTP protocol migrates from the legacy `choose_*` contract to `act()`.
 
 The native runtime must not depend on code under `integrations/external/`.
 

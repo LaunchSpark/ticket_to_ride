@@ -1,0 +1,22 @@
+{
+  "include": [
+    "services/native-runtime/src",
+    "integrations/external",
+    "quality/tests"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "applications/viewer/node_modules",
+    "operations/tools/pocketbase"
+  ],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": [
+        "services/native-runtime/src",
+        "integrations",
+        "applications"
+      ]
+    }
+  ]
+}

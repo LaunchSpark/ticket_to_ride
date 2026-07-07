@@ -85,6 +85,10 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_managed_match_records(self) -> List[Dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_managed_match_record(self, match_id: str) -> Dict[str, Any]:
         raise NotImplementedError
 
@@ -289,6 +293,13 @@ class InMemoryMatchRepository(MatchRepository):
             "createdAt": utc_now_iso(),
         }
         return match_id
+
+    def list_managed_match_records(self) -> List[Dict[str, Any]]:
+        return sorted(
+            (deepcopy(match) for match in self.managed_matches.values()),
+            key=lambda match: match["createdAt"],
+            reverse=True,
+        )
 
     def get_managed_match_record(self, match_id: str) -> Dict[str, Any]:
         self._require_managed_match(match_id)

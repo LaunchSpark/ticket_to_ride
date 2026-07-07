@@ -5,11 +5,9 @@ app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
     import random
-    from typing import List
 
-    from external.contracts.base_bot import ActionBot, BaseBot
-    from ticket_to_ride.engine.state.map import Route
-    from ticket_to_ride.engine.state.decks import DestinationTicket
+    from external.contracts.base_bot import ActionBot
+
     from wigglystuff import PlaySlider
 
     BOT_META = {

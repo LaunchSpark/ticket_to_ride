@@ -7,6 +7,7 @@ from ticket_to_ride.backend.app import create_app
 from ticket_to_ride.backend.pocketbase import PocketBaseError
 from ticket_to_ride.backend.pocketbase import PocketBaseMatchRepository
 from ticket_to_ride.backend.repository import InMemoryMatchRepository
+from ticket_to_ride.backend.runtime import ManagedMatchRuntimeManager
 
 
 TURN_ONE = {
@@ -259,6 +260,50 @@ class MatchApiTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(len(payload["rounds"][0]["turns"]), 31)
         self.assertEqual(payload["rounds"][0]["turns"][30]["player"]["score"], 999)
+
+    def test_list_managed_matches_returns_newest_first(self) -> None:
+        runtime_manager = ManagedMatchRuntimeManager(self.repository)
+        client = TestClient(create_app(repository=self.repository, runtime_manager=runtime_manager))
+
+        with patch(
+            "ticket_to_ride.backend.repository.utc_now_iso",
+            side_effect=[
+                "2026-03-21T10:00:00+00:00",
+                "2026-03-21T10:05:00+00:00",
+            ],
+        ):
+            older_match_id = self.repository.create_managed_match(
+                name="older-managed-match",
+                seats=[
+                    {"seatId": "seat_1", "primaryBotId": "random_bot"},
+                    {"seatId": "seat_2", "primaryBotId": "random_bot"},
+                ],
+                fallback_bot_id="random_bot",
+                round_count=3,
+                time_control={"initialTimeMs": 60000, "incrementMs": 0},
+                timeout_policy="loss_on_time",
+                execution_mode="bot_api",
+            )
+            newer_match_id = self.repository.create_managed_match(
+                name="newer-managed-match",
+                seats=[
+                    {"seatId": "seat_1", "primaryBotId": "random_bot"},
+                    {"seatId": "seat_2", "primaryBotId": "random_bot"},
+                ],
+                fallback_bot_id="random_bot",
+                round_count=3,
+                time_control={"initialTimeMs": 60000, "incrementMs": 0},
+                timeout_policy="loss_on_time",
+                execution_mode="bot_api",
+            )
+
+        response = client.get("/managed-matches")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([item["matchId"] for item in payload], [newer_match_id, older_match_id])
+        self.assertEqual(payload[0]["name"], "newer-managed-match")
+        self.assertEqual(payload[1]["name"], "older-managed-match")
 
 
 class CulledBoardApiTests(unittest.TestCase):

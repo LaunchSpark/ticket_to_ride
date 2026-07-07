@@ -114,6 +114,20 @@ class ManagedMatchRuntimeManager:
                 record["replayMatchId"] = live_context.replay_match_id
         return _managed_match_summary_from_record(record)
 
+    def list_managed_matches(self) -> List[ManagedMatchSummary]:
+        """Return all persisted managed-match summaries."""
+
+        records = self.repository.list_managed_match_records()
+        with self._lock:
+            for record in records:
+                live_context = self._matches.get(record["id"])
+                if live_context is None:
+                    continue
+                record["status"] = live_context.status
+                record["currentRoundNumber"] = live_context.current_round_number
+                record["replayMatchId"] = live_context.replay_match_id
+        return [_managed_match_summary_from_record(record) for record in records]
+
     def list_rounds(self, match_id: str) -> List[ManagedRoundSummary]:
         """Return all persisted round summaries for one managed match."""
 

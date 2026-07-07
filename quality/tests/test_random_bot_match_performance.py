@@ -7,13 +7,13 @@ from collections import Counter
 
 from fastapi.testclient import TestClient
 
+from external.bots.random_bot import RandomBot
 from ticket_to_ride.backend.app import create_app
 from ticket_to_ride.backend.repository import InMemoryMatchRepository
 from ticket_to_ride.engine.game import Game
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.logging.game_logger import GameLogger
-from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
 
 TURN_TIMEOUT_SECONDS = 3.0
@@ -44,8 +44,8 @@ class RandomBotMatchPerformanceTests(unittest.TestCase):
         client = TestClient(create_app(repository=repository))
 
         players = [
-            Player("bot_0", BootstrapRandomBot(), "random_1", "red"),
-            Player("bot_1", BootstrapRandomBot(), "random_2", "blue"),
+            Player("bot_0", RandomBot(), "random_1", "red"),
+            Player("bot_1", RandomBot(), "random_2", "blue"),
         ]
         logger = GameLogger(players, transport=TestClientTransport(client))
         match_id = logger.start_match("random_1-random_2")

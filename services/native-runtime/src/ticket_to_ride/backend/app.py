@@ -262,6 +262,12 @@ def create_app(
     ) -> ManagedMatchSummary:
         return runtime_manager.create_managed_match(request)
 
+    @app.get("/managed-matches", response_model=list[ManagedMatchSummary])
+    def get_managed_matches(
+        runtime_manager: ManagedMatchRuntimeManager = Depends(get_runtime_manager),
+    ) -> list[ManagedMatchSummary]:
+        return runtime_manager.list_managed_matches()
+
     @app.get("/managed-matches/{match_id}", response_model=ManagedMatchSummary)
     def get_managed_match(
         match_id: str,

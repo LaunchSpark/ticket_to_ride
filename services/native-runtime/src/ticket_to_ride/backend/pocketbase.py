@@ -193,6 +193,11 @@ class PocketBaseMatchRepository(MatchRepository):
         record = self._request_json("POST", "/api/collections/managed_matches/records", payload)
         return record["id"]
 
+    def list_managed_match_records(self) -> List[Dict[str, Any]]:
+        records = self._request_all_items("/api/collections/managed_matches/records")
+        managed_matches = [self._normalize_managed_match(record) for record in records]
+        return sorted(managed_matches, key=lambda match: match["createdAt"], reverse=True)
+
     def get_managed_match_record(self, match_id: str) -> Dict[str, Any]:
         record = self._request_json("GET", f"/api/collections/managed_matches/records/{match_id}")
         return self._normalize_managed_match(record)

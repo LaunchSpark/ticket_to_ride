@@ -151,9 +151,9 @@ def initialize_game(
 ) -> HarnessGame:
     """Build a HarnessGame seating one Player per bot instance, in order.
 
-    `bots` are BaseBot instances (or anything implementing the same
-    choose_*/select_* interface, like BootstrapRandomBot). The Nth bot
-    becomes player "bot_N" with a distinct default color.
+    `bots` are ActionBot/BaseBot instances, or anything implementing the
+    legacy choose_*/select_* interface. The Nth bot becomes player "bot_N"
+    with a distinct default color.
 
     Pass an int `seed` to make the whole game reproducible; leave None for
     a random one (the generated value lands on `game.context.seed`).

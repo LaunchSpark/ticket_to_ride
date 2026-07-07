@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
+from external.bots.random_bot import RandomBot
 from external.contracts.base_bot import BaseBot
-from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
 from notebook_harness.game_runner import available_bots, initialize_game, list_maps
 
@@ -21,7 +21,7 @@ class GameRunnerTests(unittest.TestCase):
             self.assertTrue(issubclass(bot_class, BaseBot))
 
     def test_initialize_game_builds_one_player_per_bot(self) -> None:
-        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])
+        harness_game = initialize_game([RandomBot(), RandomBot()])
 
         self.assertEqual(len(harness_game.players), 2)
         self.assertEqual(harness_game.players[0].player_id, "bot_0")
@@ -30,7 +30,7 @@ class GameRunnerTests(unittest.TestCase):
         self.assertEqual(harness_game.players[1].color, "blue")
 
     def test_roster_lists_every_seat_with_id_name_and_color(self) -> None:
-        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])
+        harness_game = initialize_game([RandomBot(), RandomBot()])
 
         roster = harness_game.roster()
 
@@ -43,7 +43,7 @@ class GameRunnerTests(unittest.TestCase):
         )
 
     def test_playing_a_game_records_snapshots_and_board_at_returns_nodes_and_edges(self) -> None:
-        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])
+        harness_game = initialize_game([RandomBot(), RandomBot()])
 
         harness_game.play()
 
@@ -61,7 +61,7 @@ class GameRunnerTests(unittest.TestCase):
                 self.assertIn(owner, player_ids)
 
     def test_board_at_with_viewpoint_returns_the_culled_view(self) -> None:
-        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()])
+        harness_game = initialize_game([RandomBot(), RandomBot()])
         harness_game.play()
 
         last_step = harness_game.snapshot_count() - 1
@@ -87,7 +87,7 @@ class GameRunnerTests(unittest.TestCase):
 
 class MarketAtTests(unittest.TestCase):
     def _played_game(self):
-        harness_game = initialize_game([BootstrapRandomBot(), BootstrapRandomBot()], seed=41)
+        harness_game = initialize_game([RandomBot(), RandomBot()], seed=41)
         harness_game.play()
         return harness_game
 

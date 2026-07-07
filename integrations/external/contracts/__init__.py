@@ -1,6 +1,6 @@
 """External integration contracts."""
 
-from external.contracts.abstract_interface import Interface
-from external.contracts.base_bot import BaseBot
+from .abstract_interface import Interface
+from .base_bot import ActionBot, BaseBot
 
-__all__ = ["Interface", "BaseBot"]
+__all__ = ["Interface", "BaseBot", "ActionBot"]

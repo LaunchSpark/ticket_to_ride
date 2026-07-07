@@ -7,9 +7,10 @@ with app.setup:
     import heapq
     from collections import Counter
     from itertools import combinations
+    from collections.abc import Collection
     from typing import List
 
-    from external.contracts.base_bot import ActionBot, BaseBot
+    from external.contracts.base_bot import ActionBot
     from ticket_to_ride.engine.actions import (
         ClaimRoute,
         DrawBlind,
@@ -80,7 +81,7 @@ class ExampleBot(ActionBot):
     def _route_points(self, route: Route) -> int:
         return self._ROUTE_POINTS.get(route.length, route.length)
 
-    def _adjacency(self, culled, free_route_ids=frozenset()):
+    def _adjacency(self, culled, free_route_ids: 'Collection[str]' = frozenset()):
         """node -> [(neighbor, cost, route)] with planned/free routes at cost 0."""
         adjacency = {}
         for route in culled.routes:
@@ -116,7 +117,7 @@ class ExampleBot(ActionBot):
             routes.append(route)
         return routes
 
-    def _steiner_tree(self, culled, cities, free_route_ids=frozenset()):
+    def _steiner_tree(self, culled, cities, free_route_ids: 'Collection[str]' = frozenset()):
         """Exact minimum Steiner tree over up to 4 cities: (cost, routes) or None.
 
         Terminals are the cities' culled nodes (a whole owned network counts

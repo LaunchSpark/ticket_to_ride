@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
+from external.bots.random_bot import RandomBot
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.engine.state.views import PlayerView
-from ticket_to_ride.runtime.cli import BootstrapRandomBot
 
 from notebook_harness.in_memory_logger import InMemoryGameLogger
 
@@ -13,8 +13,8 @@ from notebook_harness.in_memory_logger import InMemoryGameLogger
 class InMemoryGameLoggerTests(unittest.TestCase):
     def test_record_turn_appends_a_snapshot_with_the_serialized_turn_state(self) -> None:
         players = [
-            Player("bot_0", BootstrapRandomBot(), "random_1", "red"),
-            Player("bot_1", BootstrapRandomBot(), "random_2", "blue"),
+            Player("bot_0", RandomBot(), "random_1", "red"),
+            Player("bot_1", RandomBot(), "random_2", "blue"),
         ]
         logger = InMemoryGameLogger(players)
         context = GameContext([player.player_id for player in players])
@@ -35,8 +35,8 @@ class InMemoryGameLoggerTests(unittest.TestCase):
 
     def test_record_turn_increments_turn_index_across_calls(self) -> None:
         players = [
-            Player("bot_0", BootstrapRandomBot(), "random_1", "red"),
-            Player("bot_1", BootstrapRandomBot(), "random_2", "blue"),
+            Player("bot_0", RandomBot(), "random_1", "red"),
+            Player("bot_1", RandomBot(), "random_2", "blue"),
         ]
         logger = InMemoryGameLogger(players)
         context = GameContext([player.player_id for player in players])
