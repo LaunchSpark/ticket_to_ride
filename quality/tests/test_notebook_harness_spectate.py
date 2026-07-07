@@ -125,6 +125,15 @@ class FakeHarnessGame:
         return [{"id": "bot_0", "name": "Alpha", "color": "red"}]
 
 
+FAKE_WIDGET_CLASSES = (
+    FakeGraph,
+    FakePlayerList,
+    FakeInfoBar,
+    lambda nodes, edges: {"nodes": nodes, "links": edges},
+    FakeSlider,
+)
+
+
 class SpectateControlsTests(unittest.TestCase):
     def test_spectate_controls_returns_map_and_seat_picker_globals(self) -> None:
         mo = FakeMo()
@@ -184,45 +193,81 @@ class PlayMatchTests(unittest.TestCase):
         game.play.assert_called_once_with()
 
 
-class SpectateViewTests(unittest.TestCase):
-    def test_spectate_view_creates_widgets_and_returns_separate_globals(self) -> None:
+class SpectateWidgetsTests(unittest.TestCase):
+    def test_spectate_widgets_builds_the_four_view_widgets_from_step_zero(self) -> None:
         mo = FakeMo()
         game = FakeHarnessGame()
 
-        with patch(
-            "notebook_harness.spectate._load_widget_classes",
-            return_value=(FakeGraph, FakePlayerList, FakeInfoBar, lambda nodes, edges: {"nodes": nodes, "links": edges}, FakeSlider),
-        ):
-            graph, player_list, info_bar, step_slider = spectate.spectate_view(mo, game)
+        with patch("notebook_harness.spectate._load_widget_classes", return_value=FAKE_WIDGET_CLASSES):
+            graph, player_list, info_bar, step_slider = spectate.spectate_widgets(mo, game)
 
         self.assertIsInstance(graph, FakeGraph)
         self.assertIsInstance(player_list, FakePlayerList)
         self.assertIsInstance(info_bar, FakeInfoBar)
         self.assertIsInstance(step_slider, FakeSlider)
+        self.assertEqual(graph.data["nodes"], [{"id": "node-0-None"}])
+        self.assertEqual(player_list.players, game.roster())
+        self.assertEqual(info_bar.market, {"step": 0, "viewpoint": None})
         self.assertEqual(step_slider.max_value, 3)
-        self.assertEqual(mo.output.appended[-1].kind, "vstack")
 
-    def test_spectate_view_reuses_widgets_and_updates_for_step_and_viewpoint(self) -> None:
+    def test_spectate_widgets_does_not_render_output(self) -> None:
+        # Creation and display live in different cells: the widgets cell must
+        # not append anything, or the layout would show up twice.
+        mo = FakeMo()
+
+        with patch("notebook_harness.spectate._load_widget_classes", return_value=FAKE_WIDGET_CLASSES):
+            spectate.spectate_widgets(mo, FakeHarnessGame())
+
+        self.assertEqual(mo.output.appended, [])
+
+
+class SpectateViewTests(unittest.TestCase):
+    def _widgets(self, mo, game):
+        with patch("notebook_harness.spectate._load_widget_classes", return_value=FAKE_WIDGET_CLASSES):
+            return spectate.spectate_widgets(mo, game)
+
+    def _view(self, mo, game, widgets):
+        with patch("notebook_harness.spectate._load_widget_classes", return_value=FAKE_WIDGET_CLASSES):
+            spectate.spectate_view(mo, game, *widgets)
+
+    def test_spectate_view_updates_widgets_for_the_current_step_and_viewpoint(self) -> None:
         mo = FakeMo()
         game = FakeHarnessGame()
+        graph, player_list, info_bar, step_slider = widgets = self._widgets(mo, game)
+        player_list.value = {"selected_player": "bot_0"}
+        step_slider.value = {"value": 2}
 
-        with patch(
-            "notebook_harness.spectate._load_widget_classes",
-            return_value=(FakeGraph, FakePlayerList, FakeInfoBar, lambda nodes, edges: {"nodes": nodes, "links": edges}, FakeSlider),
-        ):
-            graph, player_list, info_bar, step_slider = spectate.spectate_view(mo, game)
-            player_list.value = {"selected_player": "bot_0"}
-            step_slider.value = {"value": 2}
-            second_graph, second_player_list, second_info_bar, second_slider = spectate.spectate_view(mo, game)
+        self._view(mo, game, widgets)
 
-        self.assertIs(second_graph, graph)
-        self.assertIs(second_player_list, player_list)
-        self.assertIs(second_info_bar, info_bar)
-        self.assertIs(second_slider, step_slider)
         self.assertEqual(game.board_calls[-1], (2, "bot_0"))
         self.assertEqual(game.market_calls[-1], (2, "bot_0"))
         self.assertEqual(graph.data["nodes"], [{"id": "node-2-bot_0"}])
         self.assertEqual(info_bar.market, {"step": 2, "viewpoint": "bot_0"})
+
+    def test_spectate_view_defaults_to_step_zero_spectator(self) -> None:
+        mo = FakeMo()
+        game = FakeHarnessGame()
+        widgets = self._widgets(mo, game)
+
+        self._view(mo, game, widgets)
+
+        self.assertEqual(game.board_calls[-1], (0, None))
+        self.assertEqual(game.market_calls[-1], (0, None))
+
+    def test_spectate_view_appends_the_layout(self) -> None:
+        mo = FakeMo()
+        game = FakeHarnessGame()
+        graph, player_list, info_bar, step_slider = widgets = self._widgets(mo, game)
+
+        self._view(mo, game, widgets)
+
+        layout = mo.output.appended[-1]
+        self.assertEqual(layout.kind, "vstack")
+        self.assertIs(layout.children[0], step_slider)
+        self.assertEqual(layout.children[1].kind, "hstack")
+        self.assertIs(layout.children[1].children[0], graph)
+        self.assertIs(layout.children[1].children[1], player_list)
+        self.assertIs(layout.children[2], info_bar)
 
 
 if __name__ == "__main__":

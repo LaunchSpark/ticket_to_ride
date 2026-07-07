@@ -48,14 +48,18 @@ class BotTemplateTests(unittest.TestCase):
 
         self.assertIs(module.YourBotName.META, module.BOT_META)
 
-    def test_template_is_a_marimo_notebook_with_three_shared_spectate_cells(self) -> None:
+    def test_template_is_a_marimo_notebook_with_four_shared_spectate_cells(self) -> None:
+        # Four cells: controls -> game -> widgets -> view. Widget creation and
+        # value-reading must live in different cells or marimo never re-runs
+        # the view on slider/selection interaction.
         source = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn("import marimo", source)
         self.assertIn('app = marimo.App(width="medium")', source)
-        self.assertEqual(source.count("@app.cell(hide_code=True)"), 3)
+        self.assertEqual(source.count("@app.cell(hide_code=True)"), 4)
         self.assertIn("spectate_controls", source)
         self.assertIn("play_match", source)
+        self.assertIn("spectate_widgets", source)
         self.assertIn("spectate_view", source)
 
     def test_template_is_recognized_by_marimo(self) -> None:

@@ -42,31 +42,41 @@ class RandomBot(ActionBot):
 
 @app.cell(hide_code=True)
 def _():
+    import marimo as mo
+
     from notebook_harness.spectate import spectate_controls
 
     map_picker, seat_pickers = spectate_controls(
-        marimo,
+        mo,
         bot_name=BOT_META["name"],
         bot_class=RandomBot,
         title=BOT_META["name"],
     )
-    return map_picker, seat_pickers
+    return map_picker, mo, seat_pickers
 
 
 @app.cell(hide_code=True)
-def _(map_picker, seat_pickers):
+def _(map_picker, mo, seat_pickers):
     from notebook_harness.spectate import play_match
 
-    harness_game = play_match(marimo, map_picker, seat_pickers)
+    harness_game = play_match(mo, map_picker, seat_pickers)
     return (harness_game,)
 
 
 @app.cell(hide_code=True)
-def _(harness_game):
+def _(harness_game, mo):
+    from notebook_harness.spectate import spectate_widgets
+
+    graph, player_list, info_bar, step_slider = spectate_widgets(mo, harness_game)
+    return graph, info_bar, player_list, step_slider
+
+
+@app.cell(hide_code=True)
+def _(graph, harness_game, info_bar, mo, player_list, step_slider):
     from notebook_harness.spectate import spectate_view
 
-    graph, player_list, info_bar, step_slider = spectate_view(marimo, harness_game)
-    return graph, info_bar, player_list, step_slider
+    spectate_view(mo, harness_game, graph, player_list, info_bar, step_slider)
+    return
 
 
 if __name__ == "__main__":

@@ -1,20 +1,36 @@
+"""The shared spectate/debug UI every bot notebook renders.
+
+Each bot notebook calls these four functions from four consecutive cells
+(see integrations/external/bots/random_bot.py). All layout, widgets, and
+update logic live here so a UI change lands in every notebook at once.
+
+Marimo wiring notes, load-bearing:
+- Marimo never re-runs a UI element's defining cell on interaction, so a
+  widget's value can only be read reactively from a *different* cell than
+  the one that bound it to a global. That forces the four-cell pipeline:
+  controls -> game -> widgets -> view.
+- ``spectate_widgets`` creates the widgets once per game (its cell only
+  re-runs when ``harness_game`` changes); ``spectate_view`` mutates those
+  same instances on every slider/selection change, so graph node positions
+  persist across steps and only diffs animate.
+- ``mo`` is passed in explicitly (each cell does ``import marimo as mo``):
+  the file-header ``import marimo`` is not visible inside the kernel's cell
+  namespace, and the explicit parameter lets the headless tests drive the
+  wiring with a fake marimo object.
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Callable
-
-
-@dataclass
-class SpectateWidgets:
-    graph: Any
-    player_list: Any
-    info_bar: Any
-    step_slider: Any
-    build_graph_data: Callable[[list[dict], list[dict]], dict]
+from typing import Any
 
 
 def spectate_controls(mo: Any, *, bot_name: str, bot_class: type, title: str | None = None):
-    """Create the map and seat picker controls for a bot notebook."""
+    """Create and display the map and seat picker controls for a bot notebook.
+
+    ``bot_class`` is the notebook's live class, injected over the on-disk
+    version the loader discovered so edits take effect without reloading.
+    Returns (map_picker, seat_pickers) for the cell to bind as globals.
+    """
 
     from notebook_harness.game_runner import available_bots, list_maps
 
@@ -56,51 +72,64 @@ def play_match(mo: Any, map_picker: Any, seat_pickers: Any):
     return harness_game
 
 
-def spectate_view(mo: Any, harness_game: Any):
-    """Create or update the board, roster, market, and playback controls."""
+def spectate_widgets(mo: Any, harness_game: Any):
+    """Create the board, roster, market, and playback widgets for one game.
 
-    widgets = _spectate_widgets(mo, harness_game)
-    viewpoint = _selected_player(widgets.player_list)
-    step = _slider_step(widgets.step_slider)
-
-    nodes, edges = harness_game.board_at(step, viewpoint)
-    widgets.graph.data = widgets.build_graph_data(nodes, edges)
-    widgets.info_bar.market = harness_game.market_at(step, viewpoint)
-    mo.output.append(
-        mo.vstack(
-            [
-                widgets.step_slider,
-                mo.hstack([widgets.graph, widgets.player_list], align="start", justify="start"),
-                widgets.info_bar,
-            ]
-        )
-    )
-    return widgets.graph, widgets.player_list, widgets.info_bar, widgets.step_slider
-
-
-def _spectate_widgets(mo: Any, harness_game: Any) -> SpectateWidgets:
-    widgets = getattr(harness_game, "_spectate_widgets", None)
-    if widgets is not None:
-        return widgets
+    Created once per game — not per slider step — so the force simulation
+    keeps running instead of restarting from scratch on every step. This
+    cell renders nothing; ``spectate_view`` displays the widgets from the
+    next cell, where their values can be read reactively.
+    Returns (graph, player_list, info_bar, step_slider).
+    """
 
     RouteGraphWidget, PlayerListWidget, InfoBarWidget, build_graph_data, PlaySlider = _load_widget_classes()
     initial_nodes, initial_edges = harness_game.board_at(0)
-    widgets = SpectateWidgets(
-        graph=mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(initial_nodes, initial_edges))),
-        player_list=mo.ui.anywidget(PlayerListWidget(players=harness_game.roster())),
-        info_bar=mo.ui.anywidget(InfoBarWidget(market=harness_game.market_at(0))),
-        step_slider=mo.ui.anywidget(
-            PlaySlider(
-                min_value=0,
-                max_value=harness_game.snapshot_count() - 1,
-                step=1,
-                interval_ms=300,
-            )
-        ),
-        build_graph_data=build_graph_data,
+    graph = mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(initial_nodes, initial_edges)))
+    player_list = mo.ui.anywidget(PlayerListWidget(players=harness_game.roster()))
+    info_bar = mo.ui.anywidget(InfoBarWidget(market=harness_game.market_at(0)))
+    step_slider = mo.ui.anywidget(
+        PlaySlider(
+            min_value=0,
+            max_value=harness_game.snapshot_count() - 1,
+            step=1,
+            interval_ms=300,
+        )
     )
-    harness_game._spectate_widgets = widgets
-    return widgets
+    return graph, player_list, info_bar, step_slider
+
+
+def spectate_view(
+    mo: Any,
+    harness_game: Any,
+    graph: Any,
+    player_list: Any,
+    info_bar: Any,
+    step_slider: Any,
+) -> None:
+    """Push the current step/selection into the widgets and display the layout.
+
+    Selecting a player switches to their culled view (their network merged
+    into single nodes, only routes they could still claim); the market
+    follows the same step + selection — a spectator sees the true draw
+    pile, a selected player sees their public-information odds pool.
+    """
+
+    _, _, _, build_graph_data, _ = _load_widget_classes()
+    viewpoint = _selected_player(player_list)
+    step = _slider_step(step_slider)
+
+    nodes, edges = harness_game.board_at(step, viewpoint)
+    graph.data = build_graph_data(nodes, edges)
+    info_bar.market = harness_game.market_at(step, viewpoint)
+    mo.output.append(
+        mo.vstack(
+            [
+                step_slider,
+                mo.hstack([graph, player_list], align="start", justify="start"),
+                info_bar,
+            ]
+        )
+    )
 
 
 def _selected_player(player_list: Any) -> str | None:
