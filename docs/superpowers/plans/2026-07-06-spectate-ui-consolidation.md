@@ -4,6 +4,8 @@
 
 **Goal:** Move the five duplicated marimo spectate/debug UI cells out of every bot notebook into `applications/notebook_harness/spectate.py`, so each notebook (and the copyable bot template) carries only three one-call cells.
 
+**Deliberate deviation from the spec:** The implementation skips the composite panel element and uses the spec's named fallback: each widget is returned and bound as its own notebook cell global. Marimo containers clone their children, and that reactivity cannot be proven headless; the separate-globals wiring is what the existing notebooks already proved in production. The helper API also passes `mo` explicitly so the six headless tests can exercise the UI wiring with a fake marimo object.
+
 **Architecture:** Three functions — `spectate_controls` (pickers), `play_match` (game + widgets), `spectate_view` (slider-driven render) — each called from its own notebook cell. Interactive `mo.ui` elements are returned to the notebook and bound as cell globals, which is the reactive wiring the current notebooks already prove in production. The spec's composite-`panel` variant is intentionally NOT used: marimo containers clone their children and their reactivity can't be verified headless, so we implement the spec's named fallback (separate element globals) directly.
 
 **Tech Stack:** Python 3.12, marimo 0.23.x (`uv sync --extra notebooks`), anywidget widgets in `applications/notebook_harness/`, unittest under `quality/tests/` (`uv run test`).
@@ -636,3 +638,19 @@ Repeat step 2's checks 3–5 briefly for:
 - [ ] **Step 4: If anything fails**
 
 The known failure mode is a widget interaction not re-running the view cell. If that happens, the wiring rule was broken somewhere: confirm each element is bound to a cell global (`map_picker`, `seat_pickers`, `step_slider`, `player_list`) and that no cell reads `.value` of an element it created. Fix in `spectate.py` or the notebook cells, re-run `uv run test`, and repeat this task.
+
+## Browser Verification Checklist
+
+Run these checks in a real browser after `uv sync --extra notebooks`:
+
+- [ ] Launch `uv run marimo edit integrations/external/bots/random_bot.py`.
+- [ ] Confirm the title, map picker, and five seat dropdowns render.
+- [ ] Confirm seats 1 and 2 default to `Random Bot`; seats 3 through 5 default to `(empty)`.
+- [ ] Change enough seats to `(empty)` that fewer than two seats are filled, and confirm the notebook stops with `Pick bots for at least two seats to run a game.` instead of rendering a board.
+- [ ] Restore two or more filled seats and confirm the board, roster, market bar, and play slider render.
+- [ ] Drag or play the slider and confirm the board and market update as the step changes.
+- [ ] Click a player in the roster and confirm the board switches to that player's culled view.
+- [ ] Click the selected player again and confirm the board returns to spectator view.
+- [ ] Drag the slider across multiple steps and confirm node positions persist instead of restarting the graph simulation every step.
+- [ ] Repeat the board/slider/player-selection checks for `uv run marimo edit integrations/external/bots/example_bot.py`.
+- [ ] Repeat the board/slider/player-selection checks for `uv run marimo edit integrations/external/templates/bots/build_your_bot_here.py`.
