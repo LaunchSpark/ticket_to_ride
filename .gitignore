@@ -54,3 +54,4 @@ applications/notebook_harness/widget-src/node_modules/
 .claude/settings.json
 operations/tools/pocketbase/pocketbase
 operations/data/pb_migrations/
+operations/research/results/
