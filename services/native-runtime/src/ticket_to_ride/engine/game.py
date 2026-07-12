@@ -10,8 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class Game:
-    #: Points awarded per claimed route, by route length.
-    SCORE_TABLE: Dict[int, int] = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15}
+    #: Points awarded per claimed route, by route length (7 and 8 appear on
+    #: the Europe map; 21 for 8 is the official Europe value, 18 interpolates
+    #: the gap for maps that use 7).
+    SCORE_TABLE: Dict[int, int] = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15, 7: 18, 8: 21}
 
     def __init__(self, context: GameContext, players: List[Player], logger: GameLogger, round_number: int):
         """Create a game instance and prime the gameplay loop.

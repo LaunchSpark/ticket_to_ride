@@ -2,7 +2,7 @@ import logging
 import random
 
 from ticket_to_ride.engine.state.map import MapGraph
-from ticket_to_ride.engine.state.decks import TrainCardDeck, TicketDeck
+from ticket_to_ride.engine.state.decks import TrainCardDeck, TicketDeck, resolve_tickets_path
 
 from collections import Counter
 from typing import Dict, List, Optional
@@ -23,7 +23,7 @@ class GameContext:
         self.rng = random.Random(self.seed)
         self.map_graph = MapGraph(player_count=len(player_ids), map_name=map_name)
         self.train_deck = TrainCardDeck(rng=self.rng)
-        self.ticket_deck = TicketDeck(rng=self.rng)
+        self.ticket_deck = TicketDeck(resolve_tickets_path(map_name), rng=self.rng)
         self.turn_num = 0
         # initialize score dictionary for all players
         # each player starts with a score of 0

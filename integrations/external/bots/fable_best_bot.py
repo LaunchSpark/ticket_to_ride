@@ -63,7 +63,7 @@ class FableBestBot(ActionBot):
     META = BOT_META
 
     # Route points by length (kept for claim *worth*; costs are in turns).
-    _ROUTE_POINTS = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15}
+    _ROUTE_POINTS = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15, 7: 18, 8: 21}
     _CARD_COLORS = ["R", "B", "U", "G", "O", "P", "W", "Y"]
 
     # --- tunables -----------------------------------------------------

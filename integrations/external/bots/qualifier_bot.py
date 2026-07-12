@@ -51,7 +51,7 @@ class QualifierBot(ActionBot):
     META = BOT_META
 
     # Route points by length: the "difficulty" weight used for planning.
-    _ROUTE_POINTS = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15}
+    _ROUTE_POINTS = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15, 7: 18, 8: 21}
     _CARD_COLORS = ["R", "B", "U", "G", "O", "P", "W", "Y"]
     # A third offered ticket rides along if it costs less than this many
     # extra expected turns once the pair's planned routes are free.

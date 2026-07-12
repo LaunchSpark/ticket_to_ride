@@ -9,6 +9,18 @@ logger = logging.getLogger(__name__)
 
 
 TICKETS_CSV_PATH = Path(__file__).resolve().parents[6] / "operations" / "data" / "Destination_tickets.csv"
+TICKETS_DIR = Path(__file__).resolve().parents[6] / "operations" / "data" / "tickets"
+
+
+def resolve_tickets_path(map_name: 'str | None') -> Path:
+    """Ticket CSV for a map: operations/data/tickets/<map>.csv when it
+    exists, otherwise the classic Destination_tickets.csv (which fits the
+    classic map and its condensed variants)."""
+    if map_name:
+        per_map = TICKETS_DIR / f"{map_name}.csv"
+        if per_map.exists():
+            return per_map
+    return TICKETS_CSV_PATH
 
 # ────────────────────────────────────────────────────────────────────────────────
 # TrainCardDeck – with 1-letter abbreviations
