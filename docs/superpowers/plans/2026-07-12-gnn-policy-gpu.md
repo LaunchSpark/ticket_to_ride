@@ -97,8 +97,8 @@ The held-out-map protocol needs decisions from both maps. `bot_lab.py` currently
 - [ ] **Step 2: Generate the training corpora** (~6 min total):
 
 ```powershell
-uv run python operations/research/bot_lab.py --games 150 --opponents qualifier --tag corpus-classic --map classic --fresh
-uv run python operations/research/bot_lab.py --games 150 --opponents qualifier --tag corpus-europe --map europe
+uv run python operations/research/bot_lab.py --games 150 --opponents qualifier --tag corpus-classic --map classic --seed-base 9000 --fresh
+uv run python operations/research/bot_lab.py --games 150 --opponents qualifier --tag corpus-europe --map europe --seed-base 50000
 uv run python operations/research/decision_export.py
 ```
 
@@ -180,6 +180,11 @@ class TensorizeTests(unittest.TestCase):
         # 100 routes * 2 directions + 1 pending ticket * 2 directions
         self.assertEqual(self.sample["edge_index"].shape[1], 202)
         self.assertEqual(self.sample["edge_feats"][:, tensorize.EF_IS_REAL].sum(), 200)
+        virtual = self.sample["edge_feats"][self.sample["edge_feats"][:, tensorize.EF_IS_REAL] == 0]
+        # the fake row's one ticket is pending: flag set, others clear
+        self.assertTrue((virtual[:, tensorize.EF_TICKET_PENDING] == 1).all())
+        self.assertTrue((virtual[:, tensorize.EF_TICKET_COMPLETED] == 0).all())
+        self.assertTrue((virtual[:, tensorize.EF_TICKET_IMPOSSIBLE] == 0).all())
 
     def test_claim_action_points_at_its_route_edge(self):
         edge_ptr = int(self.sample["action_edge"][2])
@@ -242,9 +247,13 @@ ACTION_TYPES = ["ClaimRoute", "DrawFaceUp", "DrawBlind", "DrawTickets", "Pass", 
 #        completed_ticket_endpoints/2, unclaimed_length_at_node/20]
 NODE_DIM = 6
 # edge: [is_real, length_or_value/21, color_onehot(9), mine, theirs,
-#        unclaimed, is_ferry, is_tunnel, is_double, ticket_pending, ticket_completed]
-EDGE_DIM = 18
+#        unclaimed, is_ferry, is_tunnel, is_double,
+#        ticket_pending, ticket_completed, ticket_impossible]
+EDGE_DIM = 20
 EF_IS_REAL = 0
+EF_TICKET_PENDING = 17
+EF_TICKET_COMPLETED = 18
+EF_TICKET_IMPOSSIBLE = 19
 # globals: hand(9)/8, market(9)/3, discard_total/60, deck/72, my_trains/45,
 #          opp_trains_min/45, opp_hand_max/25, opp_ticket_count/6, turn/120,
 #          score_diff/60, pending_tickets/6, pending_value/40
@@ -341,7 +350,9 @@ def build_sample(row: dict, topo: MapTopology) -> dict:
         feats = np.zeros(EDGE_DIM, dtype=np.float32)
         feats[1] = ticket["value"] / 21.0
         pending = not ticket["completed"] and not ticket["impossible"]
-        feats[17] = float(ticket["completed"])
+        feats[EF_TICKET_PENDING] = float(pending)
+        feats[EF_TICKET_COMPLETED] = float(ticket["completed"])
+        feats[EF_TICKET_IMPOSSIBLE] = float(ticket["impossible"])
         # pending tickets light the node features the brainstorm asked for
         if pending:
             node[a, 3] += 0.5
@@ -520,7 +531,10 @@ after batching. The collate step computes offsets explicitly and leaves
     uv run python operations/research/gnn/train.py --train-maps classic --eval-maps europe
     uv run python operations/research/gnn/train.py --train-maps classic,europe --eval-maps classic,europe --holdout-frac 0.1
 """
-# path bootstrap identical to bot_lab.py, then:
+# path bootstrap: same REPO/applications/integrations inserts as
+# bot_lab.py, PLUS the research dir itself (train.py lives one level
+# deeper, so `import tensorize` needs it):
+#   sys.path.insert(0, str(REPO / "operations" / "research"))
 import json, argparse, time
 import numpy as np
 import torch
@@ -572,9 +586,11 @@ def to_data(sample) -> DecisionData:
     d.won = torch.tensor([sample["won"]])
     return d
 # main loop essentials:
-#  - filter decisions.jsonl to decision == "turn", split train/eval by
-#    state.map_name per --train-maps/--eval-maps (plus --holdout-frac of
-#    train games by seed for same-map validation)
+#  - filter decisions.jsonl to decision == "turn"; a GAME is keyed by
+#    (state.map_name, seed) — never plain seed (corpora may share seed
+#    ranges). Split train/eval by state.map_name per
+#    --train-maps/--eval-maps, plus --holdout-frac of train GAME KEYS for
+#    same-map validation (all decisions of a game stay on one side)
 #  - topo cache: {map_name: tensorize.MapTopology.load(map_name)}
 #  - DataLoader(list_of_Data, batch_size=256, shuffle=True, collate_fn=collate)
 #  - model.to("cuda"); AdamW(lr=3e-4, weight_decay=1e-4); 20 epochs
@@ -612,4 +628,4 @@ Success criteria: same-map holdout top-1 well above the uniform baseline (menus 
 
 - **Scope:** v1 is training-only on turn decisions; GnnBot, keep-tickets features, and the surrogate critic are explicitly v2+ (see Deferred section). This plan ends with a trained, evaluated policy/value model and the classic<->europe transfer numbers.
 - **Known risks:** (1) torch/PyG API drift — the model uses only stable APIs (`MessagePassing`, `utils.softmax`, `utils.scatter`); (2) batching offset bugs — `action_edge` is exempted from `__inc__` and resolved in a custom collate (both `-1` and `0` sentinel schemes corrupt under `__inc__`, which offsets every entry), plus the Task 5 overfit check; (3) `torch_geometric.utils.scatter` exists from PyG 2.3+, no compiled extensions needed.
-- **Type consistency:** `tensorize` dims (`NODE_DIM=6`, `EDGE_DIM=18`, `GLOBAL_DIM=28`, `ACTION_DIM=16`) are consumed by `PolicyValueGNN(node_in, edge_in, global_in, action_in)` in Task 5's construction; `action_edge=-1` maps to the zero edge row in the model; `DecisionData.__inc__` covers `action_edge` (edge count), `label` (action count), and `action_graph` (1).
+- **Type consistency:** `tensorize` dims (`NODE_DIM=6`, `EDGE_DIM=20`, `GLOBAL_DIM=28`, `ACTION_DIM=16`) are consumed by `PolicyValueGNN(node_in, edge_in, global_in, action_in)` in Task 5's construction; `action_edge=-1` maps to the zero edge row in the model; `DecisionData.__inc__` leaves `action_edge` unoffset (returns 0) — the custom collate offsets non-negative entries — and covers `label` (action count) and `action_graph` (1).
