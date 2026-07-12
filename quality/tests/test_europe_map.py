@@ -53,6 +53,20 @@ class EuropeMapDataTests(unittest.TestCase):
             self.assertIn(ticket.city2, cities)
 
 
+class RouteSchemaTests(unittest.TestCase):
+    def test_europe_carries_ferry_and_tunnel_flags(self):
+        europe = MapGraph(player_count=2, map_name="europe")
+        ferries = [r for r in europe.routes if r.locomotives > 0]
+        tunnels = [r for r in europe.routes if r.is_tunnel]
+        self.assertEqual(len(ferries), 13)
+        self.assertEqual(len(tunnels), 18)
+
+    def test_older_map_files_default_the_optional_columns(self):
+        classic = MapGraph(player_count=2, map_name="classic")
+        self.assertTrue(all(r.locomotives == 0 for r in classic.routes))
+        self.assertTrue(all(not r.is_tunnel for r in classic.routes))
+
+
 class TicketResolutionTests(unittest.TestCase):
     def test_classic_and_unknown_maps_fall_back_to_the_shared_deck(self) -> None:
         self.assertEqual(resolve_tickets_path("classic"), TICKETS_CSV_PATH)

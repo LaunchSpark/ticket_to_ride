@@ -39,11 +39,13 @@ from notebook_harness.game_runner import initialize_game     # noqa: E402
 from ticket_to_ride.engine.actions import (                  # noqa: E402
     ClaimRoute, DrawBlind, DrawFaceUp, DrawTickets,
 )
+from ticket_to_ride.engine.replay import record_of            # noqa: E402
 
 OPPONENTS = {"qualifier": QualifierBot, "example": ExampleBot, "random": RandomBot}
 RESULTS_DIR = REPO / "operations" / "research" / "results"
 RESULTS_FILE = RESULTS_DIR / "games.jsonl"
 CLAIMS_FILE = RESULTS_DIR / "claims.jsonl"
+RECORDS_FILE = RESULTS_DIR / "records.jsonl"
 
 
 def tunables(bot_class) -> dict:
@@ -168,6 +170,7 @@ def run_matchup(tag, variant, opponent_name, games, seed_base):
     opponent_class = OPPONENTS[opponent_name]
     rows = []
     events = []
+    records = []
     for i in range(games):
         fable_first = i % 2 == 0
         seats = [variant(), opponent_class()] if fable_first else [opponent_class(), variant()]
@@ -182,6 +185,11 @@ def run_matchup(tag, variant, opponent_name, games, seed_base):
         fable = decompose(fable_player, scores, map_graph)
         fable.update(action_mix(game.game.context.action_log, fable_id))
         events.extend(claim_events(game, tag, opponent_name, seed_base + i))
+        records.append({
+            "tag": tag, "opponent": opponent_name, "seed": seed_base + i,
+            "fable_first": fable_first,
+            "record": record_of(game.game).to_dict(),
+        })
         rows.append({
             "tag": tag,
             "opponent": opponent_name,
@@ -194,7 +202,7 @@ def run_matchup(tag, variant, opponent_name, games, seed_base):
             "fable": fable,
             "config": tunables(variant),
         })
-    return rows, events
+    return rows, events, records
 
 
 def readout(rows) -> None:
@@ -266,7 +274,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.fresh:
-        for stale in (RESULTS_FILE, CLAIMS_FILE):
+        for stale in (RESULTS_FILE, CLAIMS_FILE, RECORDS_FILE):
             if stale.exists():
                 stale.unlink()
 
@@ -284,13 +292,15 @@ def main() -> None:
     started = time.perf_counter()
     new_rows = []
     new_events = []
+    new_records = []
     for tag, overrides in configs:
         variant = build_variant(overrides)
         for opponent in args.opponents.split(","):
-            rows, events = run_matchup(tag, variant, opponent.strip(),
-                                       args.games, args.seed_base)
+            rows, events, records = run_matchup(tag, variant, opponent.strip(),
+                                                args.games, args.seed_base)
             new_rows.extend(rows)
             new_events.extend(events)
+            new_records.extend(records)
 
     readout(new_rows)
     append_rows(new_rows)
@@ -298,6 +308,9 @@ def main() -> None:
     with CLAIMS_FILE.open("a") as handle:
         for event in new_events:
             handle.write(json.dumps(event) + "\n")
+    with RECORDS_FILE.open("a") as handle:
+        for record_row in new_records:
+            handle.write(json.dumps(record_row) + "\n")
     total = len(load_all_rows())
     print(f"\n({len(new_rows)} games in {time.perf_counter() - started:.1f}s; "
           f"{total} accumulated in {RESULTS_FILE})")

@@ -40,6 +40,20 @@ under the same policies across several continuation seeds, and measure the
 outcome delta. Expensive (one full game per branch per seed) but it turns
 "the evaluator disagrees" into "this choice cost ~N points."
 
+**Layer 2 implemented: the DecisionRecord dataset.** `decision_export.py`
+replays the GameRecords the lab stores (results/records.jsonl, one
+`(seed, action log)` per game) and emits one row per decision to
+results/decisions.jsonl: the canonical **symbolic state** (the PlayerView
+the acting seat saw — hand, tickets, market, discard, claimed_by,
+opponents, deck counts, ticket offer), the legal action menu, the chosen
+action, and the outcome (final score / margin / won). Design rules:
+symbolic state first, tensors derived by versioned TensorBuilders later
+(`state_schema_version` dispatches); static map topology is referenced by
+`state.map_name` (operations/data/maps/<map>.csv now also carries
+Locomotives/Tunnel columns), never duplicated per row; the engine stays
+ML-agnostic — the exporter only observes replays, so old records can be
+re-exported forever as feature schemas evolve.
+
 **Layer 3 — optional introspection**: bots MAY expose
 `explain(view, legal_actions) -> dict` (mode, planned routes, card needs,
 action scores). The harness records it when present and never requires it.

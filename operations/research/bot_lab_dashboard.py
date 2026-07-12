@@ -175,18 +175,23 @@ def _(games_slider, opponent_picker, overrides_field, run_button, tag_field):
         variant = bot_lab.build_variant(overrides)
         fresh_rows = []
         fresh_events = []
+        fresh_records = []
         for opponent in opponent_picker.value:
-            _rows, _events = bot_lab.run_matchup(
+            _rows, _events, _records = bot_lab.run_matchup(
                 tag_field.value or "untagged", variant,
                 opponent, games_slider.value, 9000,
             )
             fresh_rows.extend(_rows)
             fresh_events.extend(_events)
+            fresh_records.extend(_records)
         bot_lab.append_rows(fresh_rows)
         bot_lab.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
         with bot_lab.CLAIMS_FILE.open("a") as _handle:
             for _event in fresh_events:
                 _handle.write(bot_lab.json.dumps(_event) + "\n")
+        with bot_lab.RECORDS_FILE.open("a") as _handle:
+            for _record in fresh_records:
+                _handle.write(bot_lab.json.dumps(_record) + "\n")
         run_stamp = len(fresh_rows)
     return (run_stamp,)
 
