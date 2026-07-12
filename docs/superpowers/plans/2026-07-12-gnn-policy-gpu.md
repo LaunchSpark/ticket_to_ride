@@ -4,6 +4,8 @@
 
 **Goal:** Train a graph-neural-network state encoder with policy (imitation of QualifierBot/FableBestBot) and value (win prediction) heads on the DecisionRecord dataset, evaluated with a held-out-map protocol (train on classic, test on europe, and the reverse).
 
+**v1 scope decision:** train and evaluate on `decision == "turn"` rows ONLY. `draw_second` and especially `keep_tickets` need real action features (kept count, total value, path distances, ticket overlap) that the v1 action schema does not carry — a type one-hot would train garbage rankings. A playable GnnBot is therefore **deferred to v2** alongside full decision coverage. Note also: training data reflects the *current engine rules* — Europe's ferry/tunnel/station mechanics are carried as data flags but not enforced in play. `map_profiles.jsonl` is the future surrogate-critic/novelty target archive; it is not part of this training loop.
+
 **Architecture:** Engine stays ML-agnostic. `decision_export.py` rows + the map CSVs feed a framework-neutral numpy `TensorBuilder v1` (identity-free relational features: nodes = cities, edges = routes + virtual ticket edges, per-action encodings). A PyTorch Geometric message-passing encoder produces node/edge/global embeddings; a policy head scores each legal action (softmax over the variable-size menu), a value head predicts win probability from mean-pooled readout. Everything trains on GPU; weights save to `operations/research/results/`.
 
 **Tech Stack:** Windows 11, NVIDIA GPU (CUDA 12.x driver), **Python 3.13 via uv** (torch has no 3.14 wheels), PyTorch cu124 wheels, torch_geometric (pure-Python core — no compiled pyg-lib extensions needed), numpy.
@@ -35,7 +37,6 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 | `operations/research/gnn/model.py` | Task 4 (new): PyG encoder + heads |
 | `operations/research/gnn/train.py` | Task 5 (new): training + held-out-map eval CLI |
 | `operations/research/gnn/__init__.py` | Task 4 (new, empty) |
-| `integrations/external/bots/gnn_bot.py` | Task 6 (new, optional): inference bot notebook |
 
 ---
 
@@ -89,7 +90,8 @@ The held-out-map protocol needs decisions from both maps. `bot_lab.py` currently
 
 - [ ] **Step 1: Add a `--map` flag.** In `operations/research/bot_lab.py`:
   - `run_matchup(tag, variant, opponent_name, games, seed_base, map_name="classic")` — pass through to `initialize_game(seats, map_name=map_name, seed=...)`.
-  - argparse: `parser.add_argument("--map", default="classic")`; pass `args.map` at the `run_matchup` call site; include `"map": map_name` in each games-row dict (next to `"seed"`).
+  - argparse: `parser.add_argument("--map", default="classic")`; pass `args.map` at the `run_matchup` call site.
+  - Add `"map": map_name` to ALL THREE row kinds: the games rows, the records rows (top-level meta, next to `"seed"` — `record.mapName` exists inside the payload but the meta key makes filtering cheap), and the `claim_events` rows (pass `map_name` through; route ids like `Paris-Zürich-1` are meaningless without map context).
   - The dashboard's `run_matchup` call passes no map and keeps working (default).
 
 - [ ] **Step 2: Generate the training corpora** (~6 min total):
@@ -130,6 +132,7 @@ _spec.loader.exec_module(tensorize)
 def _fake_turn_row():
     return {
         "decision": "turn",
+        "player": "p0",
         "state": {
             "map_name": "classic", "player_count": 2, "turn_number": 10,
             "score": 5, "trains_remaining": 40,
@@ -300,18 +303,15 @@ def build_sample(row: dict, topo: MapTopology) -> dict:
     state = row["state"]
     n = len(topo.cities)
     claimed_by = state["claimed_by"]
-    me = None  # claims keyed by player id; "mine" = the acting player's
-    # decision rows are always from the acting player's view: their own id
-    # never appears in opponents, so claims not owned by any opponent are mine
-    opponent_ids = {o["player_id"] for o in state["opponents"]}
+    acting_player = row["player"]  # ownership compared directly, never inferred
 
     node = np.zeros((n, NODE_DIM), dtype=np.float32)
     edge_src, edge_dst, edge_feat = [], [], []
 
     for route in topo.routes:
         owner = claimed_by.get(route.route_id)
-        mine = owner is not None and owner not in opponent_ids
-        theirs = owner is not None and owner in opponent_ids
+        mine = owner == acting_player
+        theirs = owner is not None and owner != acting_player
         feats = np.zeros(EDGE_DIM, dtype=np.float32)
         feats[EF_IS_REAL] = 1.0
         feats[1] = route.length / 21.0
@@ -497,10 +497,13 @@ class PolicyValueGNN(nn.Module):
         return -torch.log(probs[labels_flat] + 1e-9).mean()
 ```
 
-Note the batching contract: `batch.action_edge` must be offset by each
-graph's *edge* offset and `labels_flat` by each graph's *action* offset —
-the loader in Task 5 does both (PyG's `Data` auto-offsets `action_edge`
-via `__inc__`, see loader).
+Batching contract (IMPORTANT): `batch.action_edge` arrives with **global**
+edge indices and `-1` sentinels already resolved by Task 5's custom
+collate. Do NOT let PyG's `__inc__` offset `action_edge` — `__inc__` adds
+the offset to every entry, so any sentinel (`-1` or a `0`-means-none
+scheme alike) turns into a valid-looking index into another graph's edges
+after batching. The collate step computes offsets explicitly and leaves
+`-1` untouched; the model maps `-1` to the appended zero row as written.
 
 - [ ] **Step 2: Import smoke** — `uv run python -c "from operations.research.gnn.model import PolicyValueGNN; print('ok')"` (add `operations/research` to `sys.path` or run as module; the train CLI in Task 5 handles paths — a plain import check via `uv run python -c "import importlib.util, pathlib; ..."` mirroring the test files is fine).
 - [ ] **Step 3: Commit** — `feat(research): PyG policy/value GNN encoder`.
@@ -530,10 +533,29 @@ import tensorize  # loaded via importlib next to this file's parent
 class DecisionData(Data):
     def __inc__(self, key, value, *args, **kwargs):
         if key == "action_edge":
-            return self.edge_attr.shape[0]      # offset by edge count
+            return 0            # NEVER auto-offset: -1 sentinels would corrupt
         if key == "label":
             return self.action_feats.shape[0]   # offset by action count
+        if key == "action_graph":
+            return 1
         return super().__inc__(key, value, *args, **kwargs)
+
+
+def collate(data_list):
+    """Batch, then resolve action_edge to global indices ourselves,
+    preserving -1 sentinels (see the batching contract in model.py)."""
+    batch = Batch.from_data_list(data_list)
+    offsets, total = [], 0
+    for d in data_list:
+        offsets.append(total)
+        total += d.edge_attr.shape[0]
+    pieces = []
+    for d, offset in zip(data_list, offsets):
+        e = d.action_edge.clone()
+        e[e >= 0] += offset
+        pieces.append(e)
+    batch.action_edge = torch.cat(pieces)
+    return batch
 
 
 def to_data(sample) -> DecisionData:
@@ -549,16 +571,12 @@ def to_data(sample) -> DecisionData:
     d.label = torch.tensor([sample["label"]])
     d.won = torch.tensor([sample["won"]])
     return d
-# action_graph needs __inc__ = 1 per graph: implement in DecisionData.__inc__
-# (return 1 for key == "action_graph").
-
 # main loop essentials:
 #  - filter decisions.jsonl to decision == "turn", split train/eval by
 #    state.map_name per --train-maps/--eval-maps (plus --holdout-frac of
 #    train games by seed for same-map validation)
 #  - topo cache: {map_name: tensorize.MapTopology.load(map_name)}
-#  - DataLoader(list_of_Data, batch_size=256, shuffle=True,
-#               collate_fn=Batch.from_data_list)
+#  - DataLoader(list_of_Data, batch_size=256, shuffle=True, collate_fn=collate)
 #  - model.to("cuda"); AdamW(lr=3e-4, weight_decay=1e-4); 20 epochs
 #  - loss = policy_loss + 0.5 * BCE(value, won)
 #  - each epoch: report train loss, eval top-1 accuracy, eval NLL,
@@ -582,18 +600,16 @@ Success criteria: same-map holdout top-1 well above the uniform baseline (menus 
 
 - [ ] **Step 4: Commit** — `feat(research): GNN policy/value training with held-out-map evaluation`.
 
-## Task 6 (optional): GNNBot
+## Deferred to v2 (do NOT build in this plan)
 
-**Files:** Create `integrations/external/bots/gnn_bot.py` (marimo notebook, same layout as `qualifier_bot.py`).
-
-- [ ] `GnnBot(ActionBot)` with `BOT_META` id `gnn_bot`: on `act`, build the decision row shape from the live `view` (mirror `decision_export.symbolic_state` + `action_to_dict`), tensorize with the cached `MapTopology`, run the model (CPU inference is fine at play time), return `legal_actions[argmax]`. Guard: if torch is not importable, `act` falls back to `legal_actions[0]` so the loader never breaks on the Mac side.
-- [ ] Duel it: `uv run python operations/research/bot_lab.py --games 60 --opponents qualifier` after temporarily seating GnnBot in the lab (add it to `OPPONENTS` and run with fable as usual, or extend the lab's protagonist — simplest is adding `"gnn": GnnBot` to `OPPONENTS` and reading the vs-gnn rows from fable's perspective).
-- [ ] Commit — `feat(bots): GNNBot — imitation policy inference over the legal menu`.
+- **Full decision coverage:** `draw_second` (schema-compatible today, but distribution-shifted) and `keep_tickets`, which needs real action features first: kept count, total value, cheapest-path distance of each offered ticket, overlap with current planned routes, endpoint reuse, value-per-distance.
+- **GnnBot:** only after full decision coverage — a bot that ranks keep menus with an untrained head would fault its way through setup. When built: `ActionBot` mirroring `decision_export.symbolic_state` from the live view, cached `MapTopology`, CPU inference, `legal_actions[0]` fallback when torch is absent so the Mac-side loader never breaks.
+- **Surrogate map critic:** trains on `map_profiles.jsonl` reusing this plan's encoder — separate plan.
 
 ---
 
 ## Self-review notes
 
-- **Scope:** surrogate critic + map generator intentionally excluded (follow-up plan); this plan ends with a trained, evaluated policy/value model and optionally a playable bot.
-- **Known risks:** (1) torch/PyG API drift — the model uses only stable APIs (`MessagePassing`, `utils.softmax`, `utils.scatter`); (2) batching offset bugs — mitigated by the Task 5 overfit check; (3) `torch_geometric.utils.scatter` exists from PyG 2.3+, no compiled extensions needed.
+- **Scope:** v1 is training-only on turn decisions; GnnBot, keep-tickets features, and the surrogate critic are explicitly v2+ (see Deferred section). This plan ends with a trained, evaluated policy/value model and the classic<->europe transfer numbers.
+- **Known risks:** (1) torch/PyG API drift — the model uses only stable APIs (`MessagePassing`, `utils.softmax`, `utils.scatter`); (2) batching offset bugs — `action_edge` is exempted from `__inc__` and resolved in a custom collate (both `-1` and `0` sentinel schemes corrupt under `__inc__`, which offsets every entry), plus the Task 5 overfit check; (3) `torch_geometric.utils.scatter` exists from PyG 2.3+, no compiled extensions needed.
 - **Type consistency:** `tensorize` dims (`NODE_DIM=6`, `EDGE_DIM=18`, `GLOBAL_DIM=28`, `ACTION_DIM=16`) are consumed by `PolicyValueGNN(node_in, edge_in, global_in, action_in)` in Task 5's construction; `action_edge=-1` maps to the zero edge row in the model; `DecisionData.__inc__` covers `action_edge` (edge count), `label` (action count), and `action_graph` (1).
