@@ -13,6 +13,16 @@ uv run --extra notebooks marimo edit operations/research/bot_lab_dashboard.py
 
 Results land in `results/games.jsonl` (gitignored). `--fresh` starts over.
 
+`map_eval.py` implements the two map-generation loops: Loop 1 structural
+descriptors ("does it look like a TTR map?") and a Loop 2 QualifierBot
+mirror-match gauntlet ("does it play balanced?" — self-play isolates the
+map signal). Profiles archive to `results/map_profiles.jsonl`;
+`map_metrics_dashboard.py` is the marimo view. Calibration from the human
+maps (40-game gauntlets): ticket value ≈ 1.0 points/train on BOTH maps,
+claim entropy ≈ 0.9, ticket completion 0.78-0.83, seat balance ≈ 0.5 —
+those bands are the generator's acceptance targets. The GPU-side GNN work
+is planned in docs/superpowers/plans/2026-07-12-gnn-policy-gpu.md.
+
 ## Telemetry design (layered, bot-agnostic)
 
 **Layer 1 — engine facts** (implemented): everything observable from the
