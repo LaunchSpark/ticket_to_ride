@@ -23,27 +23,29 @@ with app.setup:
 
     BOT_META = {
         "schema_version": 1,
-        "id": "example_bot",
-        "name": "Example Bot",
+        "id": "qualifier_bot",
+        "name": "Qualifier Bot",
         "version": "1.0.0",
-        "description": "Reference implementation for custom Ticket to Ride bots.",
+        "description": "ExampleBot with an expected-turns-to-claim route cost model.",
         "author": "Lucas Starkey",
-        "tags": ["example"],
+        "tags": ["example", "qualifier"],
     }
 
 
 @app.class_definition(hide_code=True)
-class ExampleBot(ActionBot):
-    """The most basic intelligent strategy - not optimal, just sensible.
+class QualifierBot(ActionBot):
+    """ExampleBot with a real cost model instead of the point-value proxy.
 
-    Plan: pick the destination-ticket pair with the best cost-to-points
-    ratio (cost = sum of route point values along an exact Steiner tree,
-    point value as a proxy for difficulty), grab a third ticket if it adds
-    < 4 extra cost. Each turn: draw tickets when everything is scored,
-    otherwise claim a planned route if one is affordable, otherwise draw
-    the train cards the plan still needs. All pathfinding runs on the
-    player's culled map, so the own network is free to travel through and
-    opponent-claimed routes don't exist.
+    Route cost = risk-adjusted expected turns to assemble and claim it,
+    computed from all public information: the cards already in hand, the
+    face-up market (certain picks), and the unknown-pool draw odds
+    (PlayerView.draw_odds - what is left once the discard, exposed hands,
+    and the own hand are accounted for). Gray routes price at their
+    cheapest color, and half of a double route in a 2-3 player game is
+    scaled up because one opponent claim closes it for good. Everything
+    else - Steiner-tree ticket planning, drawing priorities, claim order -
+    is inherited from ExampleBot's structure unchanged, so head-to-head
+    games between the two isolate the value of the cost model.
     """
 
     META = BOT_META
@@ -51,9 +53,12 @@ class ExampleBot(ActionBot):
     # Route points by length: the "difficulty" weight used for planning.
     _ROUTE_POINTS = {1: 1, 2: 2, 3: 4, 4: 7, 5: 10, 6: 15, 7: 18, 8: 21}
     _CARD_COLORS = ["R", "B", "U", "G", "O", "P", "W", "Y"]
-    # A third offered ticket rides along if it costs less than this much
-    # extra once the pair's planned routes are free.
+    # A third offered ticket rides along if it costs less than this many
+    # extra expected turns once the pair's planned routes are free.
     _EXTRA_TICKET_MAX_COST = 4
+    # Multiplier for half of a double route in a 2-3 player game: one
+    # opponent claim on either sibling closes this one for good.
+    _DOUBLE_ROUTE_RISK = 1.5
 
     def __init__(self) -> None:
         super().__init__()
@@ -64,11 +69,11 @@ class ExampleBot(ActionBot):
         # second is remembered here.
 
     # ------------------------------------------------------------------
-    # Pathfinding over the culled map (point-value weights)
+    # Pathfinding over the culled map (expected-turn weights)
     # ------------------------------------------------------------------
 
     def act(self, view, legal_actions):
-        self._view = view
+        self._prime_view(view)
         if view.decision == "keep_tickets":
             return self._keep_action(view, legal_actions)
         if view.decision == "draw_second":
@@ -81,12 +86,60 @@ class ExampleBot(ActionBot):
     def _route_points(self, route: Route) -> int:
         return self._ROUTE_POINTS.get(route.length, route.length)
 
+    def _prime_view(self, view) -> None:
+        """Cache the per-decision lookups every _route_cost call shares."""
+        self._view = view
+        self._odds = view.draw_odds()
+        self._siblings_by_key = {}
+        for route in view.routes:
+            self._siblings_by_key.setdefault(route.sibling_group_key(), []).append(route)
+
+    def _route_cost(self, route: Route) -> float:
+        """Risk-adjusted expected turns to assemble and claim this route.
+
+        Deficit cards arrive at ~2 picks per drawing turn: matching face-up
+        cards are certain picks, the rest come at the unknown-pool odds for
+        the color (locomotives drawn blind count toward any color). Gray
+        routes take their cheapest color. Add the claim turn itself, then
+        scale half of a double in a 2-3 player game, where losing the race
+        to either sibling forfeits the route entirely. Infinity means the
+        route can no longer be assembled from public information.
+        """
+        view = self._view
+        hand = view.hand
+        locomotive_odds = self._odds.get("L", 0.0)
+
+        colors = [route.color] if route.color != "X" else self._CARD_COLORS
+        best_turns = None
+        for color in colors:
+            deficit = route.length - hand.get(color, 0)
+            if deficit <= 0:
+                best_turns = 0.0
+                break
+            certain = min(deficit, view.face_up_cards.count(color))
+            remaining = deficit - certain
+            pick_odds = self._odds.get(color, 0.0) + locomotive_odds
+            if remaining > 0 and pick_odds <= 0.0:
+                continue
+            expected_picks = certain + (remaining / pick_odds if remaining else 0.0)
+            turns = expected_picks / 2
+            if best_turns is None or turns < best_turns:
+                best_turns = turns
+        if best_turns is None:
+            return float("inf")
+
+        cost = best_turns + 1.0  # the claim turn
+        siblings = self._siblings_by_key.get(route.sibling_group_key(), [route])
+        if len(siblings) > 1 and view.player_count <= 3:
+            cost *= self._DOUBLE_ROUTE_RISK
+        return cost
+
     def _adjacency(self, culled, free_route_ids: 'Collection[str]' = frozenset()):
         """node -> [(neighbor, cost, route)] with planned/free routes at cost 0."""
         adjacency = {}
         for route in culled.routes:
             node_a, node_b = culled.endpoints(route)
-            cost = 0 if route.route_id in free_route_ids else self._route_points(route)
+            cost = 0 if route.route_id in free_route_ids else self._route_cost(route)
             adjacency.setdefault(node_a, []).append((node_b, cost, route))
             adjacency.setdefault(node_b, []).append((node_a, cost, route))
         return adjacency
@@ -141,7 +194,7 @@ class ExampleBot(ActionBot):
                     routes_by_id[route.route_id] = route
             routes = list(routes_by_id.values())
             cost = sum(
-                0 if route.route_id in free_route_ids else self._route_points(route)
+                0 if route.route_id in free_route_ids else self._route_cost(route)
                 for route in routes
             )
             return cost, routes
@@ -473,38 +526,95 @@ class ExampleBot(ActionBot):
 def _():
     import marimo as mo
 
-    from notebook_harness.spectate import spectate_controls
+    from notebook_harness.game_runner import initialize_game, list_maps
 
-    map_picker, seat_pickers = spectate_controls(
-        mo,
-        bot_name=BOT_META["name"],
-        bot_class=ExampleBot,
-        title=BOT_META["name"],
-    )
-    return map_picker, mo, seat_pickers
+    mo.md("# Qualifier Bot — spectate & debug").left()
+    return initialize_game, list_maps, mo
 
 
 @app.cell(hide_code=True)
-def _(map_picker, mo, seat_pickers):
-    from notebook_harness.spectate import play_match
+def _(list_maps, mo):
+    from notebook_harness.game_runner import available_bots
 
-    harness_game = play_match(mo, map_picker, seat_pickers)
+    # Every bot notebook on disk, plus this notebook's live class so edits
+    # made here take effect without reloading.
+    bot_options = {"(empty)": None, **available_bots()}
+    bot_options[BOT_META["name"]] = QualifierBot
+
+    map_picker = mo.ui.dropdown(options=list_maps(), value=list_maps()[0], label="Map")
+    seat_pickers = mo.ui.array(
+        [
+            mo.ui.dropdown(
+                options=bot_options,
+                value=BOT_META["name"] if index < 2 else "(empty)",
+                label=f"Seat {index + 1}",
+            )
+            for index in range(5)
+        ]
+    )
+    mo.hstack([map_picker, seat_pickers], align="start", justify="start")
+    return map_picker, seat_pickers
+
+
+@app.cell(hide_code=True)
+def _(initialize_game, map_picker, mo, seat_pickers):
+    seated_bot_classes = [bot_class for bot_class in seat_pickers.value if bot_class is not None]
+    mo.stop(len(seated_bot_classes) < 2, mo.md("Pick bots for at least two seats to run a game."))
+    harness_game = initialize_game(
+        [bot_class() for bot_class in seated_bot_classes], map_name=map_picker.value
+    )
+    harness_game.play()
     return (harness_game,)
 
 
 @app.cell(hide_code=True)
 def _(harness_game, mo):
-    from notebook_harness.spectate import spectate_widgets
+    # Created once per game (not per slider step) so the force simulation
+    # keeps running instead of restarting from scratch on every step.
+    from wigglystuff import PlaySlider
 
-    graph, player_list, info_bar, step_slider = spectate_widgets(mo, harness_game)
-    return graph, info_bar, player_list, step_slider
+    from notebook_harness.info_bar_widget import InfoBarWidget
+    from notebook_harness.player_list_widget import PlayerListWidget
+    from notebook_harness.route_graph_widget import RouteGraphWidget, build_graph_data
+
+    initial_nodes, initial_edges = harness_game.board_at(0)
+    graph = mo.ui.anywidget(RouteGraphWidget(data=build_graph_data(initial_nodes, initial_edges)))
+    player_list = mo.ui.anywidget(PlayerListWidget(players=harness_game.roster()))
+    info_bar = mo.ui.anywidget(InfoBarWidget(market=harness_game.market_at(0)))
+    # Must be created in a different cell than the one reading its value:
+    # marimo never re-runs a UI element's defining cell on interaction, so a
+    # same-cell read would freeze the map at step 0. It still *displays* in
+    # the layout cell below.
+    step_slider = mo.ui.anywidget(
+        PlaySlider(min_value=0, max_value=harness_game.snapshot_count() - 1, step=1, interval_ms=300)
+    )
+    return build_graph_data, graph, info_bar, player_list, step_slider
 
 
 @app.cell(hide_code=True)
-def _(graph, harness_game, info_bar, mo, player_list, step_slider):
-    from notebook_harness.spectate import spectate_view
-
-    spectate_view(mo, harness_game, graph, player_list, info_bar, step_slider)
+def _(
+    build_graph_data,
+    graph,
+    harness_game,
+    info_bar,
+    mo,
+    player_list,
+    step_slider,
+):
+    # Pushes each step's board state into the existing widget instance
+    # instead of constructing a new one, so node positions persist across
+    # steps and only the diff (newly claimed routes) animates.
+    # Selecting a player in the list switches to their culled view: their
+    # network merged into single nodes, showing only routes they could still
+    # claim (that topology change intentionally restarts the simulation).
+    viewpoint = player_list.value["selected_player"] or None
+    step = int(step_slider.value["value"])
+    nodes, edges = harness_game.board_at(step, viewpoint)
+    graph.data = build_graph_data(nodes, edges)
+    # Market follows the same step + selection: spectator sees the true draw
+    # pile; a selected player sees their public-information odds pool.
+    info_bar.market = harness_game.market_at(step, viewpoint)
+    mo.vstack([step_slider, mo.hstack([graph, player_list], align="start", justify="start"), info_bar])
     return
 
 

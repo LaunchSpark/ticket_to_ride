@@ -3,12 +3,24 @@ import random
 import csv
 from collections import Counter, deque
 from pathlib import Path
-from typing import List, Union, Deque
+from typing import Deque, Iterable, List, Union
 
 logger = logging.getLogger(__name__)
 
 
 TICKETS_CSV_PATH = Path(__file__).resolve().parents[6] / "operations" / "data" / "Destination_tickets.csv"
+TICKETS_DIR = Path(__file__).resolve().parents[6] / "operations" / "data" / "tickets"
+
+
+def resolve_tickets_path(map_name: 'str | None') -> Path:
+    """Ticket CSV for a map: operations/data/tickets/<map>.csv when it
+    exists, otherwise the classic Destination_tickets.csv (which fits the
+    classic map and its condensed variants)."""
+    if map_name:
+        per_map = TICKETS_DIR / f"{map_name}.csv"
+        if per_map.exists():
+            return per_map
+    return TICKETS_CSV_PATH
 
 # ────────────────────────────────────────────────────────────────────────────────
 # TrainCardDeck – with 1-letter abbreviations
@@ -145,12 +157,42 @@ class DestinationTicket:
 # ────────────────────────────────────────────────────────────────────────────────
 # TicketDeck – loads tickets from CSV and manages draws
 # ────────────────────────────────────────────────────────────────────────────────
+#: Anything a TicketDeck can be built from: a CSV path, tickets already in
+#: memory (e.g. from a map generator), or None for an empty deck that gets
+#: hydrated later via add_tickets().
+TicketSource = Union[str, Path, Iterable[DestinationTicket], None]
+
+
 class TicketDeck:
-    def __init__(self, csv_path: str | Path = TICKETS_CSV_PATH, rng: 'random.Random | None' = None):
-        """Load destination tickets and prepare the draw stack."""
-        self._master: List[DestinationTicket] = self._load_tickets_from_csv(csv_path)
+    def __init__(self, source: 'TicketSource' = TICKETS_CSV_PATH, rng: 'random.Random | None' = None):
+        """Prepare the draw stack from any ticket source.
+
+        `source` may be a CSV path (the stored-map flow), an iterable of
+        DestinationTickets (generated maps), or None for an empty deck to
+        hydrate mid-game with add_tickets(). Hydration draws its shuffle
+        from the same injected rng, so seeded games stay deterministic —
+        but note that mid-game hydration must itself be replayable: either
+        derive the new tickets from the game seed or record them as events.
+        """
+        if source is None:
+            self._master: List[DestinationTicket] = []
+        elif isinstance(source, (str, Path)):
+            self._master = self._load_tickets_from_csv(source)
+        else:
+            self._master = list(source)
         self._stack: Deque[DestinationTicket] = deque(self._master)
         self._rng = rng or random.Random()
+        self._shuffle_stack()
+
+    def add_tickets(self, tickets: 'Iterable[DestinationTicket]') -> None:
+        """Hydrate the deck mid-life: new tickets shuffle into the stack.
+
+        This is the hook for dynamic maps — mint tickets for freshly added
+        cities and fold them in without rebuilding the deck.
+        """
+        added = list(tickets)
+        self._master.extend(added)
+        self._stack.extend(added)
         self._shuffle_stack()
 
     def deal_unique(self, n: int) -> List[DestinationTicket]:

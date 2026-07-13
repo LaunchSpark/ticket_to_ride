@@ -32,13 +32,21 @@ class Route:
     route_label: str
     claimed_by: 'str | None'
 
-    def __init__(self, city1: str, city2: str, length: int, color: str, route_id: str):
-        """Represent a single route on the map."""
+    def __init__(self, city1: str, city2: str, length: int, color: str, route_id: str,
+                 locomotives: int = 0, is_tunnel: bool = False):
+        """Represent a single route on the map.
+
+        `locomotives` (ferry minimum) and `is_tunnel` are carried from the
+        map data but not yet enforced by the engine — storing them now keeps
+        the schema ahead of the mechanics.
+        """
         self.city1 = city1
         self.city2 = city2
         self.length = length
         self.color = color
         self.route_id = route_id
+        self.locomotives = locomotives
+        self.is_tunnel = is_tunnel
         self.route_label = f"{self.city1.replace(' ', '_')}-{self.city2.replace(' ', '_')}-{self.color}"
         self.claimed_by = None
         # Cities and length never change after load; cache the group key so
@@ -242,7 +250,12 @@ class MapGraph:
 
 
     def _load_routes_from_csv(self, csv_path: str | Path):
-        """Load all map routes from a CSV file."""
+        """Load all map routes from a CSV file.
+
+        Required columns: city1, city2, Distance, Color. Optional columns
+        extend the schema without breaking older map files: Locomotives
+        (ferry minimum, default 0) and Tunnel (default false).
+        """
         route_group_counts: Counter[tuple[tuple[str, str], int]] = Counter()
         with open(csv_path, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
@@ -251,12 +264,15 @@ class MapGraph:
                 city2 = row["city2"]
                 length = int(row["Distance"])
                 color = row["Color"]
+                locomotives = int(row.get("Locomotives") or 0)
+                is_tunnel = (row.get("Tunnel") or "").strip().lower() in {"1", "true", "yes"}
                 route_key = (tuple(sorted((city1, city2))), length)
                 route_group_counts[route_key] += 1
                 route_index = route_group_counts[route_key]
                 route_id = f"{city1.replace(' ', '_')}-{city2.replace(' ', '_')}-{route_index}"
 
-                route = Route(city1, city2, length, color, route_id)
+                route = Route(city1, city2, length, color, route_id,
+                              locomotives=locomotives, is_tunnel=is_tunnel)
                 self.routes.append(route)
 
     def _build_adjacency(self, player_id=None) -> Dict[str, List[Route]]:
