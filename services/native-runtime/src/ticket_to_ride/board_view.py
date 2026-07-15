@@ -34,10 +34,12 @@ _ROUTE_COLOR_HEX: Dict[str, str] = {
 
 # Locomotive card color for market/odds displays. Routes never use this
 # letter; teal is distinct from all eight route colors above.
-_LOCOMOTIVE_HEX = "#17becf"
+LOCOMOTIVE_GRADIENT_STOPS: List[str] = [
+    "red", "orange", "yellow", "green", "blue", "indigo", "violet",
+]
 
 
-def card_color_hex() -> Dict[str, str]:
+def card_color_hex() -> 'Dict[str, str | Dict[str, List[str]]]':
     """Card-color letter -> hex for market/odds displays.
 
     Derived from the same _ROUTE_COLOR_HEX map the route graph renders from
@@ -45,7 +47,7 @@ def card_color_hex() -> Dict[str, str]:
     locomotive. Change a color in _ROUTE_COLOR_HEX and every widget updates.
     """
     colors = {letter: hex_ for letter, hex_ in _ROUTE_COLOR_HEX.items() if letter != "X"}
-    colors["L"] = _LOCOMOTIVE_HEX
+    colors["L"] = {"stops": LOCOMOTIVE_GRADIENT_STOPS}
     return colors
 
 
@@ -78,6 +80,25 @@ def claimed_by_from_turn_state(turn_state: Dict[str, Any]) -> Dict[str, str]:
 
 def _edge_color(route: Route) -> str:
     return _ROUTE_COLOR_HEX.get(route.color, "#999999")
+
+
+def build_segments(route: Route) -> List[Dict[str, Any]]:
+    """One renderer-neutral fill description per train space."""
+    segments: List[Dict[str, Any]] = []
+    for component in route.cost:
+        if component.is_locomotive():
+            entry = {"kind": "loco", "colors": LOCOMOTIVE_GRADIENT_STOPS}
+        elif len(component.options) == 1:
+            entry = {"kind": "solid", "colors": [
+                _ROUTE_COLOR_HEX.get(component.options[0], "#999999")
+            ]}
+        else:
+            entry = {"kind": "options", "colors": [
+                _ROUTE_COLOR_HEX.get(color, "#999999")
+                for color in component.options
+            ]}
+        segments.extend([entry] * component.count)
+    return segments
 
 
 def _city_pair_key(route: Route) -> Tuple[str, str]:
@@ -143,6 +164,7 @@ def build_culled_edges(culled: CulledMap) -> List[Dict[str, Any]]:
                     "length": route.length,
                     "color": route.color,
                     "claimedBy": None,
+                    "segments": build_segments(route),
                 },
             }
         )
@@ -183,6 +205,7 @@ def build_edges(
                     "length": route.length,
                     "color": route.color,
                     "claimedBy": owner,
+                    "segments": build_segments(route),
                 },
             }
         )

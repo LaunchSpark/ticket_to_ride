@@ -259,10 +259,11 @@ class ExampleBot(ActionBot):
         reserved: 'Counter[str]' = Counter()
         grey_needed = 0
         for route in self._planned_routes:
-            if route.color == "X":
-                grey_needed += route.length
+            options = route.payment_colors()
+            if len(options) == 1:
+                reserved[next(iter(options))] += route.length
             else:
-                reserved[route.color] += route.length
+                grey_needed += route.length
 
         hand = self._view.hand
         deficits = {c: max(0, reserved[c] - hand.get(c, 0)) for c in self._CARD_COLORS}
@@ -276,7 +277,9 @@ class ExampleBot(ActionBot):
         locomotives = hand.get("L", 0)
         if locomotives and self._planned_routes:
             longest = max(self._planned_routes, key=lambda route: route.length)
-            target = stack_color if longest.color == "X" else longest.color
+            longest_options = longest.payment_colors()
+            target = (next(iter(longest_options)) if len(longest_options) == 1
+                      else stack_color)
             deficits[target] = max(0, deficits[target] - locomotives)
         return deficits
 
@@ -367,7 +370,7 @@ class ExampleBot(ActionBot):
         # dump color; otherwise prefer colors we need least, shortest first.
         needs = self._card_needs()
         options = [pick for pick in claimable_routes if pick[1] == 0] or list(claimable_routes)
-        gray = [pick for pick in options if pick[0].color == "X"]
+        gray = [pick for pick in options if len(pick[0].payment_colors()) != 1]
         if gray:
             return min(gray, key=lambda pick: pick[0].length)
         return min(options, key=lambda pick: (needs.get(pick[0].color, 0), pick[0].length))

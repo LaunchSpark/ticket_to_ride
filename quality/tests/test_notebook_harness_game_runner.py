@@ -125,8 +125,12 @@ class MarketAtTests(unittest.TestCase):
         from ticket_to_ride.board_view import card_color_hex
 
         colors = card_color_hex()
-        for letter in ["R", "B", "U", "G", "O", "P", "W", "Y", "L"]:
+        for letter in ["R", "B", "U", "G", "O", "P", "W", "Y"]:
             self.assertRegex(colors[letter], r"^#[0-9a-fA-F]{6}$")
+        self.assertEqual(
+            colors["L"]["stops"],
+            ["red", "orange", "yellow", "green", "blue", "indigo", "violet"],
+        )
         self.assertNotIn("X", colors)   # gray is a route color, not a card
 
 

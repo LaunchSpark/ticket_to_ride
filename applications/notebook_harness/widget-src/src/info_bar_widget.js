@@ -3,6 +3,41 @@
 // payload (HarnessGame.market_at) including the shared color map, so this
 // file contains no card-color constants of its own.
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+let gradient_serial = 0;
+
+// Color values are either CSS strings or structured locomotive gradients.
+// Keep accepting strings so older stored notebook payloads still render.
+function css_color(value) {
+    if (!value) return "#999";
+    if (typeof value === "string") return value;
+    if (Array.isArray(value.stops)) {
+        return `linear-gradient(to right, ${value.stops.join(", ")})`;
+    }
+    return "#999";
+}
+
+function svg_fill(svg, value) {
+    if (!value) return "#999";
+    if (typeof value === "string") return value;
+    if (Array.isArray(value.stops)) {
+        const id = `pie-grad-${++gradient_serial}`;
+        const gradient = document.createElementNS(SVG_NS, "linearGradient");
+        gradient.setAttribute("id", id);
+        value.stops.forEach((color, index) => {
+            const stop = document.createElementNS(SVG_NS, "stop");
+            const offset = value.stops.length === 1
+                ? 0 : (100 * index) / (value.stops.length - 1);
+            stop.setAttribute("offset", `${offset}%`);
+            stop.setAttribute("stop-color", color);
+            gradient.appendChild(stop);
+        });
+        svg.appendChild(gradient);
+        return `url(#${id})`;
+    }
+    return "#999";
+}
+
 const BIN_ICON = `
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -27,7 +62,7 @@ function build_pie(segments, colors, label) {
     const c = size / 2;
     const r = c - 2;
     const total = segments.reduce((sum, seg) => sum + seg.count, 0);
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
     svg.classList.add("market-pie");
 
@@ -36,11 +71,11 @@ function build_pie(segments, colors, label) {
     }
     if (segments.length === 1) {
         // a single full-circle slice has degenerate arc endpoints; use a circle
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        const circle = document.createElementNS(SVG_NS, "circle");
         circle.setAttribute("cx", c);
         circle.setAttribute("cy", c);
         circle.setAttribute("r", r);
-        circle.setAttribute("fill", colors[segments[0].color] || "#999");
+        circle.setAttribute("fill", svg_fill(svg, colors[segments[0].color]));
         svg.appendChild(circle);
         return svg;
     }
@@ -48,10 +83,10 @@ function build_pie(segments, colors, label) {
     let angle = -Math.PI / 2; // start at 12 o'clock
     for (const seg of segments) {
         const sweep = (seg.count / total) * 2 * Math.PI;
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const path = document.createElementNS(SVG_NS, "path");
         path.setAttribute("d", pie_slice_path(c, c, r, angle, angle + sweep));
-        path.setAttribute("fill", colors[seg.color] || "#999");
-        const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+        path.setAttribute("fill", svg_fill(svg, colors[seg.color]));
+        const title = document.createElementNS(SVG_NS, "title");
         const pct = ((100 * seg.count) / total).toFixed(1);
         title.textContent = `${seg.color}: ${seg.count} (${pct}%) — ${label}`;
         path.appendChild(title);
@@ -96,7 +131,7 @@ function render({ model, el }) {
             spacer.className = "market-count market-count-empty";
             const card = document.createElement("div");
             card.className = "market-card";
-            card.style.background = colors[letter] || "#999";
+            card.style.background = css_color(colors[letter]);
             if (letter === "L") {
                 card.classList.add("market-card-locomotive");
             }

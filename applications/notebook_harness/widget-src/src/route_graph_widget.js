@@ -220,6 +220,8 @@ function render({ model, el }) {
         }
 
         const baseColor = link.color || "#999999";
+        const segments = (link.data && Array.isArray(link.data.segments))
+            ? link.data.segments : null;
         for (let i = 0; i < spaces; i++) {
             const t0 = tMin + ((tMax - tMin) * i) / spaces;
             const t1 = tMin + ((tMax - tMin) * (i + 1)) / spaces;
@@ -238,8 +240,41 @@ function render({ model, el }) {
             ctx.translate(center.x, center.y);
             ctx.rotate(Math.atan2(direction.y, direction.x));
 
-            ctx.fillStyle = baseColor;
-            ctx.fillRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);
+            const seg = (segments && segments[i])
+                ? segments[i]
+                : { kind: "solid", colors: [baseColor] };
+            const x0 = -carLength / 2;
+            const y0 = -train_space_width / 2;
+            if (seg.kind === "loco") {
+                const grad = ctx.createLinearGradient(x0, 0, x0 + carLength, 0);
+                const stops = seg.colors && seg.colors.length ? seg.colors : ["#999"];
+                stops.forEach((color, index) => grad.addColorStop(
+                    stops.length === 1 ? 0 : index / (stops.length - 1), color));
+                ctx.fillStyle = grad;
+                ctx.fillRect(x0, y0, carLength, train_space_width);
+            } else if (seg.colors && seg.colors.length > 1) {
+                const colorCount = seg.colors.length;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x0, y0, carLength, train_space_width);
+                ctx.clip();
+                for (let colorIndex = 0; colorIndex < colorCount; colorIndex++) {
+                    const f0 = colorIndex / colorCount;
+                    const f1 = (colorIndex + 1) / colorCount;
+                    ctx.fillStyle = seg.colors[colorIndex];
+                    ctx.beginPath();
+                    ctx.moveTo(x0 + 2 * f0 * carLength, y0);
+                    ctx.lineTo(x0, y0 + 2 * f0 * train_space_width);
+                    ctx.lineTo(x0, y0 + 2 * f1 * train_space_width);
+                    ctx.lineTo(x0 + 2 * f1 * carLength, y0);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.restore();
+            } else {
+                ctx.fillStyle = (seg.colors && seg.colors[0]) || baseColor;
+                ctx.fillRect(x0, y0, carLength, train_space_width);
+            }
             ctx.lineWidth = 0.6;
             ctx.strokeStyle = is_dark_color(baseColor) ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)";
             ctx.strokeRect(-carLength / 2, -train_space_width / 2, carLength, train_space_width);

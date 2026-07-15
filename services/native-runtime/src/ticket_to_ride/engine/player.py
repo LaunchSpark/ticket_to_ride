@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 from collections import Counter
 from ticket_to_ride.engine.actions import (
     ClaimRoute, DrawBlind, DrawFaceUp, DrawTickets, Pass,
+    affordable_route_options, claim_spend,
     legal_keep_actions, legal_second_draw_actions, legal_turn_actions,
 )
 from ticket_to_ride.engine.legacy_adapter import LegacyBotAdapter
@@ -114,11 +115,7 @@ class Player:
 
     def __apply_claim(self, action: ClaimRoute) -> None:
         route = self._game.get_map().route_by_id(action.route_id)
-        needed = route.length - action.locomotives
-        cards = ["L"] * action.locomotives
-        if action.color != "L":
-            cards.extend([action.color] * needed)
-        self._spend_cards(cards)
+        self._spend_cards(list(claim_spend(action, route).elements()))
         self.__claim_route(route)
         self.update_longest_path(route)
 
@@ -203,23 +200,16 @@ class Player:
 
     def get_affordable_routes(self) -> 'List[tuple[Route, int]]':
         """List routes this player can currently afford to claim."""
-        if not self.__train_hand.total(): # type: ignore
-            return []
-        locomotives = self.__train_hand.get("L", 0)
-        colors = self.get_no_locomotives()
-        most_common_num = max(colors.values(), default=0)
-        affordable_routes = []
-
-        for r in self._game.get_map().get_available_routes(self.player_id):
-            if r.length > self.trains_remaining:
-                continue
-            for n in range(locomotives + 1):
-                # if the player has enough of the color in hand or if the color is gray and the player has enough of their most common color in hand
-                needed = r.length - n
-                if colors.get(r.color, 0) >= needed or (r.color == "X" and most_common_num >= needed):
-                    affordable_routes.append((r, n))
-                    break
-        return affordable_routes
+        map_graph = self._game.get_map()
+        return affordable_route_options(
+            map_graph.routes,
+            map_graph.sibling_index,
+            lambda route: route.claimed_by,
+            self.player_id,
+            map_graph.player_count,
+            self.__train_hand,
+            self.trains_remaining,
+        )
     
     def update_longest_path(self, new_route: Route):
         """Notify the map that this player claimed a new route."""
@@ -264,5 +254,4 @@ class Player:
     def __repr__(self) -> str:
         return (f"{self.__class__.__name__}(id={self.player_id}, trains={self.trains_remaining}, "
                 f"hand={dict(self.__train_hand)}, tickets={self.__tickets})")
-
 

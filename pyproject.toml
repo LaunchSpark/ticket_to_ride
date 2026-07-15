@@ -20,6 +20,10 @@ notebooks = [
   "anywidget>=0.9",
   "wigglystuff>=0.1",
 ]
+xgb = [
+  "numpy>=2.0",
+  "xgboost>=2.0,<4",
+]
 
 [project.scripts]
 run = "ticket_to_ride.runtime.cli:run"

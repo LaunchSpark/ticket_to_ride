@@ -1,9 +1,13 @@
 import csv
 import heapq
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Dict, Optional, Set, Tuple
+
+from ticket_to_ride.engine.state.costs import (
+    CostComponent, CostError, cost_to_str, parse_cost, synthesize_cost,
+)
 
 
 MAPS_DIR = Path(__file__).resolve().parents[6] / "operations" / "data" / "maps"
@@ -18,6 +22,9 @@ def available_maps() -> List[str]:
 def resolve_map_path(map_name: Optional[str]) -> Path:
     """Resolve a map name to its CSV path, defaulting to the classic map."""
     resolved_name = map_name or DEFAULT_MAP_NAME
+    direct = Path(resolved_name)
+    if direct.suffix == ".csv" and direct.exists():
+        return direct
     map_path = MAPS_DIR / f"{resolved_name}.csv"
     if not map_path.exists():
         raise ValueError(f"Unknown map '{resolved_name}'. Available maps: {available_maps()}")
@@ -27,13 +34,15 @@ class Route:
     city1: str
     city2: str
     length: int
-    color: str
+    color: 'str | None'
+    cost: 'Tuple[CostComponent, ...]'
     route_id: str
     route_label: str
     claimed_by: 'str | None'
 
     def __init__(self, city1: str, city2: str, length: int, color: str, route_id: str,
-                 locomotives: int = 0, is_tunnel: bool = False):
+                 locomotives: int = 0, is_tunnel: bool = False,
+                 cost: 'Optional[Tuple[CostComponent, ...]]' = None):
         """Represent a single route on the map.
 
         `locomotives` (ferry minimum) and `is_tunnel` are carried from the
@@ -43,11 +52,23 @@ class Route:
         self.city1 = city1
         self.city2 = city2
         self.length = length
+        self.cost = cost if cost is not None else synthesize_cost(length, color)
+        if cost is not None:
+            color = (cost[0].options[0]
+                     if len(cost) == 1 and len(cost[0].options) == 1
+                     and not cost[0].is_locomotive() else None)
         self.color = color
+        self._payment_colors = frozenset(
+            letter for component in self.cost if not component.is_locomotive()
+            for letter in component.concrete_options()
+        )
         self.route_id = route_id
         self.locomotives = locomotives
         self.is_tunnel = is_tunnel
-        self.route_label = f"{self.city1.replace(' ', '_')}-{self.city2.replace(' ', '_')}-{self.color}"
+        self.route_label = (
+            f"{self.city1.replace(' ', '_')}-{self.city2.replace(' ', '_')}-"
+            f"{self.color or cost_to_str(self.cost)}"
+        )
         self.claimed_by = None
         # Cities and length never change after load; cache the group key so
         # hot-loop claimability checks don't re-sort it on every call.
@@ -63,6 +84,9 @@ class Route:
 
     def sibling_group_key(self) -> tuple[tuple[str, str], int]:
         return self._sibling_group_key
+
+    def payment_colors(self) -> 'frozenset[str]':
+        return self._payment_colors
     
     def __repr__(self):
         return self.route_id
@@ -128,10 +152,31 @@ class CulledMap:
     city_to_node: Dict[str, str]
     nodes: List[str]
     routes: List[Route]
+    # Built lazily by adjacency(); never passed to the constructor.
+    _adjacency: 'Optional[Dict[str, List[Tuple[str, Route]]]]' = field(
+        default=None, init=False, repr=False, compare=False)
 
     def endpoints(self, route: Route) -> Tuple[str, str]:
         """Return the merged-node endpoints of a surviving route."""
         return (self.city_to_node[route.city1], self.city_to_node[route.city2])
+
+    def adjacency(self) -> 'Dict[str, List[Tuple[str, Route]]]':
+        """merged-node -> [(neighbor node, route)] over the surviving routes.
+
+        Built once per CulledMap and shared: a CulledMap's routes never
+        change (a claim produces a new CulledMap via the claim-version
+        cache), so every consumer — cheapest_connection here, bot searches
+        with their own edge weights — can walk the same structure instead
+        of rebuilding it. Treat it as read-only; do not mutate.
+        """
+        if self._adjacency is None:
+            adjacency: 'Dict[str, List[Tuple[str, Route]]]' = {}
+            for route in self.routes:
+                node_a, node_b = self.endpoints(route)
+                adjacency.setdefault(node_a, []).append((node_b, route))
+                adjacency.setdefault(node_b, []).append((node_a, route))
+            self._adjacency = adjacency
+        return self._adjacency
 
     def connected(self, city1: str, city2: str) -> bool:
         """True if the two cities are already joined by the player's claims."""
@@ -147,12 +192,7 @@ class CulledMap:
         if start == goal:
             return 0
 
-        adjacency: Dict[str, List[Tuple[str, int]]] = {}
-        for route in self.routes:
-            node_a, node_b = self.endpoints(route)
-            adjacency.setdefault(node_a, []).append((node_b, route.length))
-            adjacency.setdefault(node_b, []).append((node_a, route.length))
-
+        adjacency = self.adjacency()
         best: Dict[str, int] = {start: 0}
         frontier: List[Tuple[int, str]] = [(0, start)]
         while frontier:
@@ -161,8 +201,8 @@ class CulledMap:
                 return cost
             if cost > best.get(node, cost):
                 continue
-            for neighbor, length in adjacency.get(node, []):
-                next_cost = cost + length
+            for neighbor, route in adjacency.get(node, []):
+                next_cost = cost + route.length
                 if next_cost < best.get(neighbor, next_cost + 1):
                     best[neighbor] = next_cost
                     heapq.heappush(frontier, (next_cost, neighbor))
@@ -174,6 +214,7 @@ def contract_map(
     player_count: int,
     claimed_by: 'Dict[str, str | None]',
     player_id: str,
+    siblings_by_key: 'Optional[Dict[tuple, List[Route]]]' = None,
 ) -> CulledMap:
     """Build a player's culled map from an explicit claim assignment.
 
@@ -181,6 +222,10 @@ def contract_map(
     player (missing/None = unclaimed), so callers can pass live claims
     (MapGraph.culled_map_for) or claims reconstructed from a stored snapshot
     (harness playback, display API) and get the identical view.
+
+    `siblings_by_key` lets callers with an already-built sibling index (the
+    topology never changes, so MapGraph builds it once) skip regrouping the
+    routes here; it must cover exactly the Route objects in `routes`.
     """
     components = _UnionFind()
     cities: Set[str] = set()
@@ -195,9 +240,10 @@ def contract_map(
     node_by_root = {root: "+".join(members) for root, members in members_by_root.items()}
     city_to_node = {city: node_by_root[components.find(city)] for city in cities}
 
-    siblings_by_key: Dict[tuple, List[Route]] = {}
-    for route in routes:
-        siblings_by_key.setdefault(route.sibling_group_key(), []).append(route)
+    if siblings_by_key is None:
+        siblings_by_key = {}
+        for route in routes:
+            siblings_by_key.setdefault(route.sibling_group_key(), []).append(route)
 
     def claim_of(route: Route) -> 'str | None':
         return claimed_by.get(route.route_id)
@@ -248,6 +294,15 @@ class MapGraph:
         # and (via culled_map_for) ticket completion and bot reachability.
         self._claim_components: Dict[str, _UnionFind] = {}
 
+        # Claims are the only board mutation, so this counter (bumped in
+        # claim_route, the single writer) versions everything derived from
+        # claim state. _claimed_by mirrors route.claimed_by incrementally;
+        # _culled_cache holds each player's CulledMap tagged with the version
+        # it was built at, valid until the next claim.
+        self._claim_version: int = 0
+        self._claimed_by: Dict[str, str] = {}
+        self._culled_cache: Dict[str, Tuple[int, CulledMap]] = {}
+
 
     def _load_routes_from_csv(self, csv_path: str | Path):
         """Load all map routes from a CSV file.
@@ -266,13 +321,23 @@ class MapGraph:
                 color = row["Color"]
                 locomotives = int(row.get("Locomotives") or 0)
                 is_tunnel = (row.get("Tunnel") or "").strip().lower() in {"1", "true", "yes"}
+                cost_spec = (row.get("Cost") or "").strip()
+                cost = None
+                if cost_spec:
+                    try:
+                        cost = parse_cost(cost_spec, length)
+                    except CostError as error:
+                        raise CostError(
+                            f"{Path(csv_path).name}: {city1}-{city2}: {error}"
+                        ) from error
                 route_key = (tuple(sorted((city1, city2))), length)
                 route_group_counts[route_key] += 1
                 route_index = route_group_counts[route_key]
                 route_id = f"{city1.replace(' ', '_')}-{city2.replace(' ', '_')}-{route_index}"
 
                 route = Route(city1, city2, length, color, route_id,
-                              locomotives=locomotives, is_tunnel=is_tunnel)
+                              locomotives=locomotives, is_tunnel=is_tunnel,
+                              cost=cost)
                 self.routes.append(route)
 
     def _build_adjacency(self, player_id=None) -> Dict[str, List[Route]]:
@@ -292,6 +357,12 @@ class MapGraph:
     def route_by_id(self, route_id: str) -> Route:
         return self._routes_by_id[route_id]
 
+    @property
+    def sibling_index(self) -> Dict[tuple, List[Route]]:
+        """The prebuilt sibling-group index. Topology is immutable after
+        load, so consumers may hold this reference for the whole game."""
+        return self._siblings_by_key
+
     def get_sibling_routes(self, route: Route) -> List[Route]:
         group = self._siblings_by_key.get(route.sibling_group_key(), [])
         return [candidate for candidate in group if candidate is not route]
@@ -307,11 +378,23 @@ class MapGraph:
             self.player_count,
         )
 
+    @property
+    def claim_version(self) -> int:
+        """Monotonic counter of claims made; anything derived purely from
+        claim state is valid for exactly as long as this doesn't move."""
+        return self._claim_version
+
+    def claim_snapshot(self) -> Dict[str, str]:
+        """Copy of the current route_id -> claiming player assignment."""
+        return dict(self._claimed_by)
+
     def claim_route(self, route: Route, player_id: str):
         """Mark a route as claimed by the given player."""
         if not self.is_route_claimable(route, player_id):
             raise ValueError(f"Route {route.route_id} is not claimable by {player_id}.")
         route.claimed_by = player_id
+        self._claimed_by[route.route_id] = player_id
+        self._claim_version += 1
         self._claim_components.setdefault(player_id, _UnionFind()).union(route.city1, route.city2)
 
     def are_connected(self, player_id: str, city1: str, city2: str) -> bool:
@@ -320,9 +403,21 @@ class MapGraph:
         return components is not None and components.connected(city1, city2)
 
     def culled_map_for(self, player_id: str) -> CulledMap:
-        """The player's contracted view of the current board (see contract_map)."""
-        claimed_by = {route.route_id: route.claimed_by for route in self.routes if route.claimed_by}
-        return contract_map(self.routes, self.player_count, claimed_by, player_id)
+        """The player's contracted view of the current board (see contract_map).
+
+        Cached per player and invalidated by claim_version, so repeated
+        queries between claims (ticket checks each turn, bot connectivity
+        probes) rebuild nothing.
+        """
+        cached = self._culled_cache.get(player_id)
+        if cached is not None and cached[0] == self._claim_version:
+            return cached[1]
+        culled = contract_map(
+            self.routes, self.player_count, self._claimed_by, player_id,
+            siblings_by_key=self._siblings_by_key,
+        )
+        self._culled_cache[player_id] = (self._claim_version, culled)
+        return culled
 
     def cities(self) -> Set[str]:
         """Return a set of every city on the map."""

@@ -5,9 +5,12 @@ card pick, or a ticket-keep choice). Bots implement
 `act(view, legal_actions) -> action`; anything outside the menu is replaced
 with the menu's first entry, so illegal play is impossible by construction.
 """
+from collections import Counter
 from dataclasses import dataclass
-from itertools import combinations
-from typing import List, Tuple
+from itertools import combinations, product
+from typing import Callable, Dict, Iterator, List, Optional, Tuple
+
+from ticket_to_ride.engine.state.map import Route, _route_claimable_by
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,7 @@ class ClaimRoute(Action):
     route_id: str
     color: str
     locomotives: int
+    payment: 'Optional[Tuple[Tuple[str, int], ...]]' = None
 
 
 @dataclass(frozen=True)
@@ -90,14 +94,50 @@ def legal_second_draw_actions(player) -> List[Action]:
     return actions or [Pass()]
 
 
-def legal_claim_actions(player) -> List[ClaimRoute]:
+def claimable_routes(
+    routes: List[Route],
+    siblings_by_key: 'Dict[tuple, List[Route]]',
+    claim_of: 'Callable[[Route], Optional[str]]',
+    player_id: str,
+    player_count: int,
+    trains_remaining: int,
+) -> Iterator[Route]:
+    """Routes the player may claim under the board rules and train supply.
+
+    The single claimability walk shared by legal-move enumeration and both
+    affordability queries (Player.get_affordable_routes,
+    PlayerView.affordable_routes), parameterized over the claim source like
+    _route_claimable_by so live and snapshotted state go through identical
+    rules. Preserves the order of `routes`.
+    """
+    for route in routes:
+        siblings = [
+            sibling for sibling in siblings_by_key.get(route.sibling_group_key(), [])
+            if sibling is not route
+        ]
+        if not _route_claimable_by(route, siblings, claim_of, player_id, player_count):
+            continue
+        if route.length > trains_remaining:
+            continue
+        yield route
+
+
+def enumerate_claim_actions(
+    routes: List[Route],
+    siblings_by_key: 'Dict[tuple, List[Route]]',
+    claim_of: 'Callable[[Route], Optional[str]]',
+    player_id: str,
+    player_count: int,
+    hand: 'Counter[str]',
+    trains_remaining: int,
+) -> List[ClaimRoute]:
     """Every (route, color, locomotive-count) combination the hand affords."""
-    game = player.game_context
-    hand = player.get_hand()
     locomotives = hand.get("L", 0)
     actions: List[ClaimRoute] = []
-    for route in game.get_map().get_available_routes(player.player_id):
-        if route.length > player.trains_remaining:
+    for route in claimable_routes(routes, siblings_by_key, claim_of,
+                                  player_id, player_count, trains_remaining):
+        if not _is_classic_cost(route.cost):
+            actions.extend(_payment_claim_actions(route, hand))
             continue
         for spent_locos in range(min(locomotives, route.length) + 1):
             needed = route.length - spent_locos
@@ -109,6 +149,123 @@ def legal_claim_actions(player) -> List[ClaimRoute]:
                 if hand.get(color, 0) >= needed:
                     actions.append(ClaimRoute(route.route_id, color, spent_locos))
     return actions
+
+
+def _is_classic_cost(cost) -> bool:
+    return (len(cost) == 1 and len(cost[0].options) == 1
+            and not cost[0].is_locomotive())
+
+
+def _payment_claim_actions(route: Route, hand: 'Counter[str]') -> List[ClaimRoute]:
+    """Enumerate one deterministic action per distinct card multiset."""
+    from ticket_to_ride.engine.state.costs import CARD_COLORS
+
+    available_locos = hand.get("L", 0)
+    loco_floor = 0
+    color_components = []
+    for component in route.cost:
+        if component.is_locomotive():
+            loco_floor += component.count
+        else:
+            color_components.append(component)
+    if loco_floor > available_locos:
+        return []
+
+    def choices(component):
+        return list(CARD_COLORS) if component.is_grey() else list(component.options)
+
+    actions: List[ClaimRoute] = []
+    seen = set()
+    for assignment in product(*(choices(c) for c in color_components)):
+        for substitutions in product(*(range(c.count + 1) for c in color_components)):
+            total_locos = loco_floor + sum(substitutions)
+            if total_locos > available_locos:
+                continue
+            needed: 'Counter[str]' = Counter()
+            for component, color, locos in zip(color_components, assignment, substitutions):
+                needed[color] += component.count - locos
+            if any(hand.get(color, 0) < count for color, count in needed.items()):
+                continue
+            spend_key = (tuple(sorted((c, n) for c, n in needed.items() if n)),
+                         total_locos)
+            if spend_key in seen:
+                continue
+            seen.add(spend_key)
+            payment = []
+            color_iter = iter(zip(assignment, substitutions))
+            for component in route.cost:
+                payment.append(("L", component.count) if component.is_locomotive()
+                               else next(color_iter))
+            first_color = next(
+                (color for (color, locos), component in zip(payment, route.cost)
+                 if not component.is_locomotive() and component.count - locos > 0),
+                "L",
+            )
+            actions.append(ClaimRoute(route.route_id, first_color, total_locos,
+                                      tuple(payment)))
+    return actions
+
+
+def claim_spend(action: ClaimRoute, route: Route) -> 'Counter[str]':
+    spend: 'Counter[str]' = Counter()
+    if action.payment is None:
+        spend["L"] = action.locomotives
+        if action.color != "L":
+            spend[action.color] += route.length - action.locomotives
+        return spend
+    spend["L"] = 0
+    for (color, locos), component in zip(action.payment, route.cost):
+        spend["L"] += locos
+        remainder = component.count - locos
+        if remainder:
+            spend[color] += remainder
+    return spend
+
+
+def affordable_route_options(
+    routes: List[Route],
+    siblings_by_key: 'Dict[tuple, List[Route]]',
+    claim_of: 'Callable[[Route], Optional[str]]',
+    player_id: str,
+    player_count: int,
+    hand: 'Counter[str]',
+    trains_remaining: int,
+) -> 'List[Tuple[Route, int]]':
+    """(route, locomotives) pairs the hand affords, using the fewest
+    locomotives per route."""
+    if not hand.total():
+        return []
+    locomotives = hand.get("L", 0)
+    colors = Counter({c: n for c, n in hand.items() if c != "L" and n > 0})
+    most_common = max(colors.values(), default=0)
+    options: 'List[Tuple[Route, int]]' = []
+    for route in claimable_routes(routes, siblings_by_key, claim_of,
+                                  player_id, player_count, trains_remaining):
+        if not _is_classic_cost(route.cost):
+            payments = _payment_claim_actions(route, hand)
+            if payments:
+                options.append((route, min(a.locomotives for a in payments)))
+            continue
+        for n in range(locomotives + 1):
+            needed = route.length - n
+            if colors.get(route.color, 0) >= needed or (route.color == "X" and most_common >= needed):
+                options.append((route, n))
+                break
+    return options
+
+
+def legal_claim_actions(player) -> List[ClaimRoute]:
+    """Every (route, color, locomotive-count) combination the hand affords."""
+    map_graph = player.game_context.get_map()
+    return enumerate_claim_actions(
+        map_graph.routes,
+        map_graph.sibling_index,
+        lambda route: route.claimed_by,
+        player.player_id,
+        map_graph.player_count,
+        player.get_hand(),
+        player.trains_remaining,
+    )
 
 
 def legal_keep_actions(offer_size: int, min_keep: int) -> List[KeepTickets]:
