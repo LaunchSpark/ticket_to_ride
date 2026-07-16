@@ -4,12 +4,16 @@ import unittest
 from collections import Counter
 
 from ticket_to_ride.engine.game import Game
+from ticket_to_ride.engine.actions import claim_spend, enumerate_claim_actions
+from ticket_to_ride.board_view import build_segments
+from ticket_to_ride.engine.state.costs import cost_to_str
 from ticket_to_ride.engine.state.decks import (
     TICKETS_CSV_PATH, TicketDeck, resolve_tickets_path,
 )
 from ticket_to_ride.engine.state.map import MapGraph, available_maps
 
 from external.bots.fable_best_bot import FableBestBot
+from external.bots.codex_best_bot import CodexBestBot
 from external.bots.random_bot import RandomBot
 
 from notebook_harness.game_runner import initialize_game
@@ -26,7 +30,8 @@ class EuropeMapDataTests(unittest.TestCase):
 
     def test_colors_match_the_official_distribution(self) -> None:
         colors = Counter(route.color for route in self.map_graph.routes)
-        self.assertEqual(colors["X"], 37)   # gray (ferries + tunnels included)
+        self.assertEqual(colors["X"], 24)
+        self.assertEqual(colors[None], 13)  # mixed L+X ferry costs
         for letter in ["R", "B", "U", "G", "O", "P", "W", "Y"]:
             self.assertEqual(colors[letter], 8, letter)
 
@@ -61,6 +66,25 @@ class RouteSchemaTests(unittest.TestCase):
         self.assertEqual(len(ferries), 13)
         self.assertEqual(len(tunnels), 18)
 
+    def test_europe_ferries_have_explicit_locomotive_floor_costs(self):
+        europe = MapGraph(player_count=2, map_name="europe")
+        ferries = [r for r in europe.routes if r.locomotives > 0]
+        for route in ferries:
+            self.assertEqual(route.cost[0].options, ("L",))
+            self.assertEqual(route.cost[0].count, route.locomotives)
+            self.assertEqual(sum(c.count for c in route.cost), route.length)
+
+        by_pair = {(r.city1, r.city2): r for r in ferries}
+        self.assertEqual(cost_to_str(by_pair[("Amsterdam", "London")].cost), "2L")
+        self.assertEqual(cost_to_str(by_pair[("Palermo", "Smyrna")].cost), "2L+4X")
+
+    def test_ferry_segments_show_locomotive_symbols_and_grey_spaces(self):
+        europe = MapGraph(player_count=2, map_name="europe")
+        route = next(r for r in europe.routes
+                     if (r.city1, r.city2) == ("Athina", "Brindisi"))
+        self.assertEqual([s["kind"] for s in build_segments(route)],
+                         ["loco", "solid", "solid", "solid"])
+
     def test_older_map_files_default_the_optional_columns(self):
         classic = MapGraph(player_count=2, map_name="classic")
         self.assertTrue(all(r.locomotives == 0 for r in classic.routes))
@@ -79,6 +103,35 @@ class TicketResolutionTests(unittest.TestCase):
 
 
 class EuropeGameTests(unittest.TestCase):
+    @staticmethod
+    def _actions(route, hand):
+        return enumerate_claim_actions(
+            [route], {route.sibling_group_key(): [route]},
+            lambda candidate: candidate.claimed_by,
+            "p0", 2, Counter(hand), 45,
+        )
+
+    def test_ferry_requires_its_locomotive_floor(self):
+        europe = MapGraph(player_count=2, map_name="europe")
+        route = next(r for r in europe.routes
+                     if (r.city1, r.city2) == ("Athina", "Brindisi"))
+        self.assertEqual(self._actions(route, {"R": 4}), [])
+        self.assertEqual(self._actions(route, {"L": 1, "R": 2, "B": 1}), [])
+
+        actions = self._actions(route, {"L": 2, "R": 2})
+        spends = [+claim_spend(action, route) for action in actions]
+        self.assertIn(Counter({"L": 2, "R": 2}), spends)
+        self.assertEqual(min(action.locomotives for action in actions), 2)
+
+    def test_pure_locomotive_ferry(self):
+        europe = MapGraph(player_count=2, map_name="europe")
+        route = next(r for r in europe.routes
+                     if (r.city1, r.city2) == ("Amsterdam", "London"))
+        self.assertEqual(self._actions(route, {"L": 1, "R": 8}), [])
+        actions = self._actions(route, {"L": 2})
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(+claim_spend(actions[0], route), Counter({"L": 2}))
+
     def test_full_game_on_the_europe_map(self) -> None:
         harness_game = initialize_game(
             [FableBestBot(), RandomBot()], map_name="europe", seed=7,
@@ -97,6 +150,13 @@ class EuropeGameTests(unittest.TestCase):
         for player in harness_game.players:
             for ticket in player.get_tickets():
                 self.assertIn(ticket.city1, context.get_map().cities())
+
+    def test_codex_best_finishes_europe_with_active_ferries(self) -> None:
+        harness_game = initialize_game(
+            [CodexBestBot(), RandomBot()], map_name="europe", seed=19,
+        )
+        harness_game.play()
+        self.assertGreater(harness_game.snapshot_count(), 0)
 
 
 if __name__ == "__main__":

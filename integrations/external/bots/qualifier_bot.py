@@ -110,11 +110,16 @@ class QualifierBot(ActionBot):
         locomotive_odds = self._odds.get("L", 0.0)
 
         colors = [c for c in self._CARD_COLORS if c in route.payment_colors()]
-        if not colors:
+        required_locos = route.locomotives
+        colored_length = route.length - required_locos
+        missing_required = max(0, required_locos - hand.get("L", 0))
+        if missing_required and locomotive_odds <= 0.0:
             return float("inf")
+        if not colors:
+            return (missing_required / locomotive_odds if missing_required else 0.0) + 1.0
         best_turns = None
         for color in colors:
-            deficit = route.length - hand.get(color, 0)
+            deficit = colored_length - hand.get(color, 0)
             if deficit <= 0:
                 best_turns = 0.0
                 break
@@ -124,7 +129,9 @@ class QualifierBot(ActionBot):
             if remaining > 0 and pick_odds <= 0.0:
                 continue
             expected_picks = certain + (remaining / pick_odds if remaining else 0.0)
-            turns = expected_picks / 2
+            mandatory_turns = (missing_required / locomotive_odds
+                               if missing_required else 0.0)
+            turns = (expected_picks + mandatory_turns) / 2
             if best_turns is None or turns < best_turns:
                 best_turns = turns
         if best_turns is None:
@@ -315,10 +322,11 @@ class QualifierBot(ActionBot):
         grey_needed = 0
         for route in self._planned_routes:
             options = route.payment_colors()
+            color_spaces = route.length - route.locomotives
             if len(options) == 1:
-                reserved[next(iter(options))] += route.length
+                reserved[next(iter(options))] += color_spaces
             else:
-                grey_needed += route.length
+                grey_needed += color_spaces
 
         hand = self._view.hand
         deficits = {c: max(0, reserved[c] - hand.get(c, 0)) for c in self._CARD_COLORS}
@@ -329,7 +337,8 @@ class QualifierBot(ActionBot):
         if grey_deficit:
             deficits[stack_color] += grey_deficit
 
-        locomotives = hand.get("L", 0)
+        required_locomotives = sum(route.locomotives for route in self._planned_routes)
+        locomotives = max(0, hand.get("L", 0) - required_locomotives)
         if locomotives and self._planned_routes:
             longest = max(self._planned_routes, key=lambda route: route.length)
             longest_options = longest.payment_colors()
@@ -350,7 +359,8 @@ class QualifierBot(ActionBot):
         for route, locomotives in affordable:
             if route.route_id not in self._planned_route_ids:
                 continue
-            if locomotives > 0 and route.length != max_planned_length:
+            if (locomotives > route.locomotives
+                    and route.length != max_planned_length):
                 continue
             picks.append((route, locomotives))
         return picks

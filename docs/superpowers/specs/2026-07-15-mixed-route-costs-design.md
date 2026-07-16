@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 **Status:** Approved design, pending implementation plan
-**Prepares for:** ferries and tunnels (mechanics themselves out of scope here)
+**Prepares for:** ferries and tunnels (ferries activated 2026-07-15; tunnels remain deferred)
 
 ## Problem
 
@@ -70,10 +70,10 @@ either-or over 1. One payment rule covers everything.
   that still read it are exactly the ones that can only ever see
   one-component routes; anything that can meet a multi-component route reads
   `cost` / `payment_colors()` instead (see Bot payment choice).
-- The existing unenforced `Route.locomotives` (ferry minimum) and
-  `Route.is_tunnel` fields stay exactly as they are — ignored. Ferry minimums
-  will be declared as `Cost` terms (e.g. `2L+3X`) when ferries land. Enforcing
-  the old column now would silently change behavior on maps that carry it.
+- `Route.locomotives` remains ferry metadata and `Route.is_tunnel` remains an
+  unenforced tunnel flag. Ferry mechanics are activated explicitly through
+  `Cost` terms such as `2L+3X`; the loader does not implicitly enforce the
+  legacy locomotive column, avoiding silent changes to third-party maps.
 
 ## CSV schema
 
@@ -221,8 +221,7 @@ the stops; widgets tolerate the old flat-string form for stored games.
 
 - **Scoring rebalance** — mixed routes may be easier/harder to claim than
   their length suggests; revisit points tables later (user-deferred).
-- Ferry and tunnel **mechanics** (tunnel card flips, enforcing loco minimums
-  from the legacy column).
+- Tunnel mechanics (card flips and additional payment).
 - Map **generator** emitting mixed costs.
 - Bot **strategic** awareness of payment flexibility (they stay legal via the
   shared enumeration; valuation comes with scoring).

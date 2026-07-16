@@ -260,10 +260,11 @@ class ExampleBot(ActionBot):
         grey_needed = 0
         for route in self._planned_routes:
             options = route.payment_colors()
+            color_spaces = route.length - route.locomotives
             if len(options) == 1:
-                reserved[next(iter(options))] += route.length
+                reserved[next(iter(options))] += color_spaces
             else:
-                grey_needed += route.length
+                grey_needed += color_spaces
 
         hand = self._view.hand
         deficits = {c: max(0, reserved[c] - hand.get(c, 0)) for c in self._CARD_COLORS}
@@ -274,7 +275,8 @@ class ExampleBot(ActionBot):
         if grey_deficit:
             deficits[stack_color] += grey_deficit
 
-        locomotives = hand.get("L", 0)
+        required_locomotives = sum(route.locomotives for route in self._planned_routes)
+        locomotives = max(0, hand.get("L", 0) - required_locomotives)
         if locomotives and self._planned_routes:
             longest = max(self._planned_routes, key=lambda route: route.length)
             longest_options = longest.payment_colors()
@@ -295,7 +297,8 @@ class ExampleBot(ActionBot):
         for route, locomotives in affordable:
             if route.route_id not in self._planned_route_ids:
                 continue
-            if locomotives > 0 and route.length != max_planned_length:
+            if (locomotives > route.locomotives
+                    and route.length != max_planned_length):
                 continue
             picks.append((route, locomotives))
         return picks
