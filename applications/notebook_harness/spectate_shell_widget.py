@@ -19,7 +19,17 @@ from notebook_harness.route_graph_widget import build_graph_data
 
 class SpectateShellWidget(anywidget.AnyWidget):
     _esm = files("notebook_harness").joinpath("static/spectate_shell_widget.js")
-    _css = files("notebook_harness").joinpath("static/spectate_shell_widget.css")
+    # Embedded render modules do not bring their standalone AnyWidget CSS
+    # with them. Materialize one composite stylesheet so graph interactions,
+    # market cards, and the shell grid render identically inside this widget.
+    _css = "\n".join(
+        files("notebook_harness").joinpath("static", name).read_text()
+        for name in (
+            "route_graph_widget.css",
+            "info_bar_widget.css",
+            "spectate_shell_widget.css",
+        )
+    )
 
     # Python -> JS payloads
     board = traitlets.Dict().tag(sync=True)

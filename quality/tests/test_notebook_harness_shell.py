@@ -23,6 +23,12 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertEqual(len(shell.aggregates), 2)
         self.assertEqual(shell.playback, {"round": 0, "turn": 0})
 
+    def test_composite_css_includes_embedded_widget_styles(self) -> None:
+        css = SpectateShellWidget._css
+        self.assertIn(".info-bar-widget", css)
+        self.assertIn(".float-tooltip-kap", css)
+        self.assertIn(".spectate-shell-grid", css)
+
     def test_update_shell_pushes_step_payloads(self) -> None:
         shell = build_shell(self.series)
         shell.playback = {"round": 1, "turn": 0}
