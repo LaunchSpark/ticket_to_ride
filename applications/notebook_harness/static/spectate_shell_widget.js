@@ -6057,23 +6057,23 @@ function add_default(d2) {
   const x4 = +this._x.call(null, d2);
   return add2(this.cover(x4), x4, d2);
 }
-function add2(tree2, x4, d2) {
-  if (isNaN(x4)) return tree2;
-  var parent, node = tree2._root, leaf = { data: d2 }, x0 = tree2._x0, x1 = tree2._x1, xm, xp, right, i2, j2;
-  if (!node) return tree2._root = leaf, tree2;
+function add2(tree, x4, d2) {
+  if (isNaN(x4)) return tree;
+  var parent, node = tree._root, leaf = { data: d2 }, x0 = tree._x0, x1 = tree._x1, xm, xp, right, i2, j2;
+  if (!node) return tree._root = leaf, tree;
   while (node.length) {
     if (right = x4 >= (xm = (x0 + x1) / 2)) x0 = xm;
     else x1 = xm;
-    if (parent = node, !(node = node[i2 = +right])) return parent[i2] = leaf, tree2;
+    if (parent = node, !(node = node[i2 = +right])) return parent[i2] = leaf, tree;
   }
-  xp = +tree2._x.call(null, node.data);
-  if (x4 === xp) return leaf.next = node, parent ? parent[i2] = leaf : tree2._root = leaf, tree2;
+  xp = +tree._x.call(null, node.data);
+  if (x4 === xp) return leaf.next = node, parent ? parent[i2] = leaf : tree._root = leaf, tree;
   do {
-    parent = parent ? parent[i2] = new Array(2) : tree2._root = new Array(2);
+    parent = parent ? parent[i2] = new Array(2) : tree._root = new Array(2);
     if (right = x4 >= (xm = (x0 + x1) / 2)) x0 = xm;
     else x1 = xm;
   } while ((i2 = +right) === (j2 = +(xp >= xm)));
-  return parent[j2] = node, parent[i2] = leaf, tree2;
+  return parent[j2] = node, parent[i2] = leaf, tree;
 }
 function addAll(data) {
   if (!Array.isArray(data)) data = Array.from(data);
@@ -6266,8 +6266,8 @@ function x_default(_2) {
 
 // node_modules/d3-binarytree/src/binarytree.js
 function binarytree(nodes, x4) {
-  var tree2 = new Binarytree(x4 == null ? defaultX : x4, NaN, NaN);
-  return nodes == null ? tree2 : tree2.addAll(nodes);
+  var tree = new Binarytree(x4 == null ? defaultX : x4, NaN, NaN);
+  return nodes == null ? tree : tree.addAll(nodes);
 }
 function Binarytree(x4, x0, x1) {
   this._x = x4;
@@ -6315,28 +6315,28 @@ function add_default2(d2) {
   const x4 = +this._x.call(null, d2), y4 = +this._y.call(null, d2);
   return add3(this.cover(x4, y4), x4, y4, d2);
 }
-function add3(tree2, x4, y4, d2) {
-  if (isNaN(x4) || isNaN(y4)) return tree2;
-  var parent, node = tree2._root, leaf = { data: d2 }, x0 = tree2._x0, y0 = tree2._y0, x1 = tree2._x1, y1 = tree2._y1, xm, ym, xp, yp, right, bottom, i2, j2;
-  if (!node) return tree2._root = leaf, tree2;
+function add3(tree, x4, y4, d2) {
+  if (isNaN(x4) || isNaN(y4)) return tree;
+  var parent, node = tree._root, leaf = { data: d2 }, x0 = tree._x0, y0 = tree._y0, x1 = tree._x1, y1 = tree._y1, xm, ym, xp, yp, right, bottom, i2, j2;
+  if (!node) return tree._root = leaf, tree;
   while (node.length) {
     if (right = x4 >= (xm = (x0 + x1) / 2)) x0 = xm;
     else x1 = xm;
     if (bottom = y4 >= (ym = (y0 + y1) / 2)) y0 = ym;
     else y1 = ym;
-    if (parent = node, !(node = node[i2 = bottom << 1 | right])) return parent[i2] = leaf, tree2;
+    if (parent = node, !(node = node[i2 = bottom << 1 | right])) return parent[i2] = leaf, tree;
   }
-  xp = +tree2._x.call(null, node.data);
-  yp = +tree2._y.call(null, node.data);
-  if (x4 === xp && y4 === yp) return leaf.next = node, parent ? parent[i2] = leaf : tree2._root = leaf, tree2;
+  xp = +tree._x.call(null, node.data);
+  yp = +tree._y.call(null, node.data);
+  if (x4 === xp && y4 === yp) return leaf.next = node, parent ? parent[i2] = leaf : tree._root = leaf, tree;
   do {
-    parent = parent ? parent[i2] = new Array(4) : tree2._root = new Array(4);
+    parent = parent ? parent[i2] = new Array(4) : tree._root = new Array(4);
     if (right = x4 >= (xm = (x0 + x1) / 2)) x0 = xm;
     else x1 = xm;
     if (bottom = y4 >= (ym = (y0 + y1) / 2)) y0 = ym;
     else y1 = ym;
   } while ((i2 = bottom << 1 | right) === (j2 = (yp >= ym) << 1 | xp >= xm));
-  return parent[j2] = node, parent[i2] = leaf, tree2;
+  return parent[j2] = node, parent[i2] = leaf, tree;
 }
 function addAll2(data) {
   var d2, i2, n2 = data.length, x4, y4, xz = new Array(n2), yz = new Array(n2), x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -6557,8 +6557,8 @@ function y_default(_2) {
 
 // node_modules/d3-quadtree/src/quadtree.js
 function quadtree(nodes, x4, y4) {
-  var tree2 = new Quadtree(x4 == null ? defaultX2 : x4, y4 == null ? defaultY : y4, NaN, NaN, NaN, NaN);
-  return nodes == null ? tree2 : tree2.addAll(nodes);
+  var tree = new Quadtree(x4 == null ? defaultX2 : x4, y4 == null ? defaultY : y4, NaN, NaN, NaN, NaN);
+  return nodes == null ? tree : tree.addAll(nodes);
 }
 function Quadtree(x4, y4, x0, y0, x1, y1) {
   this._x = x4;
@@ -6610,10 +6610,10 @@ function add_default3(d2) {
   const x4 = +this._x.call(null, d2), y4 = +this._y.call(null, d2), z3 = +this._z.call(null, d2);
   return add4(this.cover(x4, y4, z3), x4, y4, z3, d2);
 }
-function add4(tree2, x4, y4, z3, d2) {
-  if (isNaN(x4) || isNaN(y4) || isNaN(z3)) return tree2;
-  var parent, node = tree2._root, leaf = { data: d2 }, x0 = tree2._x0, y0 = tree2._y0, z0 = tree2._z0, x1 = tree2._x1, y1 = tree2._y1, z1 = tree2._z1, xm, ym, zm, xp, yp, zp, right, bottom, deep, i2, j2;
-  if (!node) return tree2._root = leaf, tree2;
+function add4(tree, x4, y4, z3, d2) {
+  if (isNaN(x4) || isNaN(y4) || isNaN(z3)) return tree;
+  var parent, node = tree._root, leaf = { data: d2 }, x0 = tree._x0, y0 = tree._y0, z0 = tree._z0, x1 = tree._x1, y1 = tree._y1, z1 = tree._z1, xm, ym, zm, xp, yp, zp, right, bottom, deep, i2, j2;
+  if (!node) return tree._root = leaf, tree;
   while (node.length) {
     if (right = x4 >= (xm = (x0 + x1) / 2)) x0 = xm;
     else x1 = xm;
@@ -6621,14 +6621,14 @@ function add4(tree2, x4, y4, z3, d2) {
     else y1 = ym;
     if (deep = z3 >= (zm = (z0 + z1) / 2)) z0 = zm;
     else z1 = zm;
-    if (parent = node, !(node = node[i2 = deep << 2 | bottom << 1 | right])) return parent[i2] = leaf, tree2;
+    if (parent = node, !(node = node[i2 = deep << 2 | bottom << 1 | right])) return parent[i2] = leaf, tree;
   }
-  xp = +tree2._x.call(null, node.data);
-  yp = +tree2._y.call(null, node.data);
-  zp = +tree2._z.call(null, node.data);
-  if (x4 === xp && y4 === yp && z3 === zp) return leaf.next = node, parent ? parent[i2] = leaf : tree2._root = leaf, tree2;
+  xp = +tree._x.call(null, node.data);
+  yp = +tree._y.call(null, node.data);
+  zp = +tree._z.call(null, node.data);
+  if (x4 === xp && y4 === yp && z3 === zp) return leaf.next = node, parent ? parent[i2] = leaf : tree._root = leaf, tree;
   do {
-    parent = parent ? parent[i2] = new Array(8) : tree2._root = new Array(8);
+    parent = parent ? parent[i2] = new Array(8) : tree._root = new Array(8);
     if (right = x4 >= (xm = (x0 + x1) / 2)) x0 = xm;
     else x1 = xm;
     if (bottom = y4 >= (ym = (y0 + y1) / 2)) y0 = ym;
@@ -6636,7 +6636,7 @@ function add4(tree2, x4, y4, z3, d2) {
     if (deep = z3 >= (zm = (z0 + z1) / 2)) z0 = zm;
     else z1 = zm;
   } while ((i2 = deep << 2 | bottom << 1 | right) === (j2 = (zp >= zm) << 2 | (yp >= ym) << 1 | xp >= xm));
-  return parent[j2] = node, parent[i2] = leaf, tree2;
+  return parent[j2] = node, parent[i2] = leaf, tree;
 }
 function addAll3(data) {
   if (!Array.isArray(data)) data = Array.from(data);
@@ -6928,8 +6928,8 @@ function z_default(_2) {
 
 // node_modules/d3-octree/src/octree.js
 function octree(nodes, x4, y4, z3) {
-  var tree2 = new Octree(x4 == null ? defaultX3 : x4, y4 == null ? defaultY2 : y4, z3 == null ? defaultZ : z3, NaN, NaN, NaN, NaN, NaN, NaN);
-  return nodes == null ? tree2 : tree2.addAll(nodes);
+  var tree = new Octree(x4 == null ? defaultX3 : x4, y4 == null ? defaultY2 : y4, z3 == null ? defaultZ : z3, NaN, NaN, NaN, NaN, NaN, NaN);
+  return nodes == null ? tree : tree.addAll(nodes);
 }
 function Octree(x4, y4, z3, x0, y0, z0, x1, y1, z1) {
   this._x = x4;
@@ -7245,8 +7245,8 @@ function simulation_default(nodes, numDimensions) {
 function manyBody_default() {
   var nodes, nDim, node, random, alpha, strength = constant_default5(-30), strengths, distanceMin2 = 1, distanceMax2 = Infinity, theta2 = 0.81;
   function force(_2) {
-    var i2, n2 = nodes.length, tree2 = (nDim === 1 ? binarytree(nodes, x2) : nDim === 2 ? quadtree(nodes, x2, y2) : nDim === 3 ? octree(nodes, x2, y2, z2) : null).visitAfter(accumulate);
-    for (alpha = _2, i2 = 0; i2 < n2; ++i2) node = nodes[i2], tree2.visit(apply);
+    var i2, n2 = nodes.length, tree = (nDim === 1 ? binarytree(nodes, x2) : nDim === 2 ? quadtree(nodes, x2, y2) : nDim === 3 ? octree(nodes, x2, y2, z2) : null).visitAfter(accumulate);
+    for (alpha = _2, i2 = 0; i2 < n2; ++i2) node = nodes[i2], tree.visit(apply);
   }
   function initialize() {
     if (!nodes) return;
@@ -11535,8 +11535,8 @@ var initialAngle = Math.PI * (3 - Math.sqrt(5));
 function manyBody_default2() {
   var nodes, node, random, alpha, strength = constant_default7(-30), strengths, distanceMin2 = 1, distanceMax2 = Infinity, theta2 = 0.81;
   function force(_2) {
-    var i2, n2 = nodes.length, tree2 = quadtree(nodes, x3, y3).visitAfter(accumulate);
-    for (alpha = _2, i2 = 0; i2 < n2; ++i2) node = nodes[i2], tree2.visit(apply);
+    var i2, n2 = nodes.length, tree = quadtree(nodes, x3, y3).visitAfter(accumulate);
+    for (alpha = _2, i2 = 0; i2 < n2; ++i2) node = nodes[i2], tree.visit(apply);
   }
   function initialize() {
     if (!nodes) return;
@@ -12052,16 +12052,7 @@ var MyRBush = class extends RBush {
     return a3.y - b2.y;
   }
 };
-var local_selected_ids = [];
-var colour_scale_type = "";
-var plot;
-var tree;
 var default_node_size = 5;
-var colour_feature = void 0;
-var node_size_feature = void 0;
-var colour_scale;
-var select_feature = void 0;
-var select_feature_value = void 0;
 function debounce2(func, wait) {
   let timeout2;
   return function(...args) {
@@ -12069,10 +12060,6 @@ function debounce2(func, wait) {
     timeout2 = setTimeout(() => func.apply(this, args), wait);
   };
 }
-var create_rtree = (data) => {
-  tree = new MyRBush();
-  tree.load(data);
-};
 var get_feature_type = (value) => {
   if (typeof value === "number") return "numeric";
   if (typeof value === "string" && value.startsWith("#")) return "hash_string";
@@ -12080,34 +12067,6 @@ var get_feature_type = (value) => {
 };
 var ua = navigator.userAgent.toLowerCase();
 var isMac = ua.includes("macintosh");
-var create_node_canvas_object = (plot2, node_scale, node_size_feature2) => {
-  return plot2.nodeCanvasObject((node, ctx) => {
-    let radius;
-    if (node_size_feature2 == void 0 || node_size_feature2 == "") {
-      radius = default_node_size * node_scale;
-    } else {
-      radius = node[node_size_feature2] * node_scale;
-    }
-    const isLocalSelected = local_selected_ids.includes(node.id);
-    const hasSelection = local_selected_ids.length > 0;
-    const fillColour = colour_scale ? colour_scale(node[colour_feature]) : "#4a4a4a";
-    ctx.globalAlpha = hasSelection && !isLocalSelected ? 0.2 : 1;
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = fillColour;
-    ctx.fill();
-    if (isLocalSelected) {
-      ctx.lineWidth = radius / 5;
-      ctx.strokeStyle = "red";
-      ctx.stroke();
-    } else {
-      ctx.lineWidth = radius / 10;
-      ctx.strokeStyle = "lightgrey";
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  });
-};
 var is_dark_color = (color2) => {
   const hex2 = /^#?([0-9a-f]{6})$/i.exec(color2 || "");
   if (!hex2) return false;
@@ -12143,9 +12102,40 @@ function link_distance_for(model, link) {
 function render3({ model, el }) {
   const debouncedSaveChanges = debounce2(() => model.save_changes(), 300);
   const normalized_opacity = (value) => Math.min(1, Math.max(0, Number(value)));
+  let local_selected_ids = [];
+  let colour_scale_type = "";
+  let plot;
+  let tree;
+  let colour_feature;
+  let node_size_feature;
+  let colour_scale;
+  let select_feature;
+  let select_feature_value;
+  const create_rtree = (nodes) => {
+    tree = new MyRBush();
+    tree.load(nodes);
+  };
+  const create_node_canvas_object = (graph, scale, size_feature) => {
+    return graph.nodeCanvasObject((node, ctx) => {
+      const radius = size_feature == void 0 || size_feature == "" ? default_node_size * scale : node[size_feature] * scale;
+      const isLocalSelected = local_selected_ids.includes(node.id);
+      const hasSelection = local_selected_ids.length > 0;
+      const fillColour = colour_scale ? colour_scale(node[colour_feature]) : "#4a4a4a";
+      ctx.globalAlpha = hasSelection && !isLocalSelected ? 0.2 : 1;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+      ctx.fillStyle = fillColour;
+      ctx.fill();
+      ctx.lineWidth = isLocalSelected ? radius / 5 : radius / 10;
+      ctx.strokeStyle = isLocalSelected ? "red" : "lightgrey";
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+  };
   let unclaimed_route_opacity = normalized_opacity(
     model.get("unclaimed_route_opacity") ?? default_unclaimed_route_opacity
   );
+  const route_opacity = (link) => Number.isFinite(Number(link.opacity)) ? normalized_opacity(link.opacity) : link.claimedColor ? 1 : unclaimed_route_opacity;
   const node_radius = (node) => {
     if (node_size_feature == void 0 || node_size_feature == "") {
       return default_node_size * node_scale;
@@ -12196,7 +12186,7 @@ function render3({ model, el }) {
       const carLength = slotLength * train_space_fill;
       if (carLength <= 0) continue;
       ctx.save();
-      ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity;
+      ctx.globalAlpha = route_opacity(link);
       ctx.translate(center.x, center.y);
       ctx.rotate(Math.atan2(direction.y, direction.x));
       const seg = segments && segments[i2] ? segments[i2] : { kind: "solid", colors: [baseColor] };
@@ -12253,7 +12243,7 @@ function render3({ model, el }) {
     }
   };
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).enablePointerInteraction(false).enableNodeDrag(false).cooldownTime(5e3).warmupTicks(10).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : color_with_alpha(link.color || "#999999", unclaimed_route_opacity)).linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineTick(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).enablePointerInteraction(false).enableNodeDrag(false).cooldownTime(5e3).warmupTicks(10).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : color_with_alpha(link.color || "#999999", route_opacity(link))).linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineTick(() => {
       simulation_running = true;
     }).onEngineStop(() => {
       simulation_running = false;
@@ -12290,7 +12280,7 @@ function render3({ model, el }) {
   node_size_feature = model.get("node_size_feature");
   select_feature = model.get("select_feature");
   select_feature_value = model.get("select_feature_value");
-  let global_selected_ids = model.get("selected_ids");
+  let global_selected_ids = model.get("selected_ids") || [];
   plot = create_plot(data);
   plot.d3Force("__continuity_probe", (alpha) => {
     last_simulation_alpha = alpha;
@@ -12360,7 +12350,8 @@ function render3({ model, el }) {
     const coords = graph_coords_from_event(ev);
     const node = node_at(coords.x, coords.y);
     const link = node ? null : link_at(coords.x, coords.y);
-    const label = node ? node.name : link ? link.data && link.data.length ? `${link.id} (${link.data.length})` : link.id : "";
+    const usage = link && link.data && Number.isFinite(link.data.claimCount) ? `${link.data.claimCount} claims \xB7 ${(100 * link.data.claimShare).toFixed(1)}% of claims` : "";
+    const label = node ? node.name : link ? `${link.data && link.data.length ? `${link.id} (${link.data.length})` : link.id}${usage ? ` \xB7 ${usage}` : ""}` : "";
     if (label) {
       const rect = canvas.getBoundingClientRect();
       tooltip.textContent = label;
@@ -12670,7 +12661,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-100002Z" : "dev";
+  const build_tag = true ? "20260718-115131Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
@@ -13058,6 +13049,34 @@ function renderTickets(model, container) {
     container.appendChild(row);
   });
 }
+function buildRouteUsageHeader(model) {
+  const header = elem("div", "shell-usage-header");
+  const copy2 = elem("div", "shell-usage-copy");
+  copy2.appendChild(elem("p", "shell-section-heading shell-usage-title"));
+  copy2.appendChild(elem("p", "shell-usage-summary"));
+  const toggle = elem("label", "shell-usage-toggle");
+  const checkbox = elem("input", "shell-usage-checkbox");
+  checkbox.type = "checkbox";
+  checkbox.addEventListener("change", () => {
+    model.set("route_usage_wins_only", checkbox.checked);
+    model.save_changes();
+  });
+  toggle.append(checkbox, elem("span", "", "Winning games only"));
+  header.append(copy2, toggle);
+  return header;
+}
+function renderRouteUsageHeader(model, container) {
+  const data = model.get("route_usage") || {};
+  const name = data.playerName || data.playerId || "Player";
+  const games = Number(data.gamesIncluded) || 0;
+  const claims = Number(data.totalClaims) || 0;
+  container.querySelector(".shell-usage-title").textContent = `Route Claim Heatmap \xB7 ${name}`;
+  container.querySelector(".shell-usage-summary").textContent = games ? `${claims} claims across ${games} ${games === 1 ? "game" : "games"} \xB7 darker routes were claimed more often` : "No matching games \xB7 routes are shown only as map context";
+  const checkbox = container.querySelector(".shell-usage-checkbox");
+  if (document.activeElement !== checkbox) {
+    checkbox.checked = Boolean(model.get("route_usage_wins_only"));
+  }
+}
 function render5({ model, el }) {
   el.classList.add("spectate-shell");
   const grid = elem("div", "spectate-shell-grid");
@@ -13066,9 +13085,21 @@ function render5({ model, el }) {
   const market = elem("section", "shell-slot-market");
   const aggregates = elem("section", "shell-slot-current");
   const tickets = elem("section", "shell-slot-tickets");
-  grid.append(hero, sidebar, market, aggregates, tickets);
+  const usage = elem("section", "shell-slot-usage");
+  const usageHeader = buildRouteUsageHeader(model);
+  const usageGraph = elem("div", "shell-usage-graph");
+  usage.append(usageHeader, usageGraph);
+  grid.append(hero, sidebar, market, aggregates, tickets, usage);
   el.appendChild(grid);
   route_graph_widget_default.render({ model: facadeModel(model, { data: "board" }), el: hero });
+  route_graph_widget_default.render({
+    model: facadeModel(model, {
+      data: "route_usage",
+      selected_ids: "route_usage_selected_ids",
+      height: "route_usage_height"
+    }),
+    el: usageGraph
+  });
   info_bar_widget_default.render({ model: facadeModel(model, {}), el: market });
   let timer2 = null;
   const playState = {
@@ -13094,14 +13125,18 @@ function render5({ model, el }) {
   const drawSidebar = () => renderSidebar(model, sidebar, playState);
   const drawAggregates = () => renderAggregates(model, aggregates);
   const drawTickets = () => renderTickets(model, tickets);
+  const drawRouteUsageHeader = () => renderRouteUsageHeader(model, usageHeader);
   drawSidebar();
   drawAggregates();
   drawTickets();
+  drawRouteUsageHeader();
   model.on("change:frame", drawSidebar);
   model.on("change:frame", drawTickets);
   ["change:selected_player", "change:rounds_meta"].forEach((event) => model.on(event, drawSidebar));
   model.on("change:aggregates", drawAggregates);
   model.on("change:tickets", drawTickets);
+  model.on("change:route_usage", drawRouteUsageHeader);
+  model.on("change:route_usage_wins_only", drawRouteUsageHeader);
   return () => {
     if (timer2 != null) clearInterval(timer2);
   };

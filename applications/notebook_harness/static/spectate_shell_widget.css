@@ -24,21 +24,35 @@
     grid-template-areas:
         "hero sidebar"
         "market sidebar"
-        "current tickets";
+        "current tickets"
+        "usage usage";
 }
 .shell-slot-hero { grid-area: hero; }
 .shell-slot-sidebar { grid-area: sidebar; }
 .shell-slot-market { grid-area: market; }
 .shell-slot-current { grid-area: current; }
 .shell-slot-tickets { grid-area: tickets; }
+.shell-slot-usage { grid-area: usage; }
 .shell-slot-hero, .shell-slot-sidebar, .shell-slot-market,
-.shell-slot-current, .shell-slot-tickets {
+.shell-slot-current, .shell-slot-tickets, .shell-slot-usage {
     background: var(--shell-panel);
     border: 1px solid var(--shell-border);
     border-radius: 12px;
     padding: 12px;
     min-width: 0;
 }
+.shell-usage-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 0 4px 8px;
+}
+.shell-usage-title { margin-top: 0; }
+.shell-usage-summary { margin: 0; color: var(--shell-muted); font-size: 12px; }
+.shell-usage-toggle {
+    display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
+    color: var(--shell-text); font-size: 12px; cursor: pointer;
+}
+.shell-usage-checkbox { accent-color: var(--shell-text); }
+.shell-usage-graph { min-height: 420px; min-width: 0; }
 .shell-eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--shell-muted); margin: 0 0 8px; }
 .shell-section-heading { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--shell-muted); margin: 12px 0 6px; }
 .shell-playback-controls { display: flex; gap: 6px; }
@@ -101,8 +115,9 @@
 .shell-ticket-row.status-cut_off .shell-ticket-badge { border-color: #d05045; color: #d05045; }
 .shell-ticket-points { font-weight: 700; }
 @media (max-width: 980px) {
-    .spectate-shell-grid { grid-template-columns: 1fr; grid-template-areas: "hero" "sidebar" "market" "current" "tickets"; }
+    .spectate-shell-grid { grid-template-columns: 1fr; grid-template-areas: "hero" "sidebar" "market" "current" "tickets" "usage"; }
 }
 @container (max-width: 760px) {
-    .spectate-shell-grid { grid-template-columns: 1fr; grid-template-areas: "hero" "sidebar" "market" "current" "tickets"; }
+    .spectate-shell-grid { grid-template-columns: 1fr; grid-template-areas: "hero" "sidebar" "market" "current" "tickets" "usage"; }
+    .shell-usage-header { align-items: flex-start; flex-direction: column; }
 }

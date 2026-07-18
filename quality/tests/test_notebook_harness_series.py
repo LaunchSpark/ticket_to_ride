@@ -114,3 +114,31 @@ class SeriesAccessorTests(unittest.TestCase):
             self.assertEqual(len(entry["scores"]), 2)
             self.assertEqual(entry["bestScore"], max(entry["scores"]))
             self.assertAlmostEqual(entry["averageScore"], sum(entry["scores"]) / 2, places=1)
+
+    def test_route_usage_aggregates_final_claims_and_can_filter_to_wins(self) -> None:
+        player_id = "bot_0"
+        nodes, edges, summary = self.series.route_usage(player_id)
+
+        expected_claims = sum(
+            len(game.game.context.get_map().get_claimed_routes(player_id))
+            for game in self.series.games
+        )
+        self.assertTrue(nodes)
+        self.assertTrue(edges)
+        self.assertEqual(summary["gamesIncluded"], 2)
+        self.assertEqual(summary["totalClaims"], expected_claims)
+        self.assertEqual(
+            sum(edge["data"]["claimCount"] for edge in edges), expected_claims
+        )
+        self.assertLessEqual(max(edge["opacity"] for edge in edges), 1.0)
+
+        _, winning_edges, winning_summary = self.series.route_usage(
+            player_id, wins_only=True
+        )
+        expected_wins = next(
+            entry["wins"] for entry in self.series.aggregates()
+            if entry["playerId"] == player_id
+        )
+        self.assertTrue(winning_edges)
+        self.assertEqual(winning_summary["gamesIncluded"], expected_wins)
+        self.assertLessEqual(winning_summary["totalClaims"], expected_claims)

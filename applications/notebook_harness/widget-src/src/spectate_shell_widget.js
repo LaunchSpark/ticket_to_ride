@@ -267,6 +267,40 @@ function renderTickets(model, container) {
     });
 }
 
+function buildRouteUsageHeader(model) {
+    const header = elem("div", "shell-usage-header");
+    const copy = elem("div", "shell-usage-copy");
+    copy.appendChild(elem("p", "shell-section-heading shell-usage-title"));
+    copy.appendChild(elem("p", "shell-usage-summary"));
+
+    const toggle = elem("label", "shell-usage-toggle");
+    const checkbox = elem("input", "shell-usage-checkbox");
+    checkbox.type = "checkbox";
+    checkbox.addEventListener("change", () => {
+        model.set("route_usage_wins_only", checkbox.checked);
+        model.save_changes();
+    });
+    toggle.append(checkbox, elem("span", "", "Winning games only"));
+    header.append(copy, toggle);
+    return header;
+}
+
+function renderRouteUsageHeader(model, container) {
+    const data = model.get("route_usage") || {};
+    const name = data.playerName || data.playerId || "Player";
+    const games = Number(data.gamesIncluded) || 0;
+    const claims = Number(data.totalClaims) || 0;
+    container.querySelector(".shell-usage-title").textContent =
+        `Route Claim Heatmap · ${name}`;
+    container.querySelector(".shell-usage-summary").textContent = games
+        ? `${claims} claims across ${games} ${games === 1 ? "game" : "games"} · darker routes were claimed more often`
+        : "No matching games · routes are shown only as map context";
+    const checkbox = container.querySelector(".shell-usage-checkbox");
+    if (document.activeElement !== checkbox) {
+        checkbox.checked = Boolean(model.get("route_usage_wins_only"));
+    }
+}
+
 function render({ model, el }) {
     el.classList.add("spectate-shell");
     const grid = elem("div", "spectate-shell-grid");
@@ -275,12 +309,24 @@ function render({ model, el }) {
     const market = elem("section", "shell-slot-market");
     const aggregates = elem("section", "shell-slot-current");
     const tickets = elem("section", "shell-slot-tickets");
-    grid.append(hero, sidebar, market, aggregates, tickets);
+    const usage = elem("section", "shell-slot-usage");
+    const usageHeader = buildRouteUsageHeader(model);
+    const usageGraph = elem("div", "shell-usage-graph");
+    usage.append(usageHeader, usageGraph);
+    grid.append(hero, sidebar, market, aggregates, tickets, usage);
     el.appendChild(grid);
 
     // Embedded renderers: the graph keeps its force-sim state because its
     // render mounts once here and reacts to trait changes itself.
     routeGraph.render({ model: facadeModel(model, { data: "board" }), el: hero });
+    routeGraph.render({
+        model: facadeModel(model, {
+            data: "route_usage",
+            selected_ids: "route_usage_selected_ids",
+            height: "route_usage_height",
+        }),
+        el: usageGraph,
+    });
     infoBar.render({ model: facadeModel(model, {}), el: market });
 
     let timer = null;
@@ -300,16 +346,20 @@ function render({ model, el }) {
     const drawSidebar = () => renderSidebar(model, sidebar, playState);
     const drawAggregates = () => renderAggregates(model, aggregates);
     const drawTickets = () => renderTickets(model, tickets);
+    const drawRouteUsageHeader = () => renderRouteUsageHeader(model, usageHeader);
 
     drawSidebar();
     drawAggregates();
     drawTickets();
+    drawRouteUsageHeader();
     model.on("change:frame", drawSidebar);
     model.on("change:frame", drawTickets);
     ["change:selected_player", "change:rounds_meta"]
         .forEach((event) => model.on(event, drawSidebar));
     model.on("change:aggregates", drawAggregates);
     model.on("change:tickets", drawTickets);
+    model.on("change:route_usage", drawRouteUsageHeader);
+    model.on("change:route_usage_wins_only", drawRouteUsageHeader);
 
     return () => { if (timer != null) clearInterval(timer); };
 }

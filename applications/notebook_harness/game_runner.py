@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -18,6 +19,7 @@ from notebook_harness.rendering import (
     build_culled_nodes,
     build_edges,
     build_nodes,
+    build_route_usage_edges,
     claimed_by_from_snapshot,
 )
 
@@ -261,6 +263,10 @@ class HarnessSeries:
     round is individually reproducible."""
 
     games: List[HarnessGame]
+    _route_usage_cache: Dict[
+        Tuple[str, bool],
+        Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]],
+    ] = field(default_factory=dict, init=False, repr=False)
 
     def play(
         self, on_round_complete: 'Callable[[int, int], None] | None' = None
@@ -268,6 +274,7 @@ class HarnessSeries:
         total = len(self.games)
         for completed, game in enumerate(self.games, start=1):
             game.play()
+            self._route_usage_cache.clear()
             if on_round_complete is not None:
                 on_round_complete(completed, total)
 
@@ -325,6 +332,52 @@ class HarnessSeries:
             }
             for entry in meta
         ]
+
+    def route_usage(
+        self, player_id: str, wins_only: bool = False
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]]:
+        """Aggregate final route ownership for one seat across this series."""
+        cache_key = (player_id, wins_only)
+        cached = self._route_usage_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        counts: Counter[str] = Counter()
+        games_included = 0
+        for game in self.games:
+            if game.snapshot_count() == 0:
+                continue
+            final_index = game.snapshot_count() - 1
+            final = game.leaderboard_at(final_index)
+            if wins_only and final[0]["playerId"] != player_id:
+                continue
+            games_included += 1
+            claimed_by = claimed_by_from_snapshot(
+                game.logger.snapshots[final_index]["turnState"]
+            )
+            counts.update(
+                route_id for route_id, owner in claimed_by.items() if owner == player_id
+            )
+
+        roster_entry = next(
+            (entry for entry in self.roster() if entry["id"] == player_id),
+            {"id": player_id, "name": player_id, "color": "#888"},
+        )
+        map_graph = self.games[0].game.context.get_map()
+        result = (
+            build_nodes(map_graph),
+            build_route_usage_edges(map_graph, counts),
+            {
+                "playerId": player_id,
+                "playerName": roster_entry["name"],
+                "playerColor": roster_entry["color"],
+                "winsOnly": wins_only,
+                "gamesIncluded": games_included,
+                "totalClaims": sum(counts.values()),
+            },
+        )
+        self._route_usage_cache[cache_key] = result
+        return result
 
 
 def initialize_series(

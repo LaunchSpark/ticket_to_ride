@@ -9,6 +9,7 @@ from notebook_harness.rendering import (
     build_culled_nodes,
     build_edges,
     build_nodes,
+    build_route_usage_edges,
     claimed_by_from_snapshot,
 )
 
@@ -106,6 +107,26 @@ class RenderingTests(unittest.TestCase):
 
         edges_by_id = {edge["id"]: edge for edge in edges}
         self.assertEqual(edges_by_id[solo_route.route_id]["curvature"], 0)
+
+    def test_route_usage_edges_normalize_counts_and_keep_map_context(self) -> None:
+        game_map = MapGraph(player_count=2)
+        edges = build_route_usage_edges(
+            game_map,
+            {"Seattle-Portland-1": 4, "Seattle-Portland-2": 2},
+        )
+        by_id = {edge["id"]: edge for edge in edges}
+
+        busiest = by_id["Seattle-Portland-1"]
+        second = by_id["Seattle-Portland-2"]
+        unused = next(edge for edge in edges if edge["id"] not in {
+            "Seattle-Portland-1", "Seattle-Portland-2"
+        })
+        self.assertEqual(busiest["opacity"], 1.0)
+        self.assertEqual(busiest["data"]["claimShare"], 4 / 6)
+        self.assertEqual(second["data"]["normalizedClaims"], 0.5)
+        self.assertAlmostEqual(second["opacity"], 0.54)
+        self.assertEqual(unused["data"]["claimCount"], 0)
+        self.assertEqual(unused["opacity"], 0.08)
 
 
 class CulledRenderingTests(unittest.TestCase):

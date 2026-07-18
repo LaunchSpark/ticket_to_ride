@@ -44,6 +44,13 @@ class StoredMatchSeriesTests(unittest.TestCase):
         self.assertEqual(self.stored.active_player_at(0, 0), self.live.active_player_at(0, 0))
         self.assertEqual(self.stored.leaderboard_at(0, 3), self.live.leaderboard_at(0, 3))
         self.assertEqual(self.stored.aggregates(), self.live.aggregates())
+        self.assertEqual(
+            self.stored.route_usage("bot_0"), self.live.route_usage("bot_0")
+        )
+        self.assertEqual(
+            self.stored.route_usage("bot_1", wins_only=True),
+            self.live.route_usage("bot_1", wins_only=True),
+        )
 
     def test_board_at_matches_live_series(self) -> None:
         stored_nodes, stored_edges = self.stored.board_at(0, 5)

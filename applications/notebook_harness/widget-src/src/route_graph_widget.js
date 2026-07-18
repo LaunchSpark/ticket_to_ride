@@ -55,16 +55,7 @@ class MyRBush extends RBush {
     compareMinY(a, b) { return a.y - b.y; }
 }
 
-let local_selected_ids = [];
-let colour_scale_type = "";
-let plot;
-let tree;
 let default_node_size = 5;
-let colour_feature = undefined;
-let node_size_feature = undefined;
-let colour_scale;
-let select_feature = undefined;
-let select_feature_value = undefined;
 
 function debounce(func, wait) {
     let timeout;
@@ -74,11 +65,6 @@ function debounce(func, wait) {
     };
 }
 
-const create_rtree = (data) => {
-    tree = new MyRBush();
-    tree.load(data);
-};
-
 const get_feature_type = (value) => {
     if (typeof value === "number") return "numeric";
     if (typeof value === "string" && value.startsWith("#")) return "hash_string";
@@ -87,39 +73,6 @@ const get_feature_type = (value) => {
 
 const ua = navigator.userAgent.toLowerCase();
 const isMac = ua.includes("macintosh");
-
-const create_node_canvas_object = (plot, node_scale, node_size_feature) => {
-    return plot.nodeCanvasObject((node, ctx) => {
-        let radius;
-        if (node_size_feature == undefined || node_size_feature == "") {
-            radius = default_node_size * node_scale;
-        } else {
-            radius = node[node_size_feature] * node_scale;
-        }
-        const isLocalSelected = local_selected_ids.includes(node.id);
-        const hasSelection = local_selected_ids.length > 0;
-        const fillColour = colour_scale ? colour_scale(node[colour_feature]) : "#4a4a4a";
-
-        ctx.globalAlpha = hasSelection && !isLocalSelected ? 0.2 : 1.0;
-
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-        ctx.fillStyle = fillColour;
-        ctx.fill();
-
-        if (isLocalSelected) {
-            ctx.lineWidth = radius / 5;
-            ctx.strokeStyle = "red";
-            ctx.stroke();
-        } else {
-            ctx.lineWidth = radius / 10;
-            ctx.strokeStyle = "lightgrey";
-            ctx.stroke();
-        }
-
-        ctx.globalAlpha = 1.0;
-    });
-};
 
 // Train spaces get an outline contrasting their own fill (not the page
 // background), so dark spaces stay visible on dark themes and light spaces
@@ -166,9 +119,48 @@ function link_distance_for(model, link) {
 function render({ model, el }) {
     const debouncedSaveChanges = debounce(() => model.save_changes(), 300);
     const normalized_opacity = (value) => Math.min(1, Math.max(0, Number(value)));
+    let local_selected_ids = [];
+    let colour_scale_type = "";
+    let plot;
+    let tree;
+    let colour_feature;
+    let node_size_feature;
+    let colour_scale;
+    let select_feature;
+    let select_feature_value;
+
+    const create_rtree = (nodes) => {
+        tree = new MyRBush();
+        tree.load(nodes);
+    };
+
+    const create_node_canvas_object = (graph, scale, size_feature) => {
+        return graph.nodeCanvasObject((node, ctx) => {
+            const radius = size_feature == undefined || size_feature == ""
+                ? default_node_size * scale
+                : node[size_feature] * scale;
+            const isLocalSelected = local_selected_ids.includes(node.id);
+            const hasSelection = local_selected_ids.length > 0;
+            const fillColour = colour_scale ? colour_scale(node[colour_feature]) : "#4a4a4a";
+
+            ctx.globalAlpha = hasSelection && !isLocalSelected ? 0.2 : 1.0;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+            ctx.fillStyle = fillColour;
+            ctx.fill();
+            ctx.lineWidth = isLocalSelected ? radius / 5 : radius / 10;
+            ctx.strokeStyle = isLocalSelected ? "red" : "lightgrey";
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        });
+    };
+
     let unclaimed_route_opacity = normalized_opacity(
         model.get("unclaimed_route_opacity") ?? default_unclaimed_route_opacity
     );
+    const route_opacity = (link) => Number.isFinite(Number(link.opacity))
+        ? normalized_opacity(link.opacity)
+        : (link.claimedColor ? 1 : unclaimed_route_opacity);
 
     const node_radius = (node) => {
         if (node_size_feature == undefined || node_size_feature == "") {
@@ -250,7 +242,7 @@ function render({ model, el }) {
             if (carLength <= 0) continue;
 
             ctx.save();
-            ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity;
+            ctx.globalAlpha = route_opacity(link);
             ctx.translate(center.x, center.y);
             ctx.rotate(Math.atan2(direction.y, direction.x));
 
@@ -331,7 +323,7 @@ function render({ model, el }) {
             // strokes a full-width claim band in its place.
             .linkColor((link) => link.claimedColor
                 ? "rgba(0,0,0,0)"
-                : color_with_alpha(link.color || "#999999", unclaimed_route_opacity))
+                : color_with_alpha(link.color || "#999999", route_opacity(link)))
             // Thin roadbed only - the visible route body is the train spaces
             // painted on top in "after" mode.
             .linkWidth(() => 1)
@@ -400,7 +392,7 @@ function render({ model, el }) {
     node_size_feature = model.get("node_size_feature");
     select_feature = model.get("select_feature");
     select_feature_value = model.get("select_feature_value");
-    let global_selected_ids = model.get("selected_ids");
+    let global_selected_ids = model.get("selected_ids") || [];
 
     plot = create_plot(data);
     // A force receives the simulation alpha on every tick. It runs after the
@@ -496,10 +488,13 @@ function render({ model, el }) {
         const node = node_at(coords.x, coords.y);
         const link = node ? null : link_at(coords.x, coords.y);
 
+        const usage = link && link.data && Number.isFinite(link.data.claimCount)
+            ? `${link.data.claimCount} claims · ${(100 * link.data.claimShare).toFixed(1)}% of claims`
+            : "";
         const label = node
             ? node.name
             : link
-                ? (link.data && link.data.length ? `${link.id} (${link.data.length})` : link.id)
+                ? `${link.data && link.data.length ? `${link.id} (${link.data.length})` : link.id}${usage ? ` · ${usage}` : ""}`
                 : "";
         if (label) {
             const rect = canvas.getBoundingClientRect();

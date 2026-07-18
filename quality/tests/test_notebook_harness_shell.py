@@ -27,6 +27,9 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertEqual(shell.frame["round"], 0)
         self.assertEqual(shell.frame["turn"], 0)
         self.assertEqual(shell.frame["leaderboard"], shell.leaderboard)
+        self.assertEqual(shell.route_usage["playerId"], "bot_0")
+        self.assertFalse(shell.route_usage["winsOnly"])
+        self.assertEqual(shell.route_usage["gamesIncluded"], 2)
 
     def test_composite_css_includes_embedded_widget_styles(self) -> None:
         css = SpectateShellWidget._css
@@ -56,7 +59,7 @@ class ShellWidgetTests(unittest.TestCase):
         ).read_text()
         self.assertIn("var default_unclaimed_route_opacity = 0.5", source)
         self.assertIn(
-            "ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity",
+            "ctx.globalAlpha = route_opacity(link)",
             source,
         )
 
@@ -69,7 +72,7 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertIn('frameValue(model, "ticket_player")', source)
         self.assertNotIn("openStatsModal", source)
         self.assertIn(
-            'color_with_alpha(link.color || "#999999", unclaimed_route_opacity)',
+            'color_with_alpha(link.color || "#999999", route_opacity(link))',
             source,
         )
         self.assertNotIn(".linkOpacity(", source)
@@ -99,6 +102,23 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertIn('.step = "0.05"', source)
         self.assertIn('model.set("unclaimed_route_opacity", value)', source)
         self.assertIn('model.on("change:unclaimed_route_opacity"', source)
+
+    def test_bundled_shell_mounts_independent_route_usage_heatmap(self) -> None:
+        source = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.js"
+        ).read_text()
+        css = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.css"
+        ).read_text()
+        self.assertIn("Route Claim Heatmap", source)
+        self.assertIn("Winning games only", source)
+        self.assertIn('model.set("route_usage_wins_only", checkbox.checked)', source)
+        self.assertIn('data: "route_usage"', source)
+        self.assertIn('selected_ids: "route_usage_selected_ids"', source)
+        self.assertIn("Number.isFinite(Number(link.opacity))", source)
+        self.assertIn("let local_selected_ids = []", source)
+        self.assertIn('"usage usage"', css)
+        self.assertIn(".shell-slot-usage", css)
 
     def test_bundled_playback_controls_survive_leaderboard_redraws(self) -> None:
         source = files("notebook_harness").joinpath(
@@ -153,6 +173,23 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertEqual(shell.tickets, self.series.tickets_at(0, 0, "bot_1"))
         self.assertEqual(shell.frame["ticket_player"], "bot_1")
         self.assertEqual(shell.board["layoutKey"], "bot_1")
+        self.assertEqual(shell.route_usage["playerId"], "bot_1")
+
+    def test_route_usage_can_filter_to_games_selected_player_won(self) -> None:
+        shell = build_shell(self.series)
+        shell.selected_player = "bot_1"
+        shell.route_usage_wins_only = True
+
+        update_shell(shell, self.series)
+
+        expected_wins = next(
+            entry["wins"] for entry in self.series.aggregates()
+            if entry["playerId"] == "bot_1"
+        )
+        self.assertTrue(shell.route_usage["winsOnly"])
+        self.assertEqual(shell.route_usage["playerId"], "bot_1")
+        self.assertEqual(shell.route_usage["gamesIncluded"], expected_wins)
+        self.assertTrue(shell.route_usage["layoutKey"].startswith("__usage__:bot_1:"))
 
     def test_bundled_graph_updates_preserve_force_continuity(self) -> None:
         source = files("notebook_harness").joinpath(

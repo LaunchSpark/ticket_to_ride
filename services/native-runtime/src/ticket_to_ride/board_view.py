@@ -10,7 +10,7 @@ byte-identical to one built inside a notebook.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Tuple
 
 from ticket_to_ride.engine.state.map import CulledMap, MapGraph, Route
 
@@ -220,6 +220,38 @@ def build_edges(
                     "claimedBy": owner,
                     "segments": build_segments(route),
                 },
+            }
+        )
+    return edges
+
+
+def build_route_usage_edges(
+    map_graph: MapGraph,
+    claim_counts: Mapping[str, int],
+) -> List[Dict[str, Any]]:
+    """Build an unclaimed board whose route opacity visualizes claim frequency.
+
+    ``claimShare`` is the route's fraction of all claims in the selected
+    sample. ``normalizedClaims`` divides by the most-claimed route, giving
+    the renderer a useful 0..1 heat scale even on maps with many routes. A
+    small display floor keeps never-claimed routes visible as map context.
+    """
+    edges = build_edges(map_graph, claimed_by={}, player_colors={})
+    total_claims = sum(max(0, int(count)) for count in claim_counts.values())
+    max_claims = max(
+        (max(0, int(count)) for count in claim_counts.values()), default=0
+    )
+
+    for edge in edges:
+        count = max(0, int(claim_counts.get(edge["id"], 0)))
+        share = count / total_claims if total_claims else 0.0
+        normalized = count / max_claims if max_claims else 0.0
+        edge["opacity"] = 0.08 + 0.92 * normalized
+        edge["data"].update(
+            {
+                "claimCount": count,
+                "claimShare": share,
+                "normalizedClaims": normalized,
             }
         )
     return edges

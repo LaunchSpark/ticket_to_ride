@@ -13,6 +13,7 @@ from ticket_to_ride.board_view import (
     build_culled_nodes,
     build_edges,
     build_nodes,
+    build_route_usage_edges,
     claimed_by_from_turn_state,
     claimed_by_from_turn_state as claimed_by_from_snapshot,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "build_culled_nodes",
     "build_edges",
     "build_nodes",
+    "build_route_usage_edges",
     "claimed_by_from_snapshot",
     "claimed_by_from_turn_state",
 ]

@@ -43,12 +43,14 @@ class SpectateShellWidget(anywidget.AnyWidget):
     # shell reads this frame so it never combines two different turns.
     frame = traitlets.Dict().tag(sync=True)
     aggregates = traitlets.List([]).tag(sync=True)
+    route_usage = traitlets.Dict().tag(sync=True)
     rounds_meta = traitlets.List([]).tag(sync=True)
     current_player = traitlets.Unicode("").tag(sync=True)
 
     # JS -> Python interaction
     playback = traitlets.Dict({"round": 0, "turn": 0}).tag(sync=True)
     selected_player = traitlets.Unicode("").tag(sync=True)
+    route_usage_wins_only = traitlets.Bool(False).tag(sync=True)
 
     # playback tuning
     interval_ms = traitlets.Int(300).tag(sync=True)
@@ -64,10 +66,12 @@ class SpectateShellWidget(anywidget.AnyWidget):
     colour_feature = traitlets.Unicode("").tag(sync=True)
     colour_scale_type = traitlets.Unicode("").tag(sync=True)
     selected_ids = traitlets.List([]).tag(sync=True)
+    route_usage_selected_ids = traitlets.List([]).tag(sync=True)
     select_feature = traitlets.Unicode("").tag(sync=True)
     select_feature_value = traitlets.Unicode("").tag(sync=True)
     width = traitlets.Int(800).tag(sync=True)
     height = traitlets.Int(500).tag(sync=True)
+    route_usage_height = traitlets.Int(420).tag(sync=True)
 
 
 def _trait(shell: Any, name: str, default: Any) -> Any:
@@ -105,6 +109,21 @@ def update_shell(shell: Any, series: Any) -> None:
     stats = series.stats_at(round_index, turn_index)
     tickets = series.tickets_at(round_index, turn_index, viewpoint or active)
 
+    # This second graph is series-wide rather than tied to replay. With no
+    # explicit player-card selection, keep it on the first seat so playback
+    # does not make the aggregate heatmap jump from bot to bot each turn.
+    usage_player = viewpoint or series.roster()[0]["id"]
+    wins_only = bool(_trait(shell, "route_usage_wins_only", False))
+    usage_nodes, usage_edges, usage_summary = series.route_usage(
+        usage_player, wins_only=wins_only
+    )
+    route_usage = build_graph_data(
+        usage_nodes,
+        usage_edges,
+        layout_key=f"__usage__:{usage_player}:{int(wins_only)}",
+    )
+    route_usage.update(usage_summary)
+
     # Publish the coherent frame first. JS redraws from this single trait;
     # the legacy trait assignments that follow cannot expose partial state.
     shell.frame = {
@@ -124,3 +143,5 @@ def update_shell(shell: Any, series: Any) -> None:
     shell.stats = stats
     shell.tickets = tickets
     shell.current_player = active
+    if _trait(shell, "route_usage", {}) != route_usage:
+        shell.route_usage = route_usage
