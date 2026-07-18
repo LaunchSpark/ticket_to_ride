@@ -114,6 +114,7 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertEqual(shell.frame["ticket_player"], shell.current_player)
         self.assertIn("nodes", shell.board)
         self.assertIn("links", shell.board)
+        self.assertEqual(shell.board["layoutKey"], "__full__")
         self.assertEqual(shell.tickets, self.series.tickets_at(1, 0, shell.current_player))
 
     def test_update_shell_clamps_out_of_range_playback(self) -> None:
@@ -135,3 +136,20 @@ class ShellWidgetTests(unittest.TestCase):
 
         self.assertEqual(shell.tickets, self.series.tickets_at(0, 0, "bot_1"))
         self.assertEqual(shell.frame["ticket_player"], "bot_1")
+        self.assertEqual(shell.board["layoutKey"], "bot_1")
+
+    def test_bundled_culled_view_switch_seeds_then_settles(self) -> None:
+        source = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.js"
+        ).read_text()
+        self.assertIn(
+            "const sameLayoutView = currentData.layoutKey === newData.layoutKey",
+            source,
+        )
+        self.assertIn(
+            "if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true",
+            source,
+        )
+        self.assertIn("plot.cooldownTicks(Infinity)", source)
+        self.assertNotIn("plot.cooldownTicks(0)", source)
+        self.assertNotIn("plot.warmupTicks(0)", source)

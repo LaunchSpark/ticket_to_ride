@@ -35,6 +35,16 @@ class RouteGraphWidget(anywidget.AnyWidget):
     height = traitlets.Int(500).tag(sync=True)
 
 
-def build_graph_data(nodes: list[dict], edges: list[dict]) -> dict:
-    """Wrap harness-built nodes/edges into the {"nodes": ..., "links": ...} shape RouteGraphWidget expects."""
-    return {"nodes": nodes, "links": edges}
+def build_graph_data(
+    nodes: list[dict], edges: list[dict], *, layout_key: str | None = None
+) -> dict:
+    """Wrap nodes/edges in the shape RouteGraphWidget expects.
+
+    ``layout_key`` identifies a full or player-culled view. The renderer uses
+    a key change to distinguish a view switch (seed positions, then settle)
+    from an ordinary playback update (seed positions and remain frozen).
+    """
+    data = {"nodes": nodes, "links": edges}
+    if layout_key is not None:
+        data["layoutKey"] = layout_key
+    return data

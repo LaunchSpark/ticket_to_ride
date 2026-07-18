@@ -543,21 +543,10 @@ function render({ model, el }) {
         return node_at(coords.x, coords.y) === null;
     });
 
-    // Rebuild the graph from the incoming payload on every update, seeding
-    // each node's position (and velocity / drag-pin) from the node it
-    // replaces, so the layout carries over from turn to turn and there is
-    // only ever one dataset. Every update goes through graphData()
-    // ingestion, which re-registers the objects' hidden hit-testing colors
-    // from scratch - so hover/drag registrations can never go stale.
-    //
-    // Engine heat is the one thing managed carefully: graphData()'s setter
-    // always resets alpha to 1, and a 300ms playback stream that keeps
-    // alpha pinned at 1 makes the layout diverge instead of converging
-    // (measured: positions inflate without bound). So same-topology
-    // playback updates ingest with a frozen tick budget (cooldownTicks(0)
-    // + warmupTicks(0): zero ticks, seeded positions stay exactly put),
-    // while topology changes (culled-view switches) and drags (see
-    // onNodeDrag above) restore the budget for a real live settle.
+    // Rebuild the graph from every incoming payload. Matching nodes inherit
+    // only x/y from the objects they replace; velocities, drag pins and force
+    // engine state are never carried over or frozen. The incoming graph then
+    // runs a normal live settle from those seeded positions.
     const update_data = () => {
         const newData = model.get("data");
         const currentData = plot.graphData();
@@ -566,58 +555,22 @@ function render({ model, el }) {
         const sameTopology =
             idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) &&
             idSetsEqual(idSet(currentData.links), idSet(newData.links));
+        const sameLayoutView = currentData.layoutKey === newData.layoutKey;
 
-        if (sameTopology && zoom_to_fit_pending) {
-            // Layout still settling: apply the update's colors in place so
-            // a playing step slider can't keep resetting the settle. The
-            // first post-settle update does a proper seeded rebuild.
-            newData.nodes.forEach((node) => {
-                const current = currentNodesById.get(node.id);
-                if (!current) return;
-                current.name = node.name;
-                current.color = node.color;
-                current.data = node.data;
-            });
-            const currentLinksById = new Map(currentData.links.map((link) => [link.id, link]));
-            newData.links.forEach((link) => {
-                const current = currentLinksById.get(link.id);
-                if (!current) return;
-                current.width = link.width;
-                current.color = link.color;
-                current.claimedColor = link.claimedColor;
-                current.curvature = link.curvature;
-                current.data = link.data;
-            });
-            data = currentData;
-        } else {
-            // Seed the incoming nodes from the ones they replace so the
-            // layout carries over; unmatched ids (fresh merged nodes on a
-            // culled-view switch) start unseeded and settle normally.
-            newData.nodes.forEach((node) => {
-                const previous = currentNodesById.get(node.id);
-                if (!previous) return;
-                node.x = previous.x;
-                node.y = previous.y;
-                node.vx = previous.vx;
-                node.vy = previous.vy;
-                if (previous.fx !== undefined) node.fx = previous.fx;
-                if (previous.fy !== undefined) node.fy = previous.fy;
-            });
+        // Unmatched ids (fresh merged nodes in a culled view) remain
+        // unseeded and are placed by the force engine.
+        newData.nodes.forEach((node) => {
+            const previous = currentNodesById.get(node.id);
+            if (!previous) return;
+            node.x = previous.x;
+            node.y = previous.y;
+        });
 
-            if (sameTopology) {
-                // Settled playback tick: swap the dataset without letting
-                // the ingestion's forced reheat advance the layout.
-                plot.cooldownTicks(0);
-                plot.warmupTicks(0);
-            } else {
-                // Topology change: full settle + one zoomToFit.
-                zoom_to_fit_pending = true;
-                plot.cooldownTicks(Infinity);
-                plot.warmupTicks(10);
-            }
-            data = newData;
-            plot.graphData(data);
-        }
+        if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true;
+        plot.cooldownTicks(Infinity);
+        plot.warmupTicks(10);
+        data = newData;
+        plot.graphData(data);
 
         build_colour_scale();
         create_node_canvas_object(plot, node_scale, node_size_feature);

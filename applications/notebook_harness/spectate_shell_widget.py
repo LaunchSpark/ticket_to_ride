@@ -99,7 +99,7 @@ def update_shell(shell: Any, series: Any) -> None:
     nodes, edges = series.board_at(round_index, turn_index, viewpoint)
     active = series.active_player_at(round_index, turn_index)
 
-    board = build_graph_data(nodes, edges)
+    board = build_graph_data(nodes, edges, layout_key=viewpoint or "__full__")
     market = series.market_at(round_index, turn_index, viewpoint)
     leaderboard = series.leaderboard_at(round_index, turn_index)
     stats = series.stats_at(round_index, turn_index)

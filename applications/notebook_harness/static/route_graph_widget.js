@@ -12400,47 +12400,18 @@ function render3({ model, el }) {
     const currentData = plot.graphData();
     const currentNodesById = new Map(currentData.nodes.map((node) => [node.id, node]));
     const sameTopology = idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) && idSetsEqual(idSet(currentData.links), idSet(newData.links));
-    if (sameTopology && zoom_to_fit_pending) {
-      newData.nodes.forEach((node) => {
-        const current = currentNodesById.get(node.id);
-        if (!current) return;
-        current.name = node.name;
-        current.color = node.color;
-        current.data = node.data;
-      });
-      const currentLinksById = new Map(currentData.links.map((link) => [link.id, link]));
-      newData.links.forEach((link) => {
-        const current = currentLinksById.get(link.id);
-        if (!current) return;
-        current.width = link.width;
-        current.color = link.color;
-        current.claimedColor = link.claimedColor;
-        current.curvature = link.curvature;
-        current.data = link.data;
-      });
-      data = currentData;
-    } else {
-      newData.nodes.forEach((node) => {
-        const previous = currentNodesById.get(node.id);
-        if (!previous) return;
-        node.x = previous.x;
-        node.y = previous.y;
-        node.vx = previous.vx;
-        node.vy = previous.vy;
-        if (previous.fx !== void 0) node.fx = previous.fx;
-        if (previous.fy !== void 0) node.fy = previous.fy;
-      });
-      if (sameTopology) {
-        plot.cooldownTicks(0);
-        plot.warmupTicks(0);
-      } else {
-        zoom_to_fit_pending = true;
-        plot.cooldownTicks(Infinity);
-        plot.warmupTicks(10);
-      }
-      data = newData;
-      plot.graphData(data);
-    }
+    const sameLayoutView = currentData.layoutKey === newData.layoutKey;
+    newData.nodes.forEach((node) => {
+      const previous = currentNodesById.get(node.id);
+      if (!previous) return;
+      node.x = previous.x;
+      node.y = previous.y;
+    });
+    if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true;
+    plot.cooldownTicks(Infinity);
+    plot.warmupTicks(10);
+    data = newData;
+    plot.graphData(data);
     build_colour_scale();
     create_node_canvas_object(plot, node_scale, node_size_feature);
   };
@@ -12637,7 +12608,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-092340Z" : "dev";
+  const build_tag = true ? "20260718-092956Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
