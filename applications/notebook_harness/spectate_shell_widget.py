@@ -1,0 +1,92 @@
+"""Composite spectate dashboard: the viewer replay dashboard's grid layout
+rebuilt as one anywidget, embedding the route-graph and info-bar JS renderers.
+
+Trait flow: Python pushes per-step payloads (board/market/leaderboard/stats/
+tickets); JS owns playback interaction and writes `playback` and
+`selected_player` back, which the spectate view cell reads reactively.
+"""
+
+from __future__ import annotations
+
+from importlib.resources import files
+from typing import Any
+
+import anywidget
+import traitlets
+
+from notebook_harness.route_graph_widget import build_graph_data
+
+
+class SpectateShellWidget(anywidget.AnyWidget):
+    _esm = files("notebook_harness").joinpath("static/spectate_shell_widget.js")
+    _css = files("notebook_harness").joinpath("static/spectate_shell_widget.css")
+
+    # Python -> JS payloads
+    board = traitlets.Dict().tag(sync=True)
+    market = traitlets.Dict().tag(sync=True)
+    players = traitlets.List([]).tag(sync=True)
+    leaderboard = traitlets.List([]).tag(sync=True)
+    stats = traitlets.Dict().tag(sync=True)
+    tickets = traitlets.List([]).tag(sync=True)
+    aggregates = traitlets.List([]).tag(sync=True)
+    rounds_meta = traitlets.List([]).tag(sync=True)
+    current_player = traitlets.Unicode("").tag(sync=True)
+
+    # JS -> Python interaction
+    playback = traitlets.Dict({"round": 0, "turn": 0}).tag(sync=True)
+    selected_player = traitlets.Unicode("").tag(sync=True)
+
+    # playback tuning
+    interval_ms = traitlets.Int(300).tag(sync=True)
+
+    # route-graph passthroughs (same names RouteGraphWidget uses; the JS
+    # facade maps the graph's `data` trait onto `board`)
+    repulsion = traitlets.Int(80).tag(sync=True)
+    link_distance_base = traitlets.Float(30).tag(sync=True)
+    link_distance_scale = traitlets.Float(15).tag(sync=True)
+    node_scale = traitlets.Float(3).tag(sync=True)
+    node_size_feature = traitlets.Unicode("").tag(sync=True)
+    colour_feature = traitlets.Unicode("").tag(sync=True)
+    colour_scale_type = traitlets.Unicode("").tag(sync=True)
+    selected_ids = traitlets.List([]).tag(sync=True)
+    select_feature = traitlets.Unicode("").tag(sync=True)
+    select_feature_value = traitlets.Unicode("").tag(sync=True)
+    width = traitlets.Int(800).tag(sync=True)
+    height = traitlets.Int(500).tag(sync=True)
+
+
+def _trait(shell: Any, name: str, default: Any) -> Any:
+    """Read a trait off a raw widget or a mo.ui.anywidget wrapper."""
+    value = getattr(shell, "value", None)
+    if isinstance(value, dict) and name in value:
+        return value[name]
+    return getattr(shell, name, default)
+
+
+def build_shell(series: Any) -> SpectateShellWidget:
+    """Create the shell once per series, seeding static and step-0 traits."""
+    shell = SpectateShellWidget(
+        players=series.roster(),
+        rounds_meta=series.rounds_meta(),
+        aggregates=series.aggregates(),
+    )
+    update_shell(shell, series)
+    return shell
+
+
+def update_shell(shell: Any, series: Any) -> None:
+    """Push the payloads for the shell's current playback step and selection."""
+    playback = _trait(shell, "playback", {}) or {}
+    round_index = min(max(int(playback.get("round", 0)), 0), series.round_count() - 1)
+    turn_index = min(max(int(playback.get("turn", 0)), 0), series.turn_count(round_index) - 1)
+    viewpoint = _trait(shell, "selected_player", "") or None
+
+    nodes, edges = series.board_at(round_index, turn_index, viewpoint)
+    active = series.active_player_at(round_index, turn_index)
+
+    shell.board = build_graph_data(nodes, edges)
+    shell.market = series.market_at(round_index, turn_index, viewpoint)
+    shell.leaderboard = series.leaderboard_at(round_index, turn_index)
+    shell.stats = series.stats_at(round_index, turn_index)
+    shell.tickets = series.tickets_at(round_index, turn_index, viewpoint or active)
+    shell.current_player = active
