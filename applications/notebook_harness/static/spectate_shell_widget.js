@@ -12038,6 +12038,7 @@ var default_link_distance_scale = 15;
 var default_node_scale = 3;
 var train_space_width = 6;
 var train_space_fill = 0.72;
+var unclaimed_route_opacity = 0.8;
 var claim_inset_fraction = 0.25;
 var claim_band_alpha = 0.45;
 var MyRBush = class extends RBush {
@@ -12185,6 +12186,7 @@ function render3({ model, el }) {
       const carLength = slotLength * train_space_fill;
       if (carLength <= 0) continue;
       ctx.save();
+      ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity;
       ctx.translate(center.x, center.y);
       ctx.rotate(Math.atan2(direction.y, direction.x));
       const seg = segments && segments[i2] ? segments[i2] : { kind: "solid", colors: [baseColor] };
@@ -12241,7 +12243,7 @@ function render3({ model, el }) {
     }
   };
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).enablePointerInteraction(false).enableNodeDrag(false).cooldownTime(5e3).warmupTicks(10).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).enablePointerInteraction(false).enableNodeDrag(false).cooldownTime(5e3).warmupTicks(10).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999").linkOpacity((link) => link.claimedColor ? 0 : unclaimed_route_opacity).linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
       if (zoom_to_fit_pending) {
         zoom_to_fit_pending = false;
         plot.zoomToFit(400);
@@ -12599,7 +12601,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-084139Z" : "dev";
+  const build_tag = true ? "20260718-085704Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {

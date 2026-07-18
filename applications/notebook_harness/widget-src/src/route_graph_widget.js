@@ -40,6 +40,8 @@ let default_node_scale = 3;
 let train_space_width = 6;
 // Fraction of each slot the rectangle fills; the rest is the gap between spaces.
 let train_space_fill = 0.72;
+// Unclaimed routes recede slightly so claimed routes remain visually primary.
+let unclaimed_route_opacity = 0.8;
 // Claim-marker inset on every side, as a fraction of the space width, so the
 // route's base color pokes out around the owner's color.
 let claim_inset_fraction = 0.25;
@@ -237,6 +239,7 @@ function render({ model, el }) {
             if (carLength <= 0) continue;
 
             ctx.save();
+            ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity;
             ctx.translate(center.x, center.y);
             ctx.rotate(Math.atan2(direction.y, direction.x));
 
@@ -316,6 +319,7 @@ function render({ model, el }) {
             // Claimed links hide the default line entirely; paint_train_spaces
             // strokes a full-width claim band in its place.
             .linkColor((link) => (link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999"))
+            .linkOpacity((link) => link.claimedColor ? 0 : unclaimed_route_opacity)
             // Thin roadbed only - the visible route body is the train spaces
             // painted on top in "after" mode.
             .linkWidth(() => 1)
