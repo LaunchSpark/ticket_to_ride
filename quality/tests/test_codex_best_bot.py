@@ -99,6 +99,15 @@ class CodexBestBotHeuristicTests(unittest.TestCase):
 
         self.assertLess(useful, irrelevant)
 
+    def test_path_weight_is_structural_not_repriced_from_the_hand(self) -> None:
+        route = next(candidate for candidate in self._prime().routes if candidate.length >= 4)
+        before = self.bot._route_cost(route)
+        self.players[0].get_hand().update({route.color or "R": route.length, "L": 3})
+        self._prime()
+
+        self.assertEqual(self.bot._route_cost(route), before)
+        self.assertEqual(before, self.bot._route_points(route))
+
     def test_mixed_components_are_aggregated_without_collapsing_colors(self) -> None:
         mixed = Route(
             "A", "B", 5, "X", "mixed",

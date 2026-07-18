@@ -27,7 +27,7 @@ with app.setup:
         "schema_version": 1,
         "id": "codex_best_bot",
         "name": "Codex Best Bot",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "description": "Expected-turn portfolio bot with risk-adjusted route ordering.",
         "author": "OpenAI Codex",
         "tags": ["example", "qualifier", "codex"],
@@ -38,7 +38,7 @@ with app.setup:
 class CodexBestBot(ActionBot):
     """Non-ML expected-turn portfolio planner.
 
-    Ticket paths retain cheap cached route weights, while final decisions
+    Ticket paths use stable route-point weights, while final decisions
     aggregate every planned cost component and evaluate the evolving hand.
     A bounded Bellman DP prices small blind-draw portfolios exactly; large
     portfolios use a joint-probability bound. Legal claims are evaluated by
@@ -56,18 +56,16 @@ class CodexBestBot(ActionBot):
     # A third offered ticket rides along if it costs less than this many
     # extra expected turns once the pair's planned routes are free.
     _EXTRA_TICKET_MAX_COST = 4
-    # Multiplier for half of a double route in a 2-3 player game: one
-    # opponent claim on either sibling closes this one for good.
-    _DOUBLE_ROUTE_RISK = 1.5
     # Only truly irreplaceable planned routes (infinite replacement cost)
     # jump ahead of higher-scoring planned claims by default.
     _CRITICAL_ROUTE_PRESSURE = 999.0
-    # Speculative late-game route scoring underperformed ticket draws in
-    # smoke tests, so the default only scores opportunistically when a
-    # destination-ticket offer is unavailable.
-    _LATE_GAME_TRAINS = 0
-    _OPPONENT_ENDGAME_TRAINS = 0
-    _OPPORTUNITY_MIN_POINTS = 999
+    # Once either side can approach the endgame, prefer an affordable route
+    # worth at least four points over another ticket draw. Mirrored
+    # Example-Bot sweeps put eight trains at the best score/tempo boundary;
+    # ten was already too conservative.
+    _LATE_GAME_TRAINS = 8
+    _OPPONENT_ENDGAME_TRAINS = 8
+    _OPPORTUNITY_MIN_POINTS = 4
     # Exact blind-draw Bellman states are cheap while the product of the
     # remaining per-color quotas stays small. Above this, use a conservative
     # joint-probability bound so large ticket portfolios stay constant-time.
@@ -103,15 +101,11 @@ class CodexBestBot(ActionBot):
         """Cache the per-decision lookups every _route_cost call shares."""
         self._view = view
         self._odds = view.draw_odds()
-        self._route_cost_cache = {}
         self._portfolio_cache = {}
         self._blind_draw_cache = {}
         self._ticket_plan_cache = {}
         self._route_pressure_cache = {}
         self._replan_result = None
-        self._siblings_by_key = {}
-        for route in view.routes:
-            self._siblings_by_key.setdefault(route.sibling_group_key(), []).append(route)
 
     @staticmethod
     def _hand_key(hand) -> tuple:
@@ -335,26 +329,14 @@ class CodexBestBot(ActionBot):
         return value
 
     def _route_cost(self, route: Route) -> float:
-        """Risk-adjusted expected turns to assemble and claim this route.
+        """Stable structural path weight; hand state belongs in action DP.
 
-        Deficit cards arrive at ~2 picks per drawing turn: matching face-up
-        cards are certain picks, the rest come at the unknown-pool odds for
-        the color (locomotives drawn blind count toward any color). Gray
-        routes take their cheapest color. Add the claim turn itself, then
-        scale half of a double in a 2-3 player game, where losing the race
-        to either sibling forfeits the route entirely. Infinity means the
-        route can no longer be assembled from public information.
+        Repricing topology from the current hand/market made the chosen path
+        thrash after nearly every draw. Route points are deterministic, favor
+        train-efficient ticket networks, and leave the portfolio evaluator to
+        optimize how that fixed network is acquired and paid for.
         """
-        cached = self._route_cost_cache.get(route.route_id)
-        if cached is not None:
-            return cached
-        view = self._view
-        cost = self._portfolio_expected_turns((route,))
-        siblings = self._siblings_by_key.get(route.sibling_group_key(), [route])
-        if len(siblings) > 1 and view.player_count <= 3:
-            cost *= self._DOUBLE_ROUTE_RISK
-        self._route_cost_cache[route.route_id] = cost
-        return cost
+        return self._route_points(route)
 
     def _adjacency(self, culled, free_route_ids: 'Collection[str]' = frozenset()):
         """node -> [(neighbor, cost, route)] with planned/free routes at cost 0."""
