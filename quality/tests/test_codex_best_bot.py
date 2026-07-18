@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import unittest
+from collections import Counter
 
 from external.bots.codex_best_bot import CodexBestBot
 from external.bots.random_bot import RandomBot
 
 from notebook_harness.game_runner import available_bots, initialize_game
+from ticket_to_ride.engine.actions import ClaimRoute
 from ticket_to_ride.engine.player import Player
+from ticket_to_ride.engine.state.costs import parse_cost
 from ticket_to_ride.engine.state.game_context import GameContext
+from ticket_to_ride.engine.state.map import Route
 from ticket_to_ride.engine.state.views import PlayerView
 
 
@@ -77,6 +81,64 @@ class CodexBestBotHeuristicTests(unittest.TestCase):
         route, _ = self.bot._choose_route_pick([(short, 0), (long, 0)])
 
         self.assertEqual(route, long)
+
+    def test_portfolio_values_bycatch_for_a_later_route(self) -> None:
+        red = Route("A", "B", 2, "R", "portfolio-red")
+        blue = Route("B", "C", 3, "U", "portfolio-blue")
+        self.bot._odds = {color: 0.1 for color in self.bot._CARD_COLORS}
+        self.bot._odds["L"] = 0.1
+        self.bot._blind_draw_cache.clear()
+        self.bot._portfolio_cache.clear()
+
+        useful = self.bot._portfolio_expected_turns(
+            [red, blue], Counter({"R": 2, "U": 1}), face_up_cards=()
+        )
+        irrelevant = self.bot._portfolio_expected_turns(
+            [red, blue], Counter({"R": 2, "G": 1}), face_up_cards=()
+        )
+
+        self.assertLess(useful, irrelevant)
+
+    def test_mixed_components_are_aggregated_without_collapsing_colors(self) -> None:
+        mixed = Route(
+            "A", "B", 5, "X", "mixed",
+            cost=parse_cost("3U+2R", 5),
+        )
+
+        demand, locomotive_floor = self.bot._portfolio_requirements(
+            [mixed], Counter(), ()
+        )
+
+        self.assertEqual(demand, Counter({"U": 3, "R": 2}))
+        self.assertEqual(locomotive_floor, 0)
+
+    def test_claim_payment_preserves_wilds_for_the_remaining_portfolio(self) -> None:
+        view = self._prime()
+        route = next(
+            candidate for candidate in view.routes
+            if candidate.color in self.bot._CARD_COLORS and candidate.length >= 2
+        )
+        future_color = next(
+            color for color in self.bot._CARD_COLORS if color != route.color
+        )
+        future = Route("Future A", "Future B", route.length, future_color, "future")
+        hand = self.players[0].get_hand()
+        hand.clear()
+        hand.update({route.color: route.length, "L": route.length})
+        view = self._prime()
+
+        def fake_replan():
+            self.bot._planned_routes = [route, future]
+            self.bot._planned_route_ids = {route.route_id, future.route_id}
+            return self.bot._planned_routes
+
+        self.bot._replan = fake_replan
+        colored = ClaimRoute(route.route_id, route.color, 0)
+        wild = ClaimRoute(route.route_id, "L", route.length)
+
+        chosen = self.bot._claim_action(view, [wild, colored])
+
+        self.assertEqual(chosen, colored)
 
 
 if __name__ == "__main__":

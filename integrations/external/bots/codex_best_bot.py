@@ -18,6 +18,7 @@ with app.setup:
         DrawFaceUp,
         DrawTickets,
         KeepTickets,
+        claim_spend,
     )
     from ticket_to_ride.engine.state.map import Route
     from ticket_to_ride.engine.state.decks import DestinationTicket
@@ -26,8 +27,8 @@ with app.setup:
         "schema_version": 1,
         "id": "codex_best_bot",
         "name": "Codex Best Bot",
-        "version": "1.0.0",
-        "description": "Qualifier-style bot with conservative route urgency and no-ticket scoring.",
+        "version": "1.1.0",
+        "description": "Expected-turn portfolio bot with risk-adjusted route ordering.",
         "author": "OpenAI Codex",
         "tags": ["example", "qualifier", "codex"],
     }
@@ -35,18 +36,16 @@ with app.setup:
 
 @app.class_definition(hide_code=True)
 class CodexBestBot(ActionBot):
-    """Qualifier-style non-ML bot with conservative timing heuristics.
+    """Non-ML expected-turn portfolio planner.
 
-    Route cost = risk-adjusted expected turns to assemble and claim it,
-    computed from all public information: the cards already in hand, the
-    face-up market (certain picks), and the unknown-pool draw odds
-    (PlayerView.draw_odds - what is left once the discard, exposed hands,
-    and the own hand are accounted for). Gray routes price at their
-    cheapest color, and half of a double route in a 2-3 player game is
-    scaled up because one opponent claim closes it for good. On top of that,
-    truly irreplaceable planned routes are claimed before replaceable
-    high-scoring ones, and ticket-free turns prefer bankable route points
-    instead of dumping the least-needed cards.
+    Ticket paths retain cheap cached route weights, while final decisions
+    aggregate every planned cost component and evaluate the evolving hand.
+    A bounded Bellman DP prices small blind-draw portfolios exactly; large
+    portfolios use a joint-probability bound. Legal claims are evaluated by
+    their exact post-payment state, visible and blind draws by marginal
+    portfolio value, and route order by replacement cost plus opponents'
+    public card readiness. This captures cascading wild-card/bycatch effects
+    without putting exponential work in the pathfinding hot loop.
     """
 
     META = BOT_META
@@ -69,6 +68,10 @@ class CodexBestBot(ActionBot):
     _LATE_GAME_TRAINS = 0
     _OPPONENT_ENDGAME_TRAINS = 0
     _OPPORTUNITY_MIN_POINTS = 999
+    # Exact blind-draw Bellman states are cheap while the product of the
+    # remaining per-color quotas stays small. Above this, use a conservative
+    # joint-probability bound so large ticket portfolios stay constant-time.
+    _PORTFOLIO_DP_MAX_STATES = 256
 
     def __init__(self) -> None:
         super().__init__()
@@ -100,9 +103,236 @@ class CodexBestBot(ActionBot):
         """Cache the per-decision lookups every _route_cost call shares."""
         self._view = view
         self._odds = view.draw_odds()
+        self._route_cost_cache = {}
+        self._portfolio_cache = {}
+        self._blind_draw_cache = {}
+        self._ticket_plan_cache = {}
+        self._route_pressure_cache = {}
+        self._replan_result = None
         self._siblings_by_key = {}
         for route in view.routes:
             self._siblings_by_key.setdefault(route.sibling_group_key(), []).append(route)
+
+    @staticmethod
+    def _hand_key(hand) -> tuple:
+        return tuple(sorted((color, count) for color, count in hand.items() if count > 0))
+
+    @staticmethod
+    def _face_up_key(face_up_cards) -> tuple:
+        return tuple(sorted(Counter(face_up_cards).items()))
+
+    def _color_load(self, demand, color, hand, face_up) -> float:
+        """Expected picks for one color, used only to assign flexible components."""
+        deficit = max(0, demand - hand.get(color, 0))
+        certain = min(deficit, face_up.get(color, 0))
+        remaining = deficit - certain
+        odds = self._odds.get(color, 0.0) + self._odds.get("L", 0.0)
+        if remaining and odds <= 0.0:
+            return float("inf")
+        return certain + (remaining / odds if remaining else 0.0)
+
+    def _portfolio_requirements(self, routes, hand, face_up_cards):
+        """Aggregate route components into one color portfolio and L floor.
+
+        Fixed components accumulate directly. Each grey/either-or component
+        must stay uniform, so it is assigned whole to the color with the
+        smallest marginal expected-pick load. Processing the most constrained
+        and largest components first gives almost all of exhaustive assignment's
+        benefit in O(components * colors), including on mixed-cost maps.
+        """
+        demand: 'Counter[str]' = Counter()
+        flexible = []
+        locomotive_floor = 0
+        for route in routes:
+            component_floor = 0
+            for component in route.cost:
+                if component.is_locomotive():
+                    component_floor += component.count
+                    continue
+                options = component.concrete_options()
+                if len(options) == 1:
+                    demand[options[0]] += component.count
+                else:
+                    flexible.append((component.count, options))
+            locomotive_floor += max(route.locomotives, component_floor)
+
+        face_up = Counter(face_up_cards)
+        flexible.sort(key=lambda item: (len(item[1]), -item[0]))
+        color_rank = {color: index for index, color in enumerate(self._CARD_COLORS)}
+        for count, options in flexible:
+            color = min(
+                options,
+                key=lambda candidate: (
+                    self._color_load(demand[candidate] + count, candidate, hand, face_up)
+                    - self._color_load(demand[candidate], candidate, hand, face_up),
+                    -hand.get(candidate, 0),
+                    -self._odds.get(candidate, 0.0),
+                    color_rank[candidate],
+                ),
+            )
+            demand[color] += count
+        return demand, locomotive_floor
+
+    def _portfolio_deficits(self, routes, hand, face_up_cards):
+        demand, locomotive_floor = self._portfolio_requirements(
+            routes, hand, face_up_cards
+        )
+        deficits = Counter({
+            color: max(0, demand[color] - hand.get(color, 0))
+            for color in self._CARD_COLORS
+        })
+        locomotive_deficit = max(0, locomotive_floor - hand.get("L", 0))
+        spare_locomotives = max(0, hand.get("L", 0) - locomotive_floor)
+        face_up = Counter(face_up_cards)
+
+        # Spend held wilds where each one removes the most expected future
+        # work. A deficit currently covered by a face-up card saves one pick;
+        # otherwise it saves roughly 1 / P(color) blind draws.
+        while spare_locomotives and any(deficits.values()):
+            def marginal(color):
+                deficit = deficits[color]
+                if not deficit:
+                    return -1.0
+                if deficit <= face_up.get(color, 0):
+                    return 1.0
+                return 1.0 / max(self._odds.get(color, 0.0), 1e-12)
+
+            target = max(self._CARD_COLORS, key=marginal)
+            deficits[target] -= 1
+            spare_locomotives -= 1
+        return deficits, locomotive_deficit
+
+    def _blind_draw_fallback(self, deficits, locomotive_deficit) -> float:
+        """Joint-probability lower bound for portfolios too large for exact DP."""
+        locomotive_odds = self._odds.get("L", 0.0)
+        active = [
+            (color, deficit) for color, deficit in zip(self._CARD_COLORS, deficits)
+            if deficit
+        ]
+        useful_odds = sum(self._odds.get(color, 0.0) for color, _ in active)
+        if locomotive_deficit or active:
+            useful_odds += locomotive_odds
+        if useful_odds <= 0.0:
+            return float("inf")
+
+        total_bound = (sum(deficits) + locomotive_deficit) / useful_odds
+        color_bound = max(
+            (deficit / (self._odds.get(color, 0.0) + locomotive_odds)
+             if self._odds.get(color, 0.0) + locomotive_odds > 0.0
+             else float("inf"))
+            for color, deficit in active
+        ) if active else 0.0
+        locomotive_bound = (
+            locomotive_deficit / locomotive_odds
+            if locomotive_deficit and locomotive_odds > 0.0
+            else (float("inf") if locomotive_deficit else 0.0)
+        )
+        return max(total_bound, color_bound, locomotive_bound)
+
+    def _blind_draw_dp(self, deficits, locomotive_deficit) -> float:
+        """Bellman expectation for blind draws toward the whole portfolio."""
+        key = (tuple(deficits), locomotive_deficit)
+        cached = self._blind_draw_cache.get(key)
+        if cached is not None:
+            return cached
+        if not locomotive_deficit and not any(deficits):
+            return 0.0
+
+        weighted_future = 0.0
+        progress_odds = 0.0
+        for index, color in enumerate(self._CARD_COLORS):
+            if not deficits[index]:
+                continue
+            probability = self._odds.get(color, 0.0)
+            if probability <= 0.0:
+                continue
+            next_deficits = list(deficits)
+            next_deficits[index] -= 1
+            progress_odds += probability
+            weighted_future += probability * self._blind_draw_dp(
+                tuple(next_deficits), locomotive_deficit
+            )
+
+        locomotive_odds = self._odds.get("L", 0.0)
+        if locomotive_odds > 0.0:
+            if locomotive_deficit:
+                locomotive_future = self._blind_draw_dp(
+                    deficits, locomotive_deficit - 1
+                )
+            else:
+                locomotive_future = min(
+                    self._blind_draw_dp(
+                        tuple(
+                            value - 1 if position == index else value
+                            for position, value in enumerate(deficits)
+                        ),
+                        0,
+                    )
+                    for index, deficit in enumerate(deficits)
+                    if deficit
+                )
+            progress_odds += locomotive_odds
+            weighted_future += locomotive_odds * locomotive_future
+
+        value = (
+            (1.0 + weighted_future) / progress_odds
+            if progress_odds > 0.0 else float("inf")
+        )
+        self._blind_draw_cache[key] = value
+        return value
+
+    def _expected_blind_draws(self, deficits, locomotive_deficit) -> float:
+        state_count = locomotive_deficit + 1
+        for deficit in deficits:
+            state_count *= deficit + 1
+            if state_count > self._PORTFOLIO_DP_MAX_STATES:
+                return self._blind_draw_fallback(deficits, locomotive_deficit)
+        return self._blind_draw_dp(tuple(deficits), locomotive_deficit)
+
+    def _portfolio_expected_turns(self, routes, hand=None, face_up_cards=None) -> float:
+        """Expected draw + claim turns for the route portfolio from this state."""
+        routes = tuple({route.route_id: route for route in routes}.values())
+        if not routes:
+            return 0.0
+        hand = Counter(self._view.hand if hand is None else hand)
+        face_up_cards = tuple(
+            self._view.face_up_cards if face_up_cards is None else face_up_cards
+        )
+        key = (
+            tuple(sorted(route.route_id for route in routes)),
+            self._hand_key(hand),
+            self._face_up_key(face_up_cards),
+        )
+        if key in self._portfolio_cache:
+            return self._portfolio_cache[key]
+
+        deficits, locomotive_deficit = self._portfolio_deficits(
+            routes, hand, face_up_cards
+        )
+        face_up = Counter(face_up_cards)
+        certain_picks = 0
+        for color in self._CARD_COLORS:
+            certain = min(deficits[color], face_up.get(color, 0))
+            deficits[color] -= certain
+            certain_picks += certain
+
+        # A visible locomotive consumes a full turn, unlike an ordinary
+        # face-up card. Only assume it for a mandatory ferry/L floor.
+        certain_locomotive_turns = min(
+            locomotive_deficit, face_up.get("L", 0)
+        )
+        locomotive_deficit -= certain_locomotive_turns
+        blind_draws = self._expected_blind_draws(
+            tuple(deficits[color] for color in self._CARD_COLORS),
+            locomotive_deficit,
+        )
+        value = (
+            len(routes)
+            + certain_locomotive_turns
+            + (certain_picks + blind_draws) / 2.0
+        )
+        self._portfolio_cache[key] = value
+        return value
 
     def _route_cost(self, route: Route) -> float:
         """Risk-adjusted expected turns to assemble and claim this route.
@@ -115,42 +345,15 @@ class CodexBestBot(ActionBot):
         to either sibling forfeits the route entirely. Infinity means the
         route can no longer be assembled from public information.
         """
+        cached = self._route_cost_cache.get(route.route_id)
+        if cached is not None:
+            return cached
         view = self._view
-        hand = view.hand
-        locomotive_odds = self._odds.get("L", 0.0)
-
-        colors = [c for c in self._CARD_COLORS if c in route.payment_colors()]
-        required_locos = route.locomotives
-        colored_length = route.length - required_locos
-        missing_required = max(0, required_locos - hand.get("L", 0))
-        if missing_required and locomotive_odds <= 0.0:
-            return float("inf")
-        if not colors:
-            return (missing_required / locomotive_odds if missing_required else 0.0) + 1.0
-        best_turns = None
-        for color in colors:
-            deficit = colored_length - hand.get(color, 0)
-            if deficit <= 0:
-                best_turns = 0.0
-                break
-            certain = min(deficit, view.face_up_cards.count(color))
-            remaining = deficit - certain
-            pick_odds = self._odds.get(color, 0.0) + locomotive_odds
-            if remaining > 0 and pick_odds <= 0.0:
-                continue
-            expected_picks = certain + (remaining / pick_odds if remaining else 0.0)
-            mandatory_turns = (missing_required / locomotive_odds
-                               if missing_required else 0.0)
-            turns = (expected_picks + mandatory_turns) / 2
-            if best_turns is None or turns < best_turns:
-                best_turns = turns
-        if best_turns is None:
-            return float("inf")
-
-        cost = best_turns + 1.0  # the claim turn
+        cost = self._portfolio_expected_turns((route,))
         siblings = self._siblings_by_key.get(route.sibling_group_key(), [route])
         if len(siblings) > 1 and view.player_count <= 3:
             cost *= self._DOUBLE_ROUTE_RISK
+        self._route_cost_cache[route.route_id] = cost
         return cost
 
     def _adjacency(self, culled, free_route_ids: 'Collection[str]' = frozenset()):
@@ -213,8 +416,8 @@ class CodexBestBot(ActionBot):
                     routes_by_id[route.route_id] = route
             routes = list(routes_by_id.values())
             cost = sum(
-                0 if route.route_id in free_route_ids else self._route_cost(route)
-                for route in routes
+                self._route_cost(route)
+                for route in routes if route.route_id not in free_route_ids
             )
             return cost, routes
 
@@ -284,9 +487,14 @@ class CodexBestBot(ActionBot):
         return [t for t in self._view.tickets if not t.is_completed and not t.is_impossible]
 
     def _plan_for_tickets(self, culled, tickets):
+        cache_key = (
+            tuple(sorted(route.route_id for route in culled.routes)),
+            tuple((ticket.city1, ticket.city2, ticket.value) for ticket in tickets),
+        )
+        if cache_key in self._ticket_plan_cache:
+            return self._ticket_plan_cache[cache_key]
         routes: 'List[Route]' = []
         free: 'set[str]' = set()
-        total_cost = 0.0
 
         head, tail = tickets[:2], tickets[2:]
         if head:
@@ -297,19 +505,21 @@ class CodexBestBot(ActionBot):
                 head = tickets[:1]
                 joint = self._steiner_tree(culled, [head[0].city1, head[0].city2])
             if joint is None:
+                self._ticket_plan_cache[cache_key] = None
                 return None
-            total_cost += joint[0]
             routes.extend(joint[1])
             free.update(route.route_id for route in joint[1])
 
         for ticket in tail:
             extra = self._steiner_tree(culled, [ticket.city1, ticket.city2], free_route_ids=free)
             if extra is not None:
-                total_cost += extra[0]
                 routes.extend(extra[1])
                 free.update(route.route_id for route in extra[1])
 
-        return total_cost, routes
+        routes = list({route.route_id: route for route in routes}.values())
+        result = (self._portfolio_expected_turns(routes), routes)
+        self._ticket_plan_cache[cache_key] = result
+        return result
 
     def _replan(self):
         """Recompute the planned route set for every unscored ticket.
@@ -320,6 +530,8 @@ class CodexBestBot(ActionBot):
         The first two tickets get an exact joint Steiner tree; any further
         tickets attach greedily with already-planned routes free.
         """
+        if self._replan_result is not None:
+            return self._replan_result
         culled = self._culled()
         unscored = self._unscored_tickets()
         plan = self._plan_for_tickets(culled, unscored)
@@ -327,7 +539,8 @@ class CodexBestBot(ActionBot):
 
         self._planned_routes = routes
         self._planned_route_ids = {route.route_id for route in routes}
-        return routes
+        self._replan_result = routes
+        return self._replan_result
 
     @staticmethod
     def _culled_without_route(culled, route_id: str):
@@ -335,6 +548,8 @@ class CodexBestBot(ActionBot):
 
     def _route_pressure(self, route: Route) -> float:
         """Expected-turn penalty if this planned route is lost right now."""
+        if route.route_id in self._route_pressure_cache:
+            return self._route_pressure_cache[route.route_id]
         if route.route_id not in self._planned_route_ids:
             return 0.0
         tickets = self._unscored_tickets()
@@ -347,8 +562,33 @@ class CodexBestBot(ActionBot):
             return 0.0
         alternative = self._plan_for_tickets(self._culled_without_route(culled, route.route_id), tickets)
         if alternative is None:
+            pressure = float("inf")
+        else:
+            pressure = max(0.0, alternative[0] - baseline[0])
+        self._route_pressure_cache[route.route_id] = pressure
+        return pressure
+
+    def _blocking_readiness(self, route: Route) -> float:
+        """Public-information estimate that an opponent can claim next turn."""
+        options = route.payment_colors()
+        best = 0.0
+        for opponent in self._view.opponents:
+            visible_match = opponent.exposed_hand.get("L", 0)
+            if options:
+                visible_match += max(
+                    (opponent.exposed_hand.get(color, 0) for color in options),
+                    default=0,
+                )
+            visible_ratio = min(1.0, visible_match / max(1, route.length))
+            hand_ratio = min(1.0, opponent.num_cards_in_hand / max(1, route.length))
+            best = max(best, 0.65 * hand_ratio + 0.35 * visible_ratio)
+        return best
+
+    def _route_urgency(self, route: Route) -> float:
+        pressure = self._route_pressure(route)
+        if pressure == float("inf"):
             return float("inf")
-        return max(0.0, alternative[0] - baseline[0])
+        return self._blocking_readiness(route) * (1.0 + pressure)
 
     def _claim_priority(self, route: Route):
         pressure = self._route_pressure(route)
@@ -356,63 +596,29 @@ class CodexBestBot(ActionBot):
             pressure == float("inf")
             or pressure >= self._CRITICAL_ROUTE_PRESSURE
         )
-        return (critical, pressure, self._route_points(route), route.length)
+        return (
+            critical,
+            self._route_urgency(route),
+            pressure,
+            self._route_points(route),
+            route.length,
+        )
 
     def _card_needs(self):
-        """Deficit per color under the current plan.
-
-        Grey demand is paid in one color, so only the single largest
-        surplus covers it; any grey deficit is assigned to the color with
-        the biggest surplus (fewest extra draws to stack). Locomotives are
-        only ever spent on the longest planned route, so they reduce that
-        route's color demand and nothing else.
-        """
-        reserved: 'Counter[str]' = Counter()
-        grey_needed = 0
-        for route in self._planned_routes:
-            options = route.payment_colors()
-            color_spaces = route.length - route.locomotives
-            if len(options) == 1:
-                reserved[next(iter(options))] += color_spaces
-            else:
-                grey_needed += color_spaces
-
-        hand = self._view.hand
-        deficits = {c: max(0, reserved[c] - hand.get(c, 0)) for c in self._CARD_COLORS}
-        surplus = {c: max(0, hand.get(c, 0) - reserved[c]) for c in self._CARD_COLORS}
-
-        stack_color = max(self._CARD_COLORS, key=lambda c: surplus[c])
-        grey_deficit = max(0, grey_needed - surplus[stack_color])
-        if grey_deficit:
-            deficits[stack_color] += grey_deficit
-
-        required_locomotives = sum(route.locomotives for route in self._planned_routes)
-        locomotives = max(0, hand.get("L", 0) - required_locomotives)
-        if locomotives and self._planned_routes:
-            longest = max(self._planned_routes, key=lambda route: route.length)
-            longest_options = longest.payment_colors()
-            target = (next(iter(longest_options)) if len(longest_options) == 1
-                      else stack_color)
-            deficits[target] = max(0, deficits[target] - locomotives)
-        return deficits
+        """Remaining portfolio quotas after jointly allocating held wilds."""
+        deficits, locomotive_deficit = self._portfolio_deficits(
+            self._planned_routes, self._view.hand, self._view.face_up_cards
+        )
+        needs = {color: deficits[color] for color in self._CARD_COLORS}
+        needs["L"] = locomotive_deficit
+        return needs
 
     def _claimable_planned(self, affordable):
-        """Affordable planned routes, honoring the locomotive rule.
-
-        Locomotives only get spent on a route as long as the longest route
-        in the plan; anything cheaper that would burn them waits (we draw
-        instead).
-        """
-        max_planned_length = max((route.length for route in self._planned_routes), default=0)
-        picks = []
-        for route, locomotives in affordable:
-            if route.route_id not in self._planned_route_ids:
-                continue
-            if (locomotives > route.locomotives
-                    and route.length != max_planned_length):
-                continue
-            picks.append((route, locomotives))
-        return picks
+        """Affordable routes belonging to the current portfolio."""
+        return [
+            (route, locomotives) for route, locomotives in affordable
+            if route.route_id in self._planned_route_ids
+        ]
 
     def _score_route_pick(self, claimable_routes: 'List[tuple[Route, int]]') -> 'tuple[Route, int]':
         return max(
@@ -435,12 +641,6 @@ class CodexBestBot(ActionBot):
             return False
         route, _ = self._score_route_pick(self._picks_from_claims(view, claims))
         return self._route_points(route) >= self._OPPORTUNITY_MIN_POINTS
-
-    def _face_up_locomotive_is_worth_turn(self) -> bool:
-        # In quick head-to-heads, spending a whole turn on a visible
-        # locomotive underperformed two-card blind draws. Keep this hook for
-        # future tuning, but leave the default conservative.
-        return False
 
     # ------------------------------------------------------------------
     # Engine-facing decisions
@@ -488,7 +688,38 @@ class CodexBestBot(ActionBot):
                 best[action.route_id] = (view.route_by_id(action.route_id), action.locomotives)
         return list(best.values())
 
+    def _planned_claim_key(self, action):
+        """One-step Bellman value after paying this exact legal action."""
+        route = self._view.route_by_id(action.route_id)
+        hand_after = Counter(self._view.hand)
+        hand_after.subtract(claim_spend(action, route))
+        hand_after = +hand_after
+        remaining = [
+            planned for planned in self._planned_routes
+            if planned.route_id != route.route_id
+        ]
+        future_turns = self._portfolio_expected_turns(remaining, hand_after)
+        pressure = self._route_pressure(route)
+        critical = pressure == float("inf") or pressure >= self._CRITICAL_ROUTE_PRESSURE
+        urgency = self._route_urgency(route)
+        risk_credit = 50.0 if urgency == float("inf") else min(50.0, urgency)
+        return (
+            not critical,
+            future_turns - risk_credit,
+            action.locomotives,
+            action.color,
+            action.payment or (),
+        )
+
     def _claim_action(self, view, claims):
+        self._replan()
+        planned_actions = [
+            action for action in claims
+            if action.route_id in self._planned_route_ids
+        ]
+        if planned_actions:
+            return min(planned_actions, key=self._planned_claim_key)
+
         picks = self._picks_from_claims(view, claims)
         route, locomotives = self._choose_route_pick(picks)
         candidates = [a for a in claims if a.route_id == route.route_id and a.locomotives == locomotives]
@@ -524,30 +755,52 @@ class CodexBestBot(ActionBot):
         return min(options, key=lambda pick: (needs.get(pick[0].color, 0), pick[0].length))
 
     def _draw_action(self, view, draw_actions):
-        """Best single pick against the market as it is right now: biggest
-        deficit color first, never a face-up locomotive, else the deck.
-
-        (The old two-pick planning and its _queued_draw hack are obsolete:
-        the engine now shows the refreshed market before the second pick.)
-        """
+        """Lowest expected portfolio turns after this exact card decision."""
         self._replan()
-        needs = self._card_needs()
-        useful = [
-            a for a in draw_actions
-            if isinstance(a, DrawFaceUp) and a.card != "L" and needs.get(a.card, 0) > 0
-        ]
-        if useful:
-            return max(useful, key=lambda a: needs[a.card])
-        locomotives = [
-            a for a in draw_actions
-            if isinstance(a, DrawFaceUp) and a.card == "L"
-        ]
-        if locomotives and self._face_up_locomotive_is_worth_turn():
-            return locomotives[0]
-        for action in draw_actions:
-            if isinstance(action, DrawBlind):
-                return action
-        return draw_actions[0]
+        if not self._planned_routes:
+            for action in draw_actions:
+                if isinstance(action, DrawBlind):
+                    return action
+            return draw_actions[0]
+
+        hand = Counter(view.hand)
+        face_up = list(view.face_up_cards)
+
+        def after_card(color):
+            next_hand = Counter(hand)
+            next_hand[color] += 1
+            return next_hand
+
+        def action_value(action):
+            if isinstance(action, DrawFaceUp):
+                next_face_up = list(face_up)
+                next_face_up.remove(action.card)
+                value = self._portfolio_expected_turns(
+                    self._planned_routes,
+                    after_card(action.card),
+                    next_face_up,
+                )
+                # A visible locomotive ends the drawing turn after one card.
+                if action.card == "L" and view.decision != "draw_second":
+                    value += 0.5
+                return value
+            if isinstance(action, DrawBlind) and self._odds:
+                return sum(
+                    probability * self._portfolio_expected_turns(
+                        self._planned_routes, after_card(color), face_up
+                    )
+                    for color, probability in self._odds.items()
+                )
+            return float("inf")
+
+        return min(
+            draw_actions,
+            key=lambda action: (
+                action_value(action),
+                0 if isinstance(action, DrawBlind) else 1,
+                getattr(action, "card", ""),
+            ),
+        )
 
     def _keep_action(self, view, legal_actions):
         kept = self._select_tickets(view.ticket_offer)
