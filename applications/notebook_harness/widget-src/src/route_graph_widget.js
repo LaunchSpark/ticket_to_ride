@@ -354,7 +354,11 @@ function render({ model, el }) {
         const horizontal_padding =
             (Number.parseFloat(style.paddingLeft) || 0) +
             (Number.parseFloat(style.paddingRight) || 0);
-        return Math.max(1, Math.floor(el.clientWidth - horizontal_padding));
+        const measured_width = Math.floor(el.clientWidth - horizontal_padding);
+        // AnyWidget may render while its output is still detached. Treat
+        // that transient zero-width measurement as "not laid out yet" so
+        // the initial zoom-to-fit is never calculated against a 1px canvas.
+        return measured_width > 32 ? measured_width : configured_width;
     };
     // `width` is an upper bound. Composite layouts may give the widget a
     // narrower grid column, in which case ForceGraph's actual canvas and
@@ -766,16 +770,16 @@ function render({ model, el }) {
         const next_width = Math.min(configured_width, host_content_width());
         if (next_width === width) return;
 
-        const center = plot.centerAt();
-        const zoom_level = plot.zoom();
         width = next_width;
         plot.width(width).height(height);
         my_brush.extent([[0, 0], [width, height]]);
         if (!overlay.select("#brush_group").empty()) {
             overlay.select("#brush_group").call(my_brush);
         }
-        plot.centerAt(center.x, center.y);
-        plot.zoom(zoom_level);
+        // A previous fit may have happened while the host was collapsed.
+        // Refit after every real column resize so the board cannot remain
+        // microscopically zoomed or centered outside the new viewport.
+        plot.zoomToFit(0, 20);
     };
     const host_resize_observer = new ResizeObserver(resize_to_host);
     host_resize_observer.observe(el);

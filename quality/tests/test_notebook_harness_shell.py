@@ -29,7 +29,8 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertIn(".info-bar-widget", css)
         self.assertIn(".float-tooltip-kap", css)
         self.assertIn(".spectate-shell-grid", css)
-        self.assertIn(".shell-slot-hero { overflow: hidden; }", css)
+        self.assertIn("container-type: inline-size", css)
+        self.assertIn("@container (max-width: 760px)", css)
 
     def test_bundled_graph_resizes_its_canvas_to_the_shell_column(self) -> None:
         source = files("notebook_harness").joinpath(
@@ -37,6 +38,8 @@ class ShellWidgetTests(unittest.TestCase):
         ).read_text()
         self.assertIn("new ResizeObserver(resize_to_host)", source)
         self.assertIn("Math.min(configured_width, host_content_width())", source)
+        self.assertIn("measured_width > 32 ? measured_width : configured_width", source)
+        self.assertIn("plot.zoomToFit(0, 20)", source)
 
     def test_update_shell_pushes_step_payloads(self) -> None:
         shell = build_shell(self.series)
@@ -52,7 +55,7 @@ class ShellWidgetTests(unittest.TestCase):
 
     def test_update_shell_clamps_out_of_range_playback(self) -> None:
         shell = build_shell(self.series)
-        shell.playback = {"round": 99, "turn": 99}
+        shell.playback = {"round": 10**9, "turn": 10**9}
 
         update_shell(shell, self.series)
 

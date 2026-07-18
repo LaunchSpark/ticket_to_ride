@@ -12258,7 +12258,8 @@ function render3({ model, el }) {
   const host_content_width = () => {
     const style = window.getComputedStyle(el);
     const horizontal_padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
-    return Math.max(1, Math.floor(el.clientWidth - horizontal_padding));
+    const measured_width = Math.floor(el.clientWidth - horizontal_padding);
+    return measured_width > 32 ? measured_width : configured_width;
   };
   let width = Math.min(configured_width, host_content_width());
   let height = model.get("height") || default_height;
@@ -12552,16 +12553,13 @@ function render3({ model, el }) {
   const resize_to_host = () => {
     const next_width = Math.min(configured_width, host_content_width());
     if (next_width === width) return;
-    const center = plot.centerAt();
-    const zoom_level = plot.zoom();
     width = next_width;
     plot.width(width).height(height);
     my_brush.extent([[0, 0], [width, height]]);
     if (!overlay.select("#brush_group").empty()) {
       overlay.select("#brush_group").call(my_brush);
     }
-    plot.centerAt(center.x, center.y);
-    plot.zoom(zoom_level);
+    plot.zoomToFit(0, 20);
   };
   const host_resize_observer = new ResizeObserver(resize_to_host);
   host_resize_observer.observe(el);
@@ -12601,7 +12599,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-083649Z" : "dev";
+  const build_tag = true ? "20260718-084139Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
