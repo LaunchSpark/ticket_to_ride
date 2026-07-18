@@ -56,7 +56,7 @@ class LoggerIntegrationTests(unittest.TestCase):
         ]
 
         logger = GameLogger(players, transport=TestClientTransport(self.client))
-        match_id = logger.start_match("alpha-beta")
+        match_id = logger.start_match("alpha-beta", map_name="classic", seed=1234)
         logger.start_round(0)
 
         context = SimpleNamespace(
@@ -88,6 +88,8 @@ class LoggerIntegrationTests(unittest.TestCase):
         self.assertEqual(finalize_payload["matchId"], match_id)
         self.assertEqual(match_payload["status"], "completed")
         self.assertEqual(match_payload["playerNames"], ["Alpha", "Beta"])
+        self.assertEqual(match_payload["mapName"], "classic")
+        self.assertEqual(match_payload["seed"], 1234)
         self.assertEqual(match_payload["rounds"][0]["turns"][0]["player"]["playerId"], "bot_1")
         self.assertEqual(
             match_payload["rounds"][0]["turns"][0]["player"]["claimedRoutes"],
@@ -95,6 +97,23 @@ class LoggerIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(match_payload["averageScores"][0]["scores"], [4])
         self.assertEqual(match_payload["averageScores"][1]["scores"], [1])
+
+    def test_game_logger_defaults_match_metadata_to_none(self) -> None:
+        player = SimpleNamespace(
+            player_id="bot_1",
+            name="Alpha",
+            color="red",
+            trains_remaining=45,
+            get_tickets=lambda: [],
+            get_hand=lambda: Counter(),
+        )
+        logger = GameLogger([player], transport=TestClientTransport(self.client))
+
+        match_id = logger.start_match("alpha")
+        match_payload = logger.fetch_match(match_id)
+
+        self.assertIsNone(match_payload["mapName"])
+        self.assertIsNone(match_payload["seed"])
 
 
 if __name__ == "__main__":

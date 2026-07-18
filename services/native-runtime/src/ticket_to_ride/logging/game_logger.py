@@ -151,12 +151,21 @@ class GameLogger:
     def set_player_list(self, players: List[Player]) -> None:
         self.player_list = players
 
-    def start_match(self, match_name: Optional[str] = None) -> str:
+    def start_match(
+        self,
+        match_name: Optional[str] = None,
+        map_name: Optional[str] = None,
+        seed: Optional[int] = None,
+    ) -> str:
         payload = {
             "name": match_name or "-".join(player.name for player in self.player_list),
             "playerNames": [player.name for player in self.player_list],
             "players": self.serializer.serialize_players(self.player_list),
         }
+        if map_name is not None:
+            payload["mapName"] = map_name
+        if seed is not None:
+            payload["seed"] = seed
         response = self.transport.request("POST", "/matches", payload)
         self.match_id = response["matchId"]
         self.round_ids.clear()

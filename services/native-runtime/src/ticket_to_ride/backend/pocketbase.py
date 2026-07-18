@@ -75,7 +75,14 @@ class PocketBaseMatchRepository(MatchRepository):
             raise KeyError(f"Unknown bot '{bot_id}'")
         return self._normalize_bot(records[0])
 
-    def create_match(self, name: str, players: List[PlayerRecord], player_names: List[str] | None = None) -> str:
+    def create_match(
+        self,
+        name: str,
+        players: List[PlayerRecord],
+        player_names: List[str] | None = None,
+        map_name: str | None = None,
+        seed: int | None = None,
+    ) -> str:
         resolved_player_names = list(player_names or [player.name for player in players])
         payload = {
             "name": name,
@@ -87,6 +94,8 @@ class PocketBaseMatchRepository(MatchRepository):
                 AverageScoreRecord(playerId=player.playerId, scores=[]).model_dump()
                 for player in players
             ],
+            "mapName": map_name,
+            "seed": seed,
         }
         record = self._request_json("POST", "/api/collections/matches/records", payload)
         return record["id"]
@@ -382,6 +391,8 @@ class PocketBaseMatchRepository(MatchRepository):
             "players": players,
             "status": record.get("status", "in_progress"),
             "averageScores": record.get("averageScores", []),
+            "mapName": record.get("mapName"),
+            "seed": record.get("seed"),
             "createdAt": record.get("created") or record.get("createdAt") or "",
         }
 

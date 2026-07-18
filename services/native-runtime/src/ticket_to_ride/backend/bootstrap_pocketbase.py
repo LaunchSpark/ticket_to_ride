@@ -35,6 +35,8 @@ COLLECTIONS: list[dict[str, Any]] = [
             {"name": "players", "type": "json", "required": True},
             {"name": "player_count", "type": "number", "required": False},
             {"name": "averageScores", "type": "json", "required": False},
+            {"name": "mapName", "type": "text", "required": False},
+            {"name": "seed", "type": "number", "required": False},
         ],
     },
     {

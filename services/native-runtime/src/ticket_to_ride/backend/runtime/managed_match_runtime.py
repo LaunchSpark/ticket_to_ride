@@ -36,6 +36,7 @@ from ticket_to_ride.backend.runtime.executor import BotApiExecutor, BotExecutor
 from ticket_to_ride.backend.runtime.models import MatchExecutionContext
 from ticket_to_ride.backend.runtime.replay_transport import build_managed_replay_logger
 from ticket_to_ride.backend.runtime.round_runtime import RoundExecutionContext
+from ticket_to_ride.engine.state.game_context import GameContext
 
 
 class ManagedRuntimeError(RuntimeError):
@@ -190,7 +191,12 @@ class ManagedMatchRuntimeManager:
         self.repository.update_managed_match(match_id, status="running")
 
         replay_logger = build_managed_replay_logger(self.repository, match_context)
-        replay_match_id = replay_logger.start_match(match_context.name)
+        game_context = GameContext([seat.seatId for seat in match_context.seats])
+        replay_match_id = replay_logger.start_match(
+            match_context.name,
+            map_name=game_context.get_map().map_name,
+            seed=game_context.seed,
+        )
         match_context.replay_match_id = replay_match_id
         self.repository.update_managed_match(match_id, replayMatchId=replay_match_id)
 
@@ -213,7 +219,7 @@ class ManagedMatchRuntimeManager:
                 with self._lock:
                     match_context.active_round = round_context
                 try:
-                    round_result = round_context.play_round(replay_logger)
+                    round_result = round_context.play_round(replay_logger, game_context)
                 finally:
                     with self._lock:
                         match_context.active_round = None
@@ -230,6 +236,8 @@ class ManagedMatchRuntimeManager:
                 if round_result.abort_match:
                     final_status = "aborted"
                     break
+                if round_number + 1 < match_context.round_count:
+                    game_context = GameContext([seat.seatId for seat in match_context.seats])
         except Exception:
             final_status = "failed"
         finally:

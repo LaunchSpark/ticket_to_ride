@@ -21,6 +21,8 @@ class MatchCreateRequest(BaseModel):
     name: Optional[str] = None
     players: List[PlayerRecord]
     playerNames: List[str] = Field(default_factory=list)
+    mapName: Optional[str] = None
+    seed: Optional[int] = None
 
 
 class MatchCreateResponse(BaseModel):
@@ -194,6 +196,8 @@ class MatchSummary(BaseModel):
     status: str
     playerCount: int
     playerNames: List[str] = Field(default_factory=list)
+    mapName: Optional[str] = None
+    seed: Optional[int] = None
     createdAt: str
 
 
@@ -209,6 +213,8 @@ class MatchPayload(BaseModel):
     status: str
     createdAt: str
     playerNames: List[str] = Field(default_factory=list)
+    mapName: Optional[str] = None
+    seed: Optional[int] = None
     players: List[PlayerRecord]
     rounds: List[RoundPayload]
     averageScores: List[AverageScoreRecord]

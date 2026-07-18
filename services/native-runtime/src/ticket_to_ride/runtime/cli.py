@@ -554,11 +554,17 @@ def seed_match_if_empty_via_api(api_base_url: str, round_limit: int = 10) -> boo
 
     players = _bootstrap_players()
     logger = GameLogger(players, transport=transport)
-    logger.start_match("-".join(player.name for player in players))
+    context = GameContext([player.player_id for player in players])
+    logger.start_match(
+        "-".join(player.name for player in players),
+        map_name=context.get_map().map_name,
+        seed=context.seed,
+    )
 
     for round_number in range(round_limit):
         logger.start_round(round_number)
-        context = GameContext([player.player_id for player in players])
+        if round_number:
+            context = GameContext([player.player_id for player in players])
         game = Game(context, players, logger, round_number)
         game.play()
 

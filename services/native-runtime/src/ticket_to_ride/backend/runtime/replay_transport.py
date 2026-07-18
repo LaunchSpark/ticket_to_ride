@@ -44,6 +44,8 @@ class RepositoryLoggerTransport:
                 name=payload["name"],
                 players=[PlayerRecord.model_validate(player) for player in payload["players"]],
                 player_names=list(payload.get("playerNames", [])),
+                map_name=payload.get("mapName"),
+                seed=payload.get("seed"),
             )
             return {"matchId": match_id}
 

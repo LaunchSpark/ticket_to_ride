@@ -35,7 +35,14 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def create_match(self, name: str, players: List[PlayerRecord], player_names: List[str] | None = None) -> str:
+    def create_match(
+        self,
+        name: str,
+        players: List[PlayerRecord],
+        player_names: List[str] | None = None,
+        map_name: str | None = None,
+        seed: int | None = None,
+    ) -> str:
         raise NotImplementedError
 
     @abstractmethod
@@ -186,13 +193,22 @@ class InMemoryMatchRepository(MatchRepository):
                 return deepcopy(record)
         raise KeyError(f"Unknown bot '{bot_id}'")
 
-    def create_match(self, name: str, players: List[PlayerRecord], player_names: List[str] | None = None) -> str:
+    def create_match(
+        self,
+        name: str,
+        players: List[PlayerRecord],
+        player_names: List[str] | None = None,
+        map_name: str | None = None,
+        seed: int | None = None,
+    ) -> str:
         match_id = str(uuid4())
         resolved_player_names = list(player_names or [player.name for player in players])
         self.matches[match_id] = {
             "id": match_id,
             "name": name,
             "playerNames": resolved_player_names,
+            "mapName": map_name,
+            "seed": seed,
             "players": [player.model_dump() for player in players],
             "status": "in_progress",
             "averageScores": [

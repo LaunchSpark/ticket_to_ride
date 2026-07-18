@@ -98,8 +98,16 @@ def create_match(
     name: str,
     players: List[PlayerRecord],
     player_names: List[str] | None = None,
+    map_name: str | None = None,
+    seed: int | None = None,
 ) -> str:
-    return repository.create_match(name=name, players=players, player_names=player_names)
+    return repository.create_match(
+        name=name,
+        players=players,
+        player_names=player_names,
+        map_name=map_name,
+        seed=seed,
+    )
 
 
 def create_round(repository: MatchRepository, match_id: str, round_number: int) -> str:
@@ -141,6 +149,8 @@ def list_matches(repository: MatchRepository) -> List[MatchSummary]:
             status=match["status"],
             playerCount=len(match.get("players", [])),
             playerNames=list(match.get("playerNames", [])),
+            mapName=match.get("mapName"),
+            seed=match.get("seed"),
             createdAt=match.get("createdAt", ""),
         )
         for match in repository.list_matches()
@@ -170,6 +180,8 @@ def get_match(repository: MatchRepository, match_id: str) -> MatchPayload:
         status=match_record["status"],
         createdAt=match_record.get("createdAt", ""),
         playerNames=list(match_record.get("playerNames", [])),
+        mapName=match_record.get("mapName"),
+        seed=match_record.get("seed"),
         players=[PlayerRecord.model_validate(player) for player in match_record.get("players", [])],
         rounds=round_payloads,
         averageScores=[

@@ -125,6 +125,10 @@ class ManagedMatchApiTests(unittest.TestCase):
         self.assertEqual(match_payload["status"], "completed")
         self.assertEqual(match_payload["aggregateResults"][0]["roundsWon"], 2)
 
+        replay_payload = client.get(f"/matches/{match_payload['replayMatchId']}").json()
+        self.assertEqual(replay_payload["mapName"], "classic")
+        self.assertIsInstance(replay_payload["seed"], int)
+
         rounds_response = client.get(f"/managed-matches/{match_id}/rounds")
         self.assertEqual(rounds_response.status_code, 200)
         rounds = rounds_response.json()

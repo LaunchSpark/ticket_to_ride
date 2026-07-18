@@ -166,6 +166,8 @@ def create_app(
             name=match_name,
             players=request.players,
             player_names=request.playerNames or [player.name for player in request.players],
+            map_name=request.mapName,
+            seed=request.seed,
         )
         return MatchCreateResponse(matchId=match_id)
 

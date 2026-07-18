@@ -118,13 +118,13 @@ class RoundExecutionContext:
 
         self.controllers.initialize_primary_controllers()
 
-    def play_round(self, replay_logger: "GameLogger") -> RoundRunResult:
+    def play_round(self, replay_logger: "GameLogger", game_context: GameContext) -> RoundRunResult:
         """Run the round to completion and return finalized seat results."""
 
         self.initialize_primary_controllers()
         players = self._build_round_players()
         replay_logger.set_player_list(players)
-        game = Game(GameContext([player.player_id for player in players]), players, replay_logger, self.round_number)
+        game = Game(game_context, players, replay_logger, self.round_number)
         try:
             game.play()
         except RoundTerminationError as exc:
