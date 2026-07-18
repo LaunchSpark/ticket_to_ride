@@ -82,60 +82,83 @@ function stepBack(model) {
 }
 
 function renderSidebar(model, container, playState) {
-    container.replaceChildren();
     // Use the cursor bundled with the scores, not the optimistic JS cursor.
     // This keeps the heading and leaderboard on the same recorded turn while
     // Python is preparing the next frame.
     const { round, turn } = displayedPlaybackOf(model);
-    const meta = model.get("rounds_meta") || [];
 
-    const header = elem("div", "shell-sidebar-header");
-    header.appendChild(elem("p", "shell-eyebrow", `Round ${round + 1} · Turn ${turn + 1}`));
-    const controls = elem("div", "shell-playback-controls");
-    const prev = elem("button", "shell-playback-button", "⏮");
-    prev.addEventListener("click", () => stepBack(model));
-    const play = elem("button", "shell-playback-button", playState.playing ? "⏸" : "▶");
-    play.addEventListener("click", () => playState.toggle());
-    const next = elem("button", "shell-playback-button", "⏭");
-    next.addEventListener("click", () => stepForward(model));
-    controls.append(prev, play, next);
-    header.appendChild(controls);
+    // Keep controls mounted across frames. Replacing the pause button every
+    // 300ms could destroy it between pointer-down and click, making playback
+    // effectively impossible to stop.
+    let header = container.querySelector(":scope > .shell-sidebar-header");
+    if (!header) {
+        header = elem("div", "shell-sidebar-header");
+        header.appendChild(elem("p", "shell-eyebrow"));
+        const controls = elem("div", "shell-playback-controls");
+        const prev = elem("button", "shell-playback-button", "⏮");
+        prev.addEventListener("click", () => stepBack(model));
+        const play = elem("button", "shell-playback-button shell-play-toggle");
+        play.addEventListener("click", () => playState.toggle());
+        const next = elem("button", "shell-playback-button", "⏭");
+        next.addEventListener("click", () => stepForward(model));
+        controls.append(prev, play, next);
+        header.appendChild(controls);
 
-    const jump = elem("button", "shell-jump-button", "Jump To Round / Turn");
-    jump.addEventListener("click", () => {
-        const roundPick = window.prompt(`Round (1-${meta.length})`, String(round + 1));
-        if (roundPick == null) return;
-        const target = Math.min(Math.max(parseInt(roundPick, 10) || 1, 1), meta.length) - 1;
-        const turnPick = window.prompt(`Turn (1-${meta[target].turnCount})`, "1");
-        if (turnPick == null) return;
-        const turnTarget = Math.min(Math.max(parseInt(turnPick, 10) || 1, 1), meta[target].turnCount) - 1;
-        setPlayback(model, target, turnTarget);
-    });
-    header.appendChild(jump);
+        const jump = elem("button", "shell-jump-button", "Jump To Round / Turn");
+        jump.addEventListener("click", () => {
+            const current = displayedPlaybackOf(model);
+            const currentMeta = model.get("rounds_meta") || [];
+            const roundPick = window.prompt(
+                `Round (1-${currentMeta.length})`, String(current.round + 1)
+            );
+            if (roundPick == null) return;
+            const target = Math.min(
+                Math.max(parseInt(roundPick, 10) || 1, 1), currentMeta.length
+            ) - 1;
+            const turnPick = window.prompt(`Turn (1-${currentMeta[target].turnCount})`, "1");
+            if (turnPick == null) return;
+            const turnTarget = Math.min(
+                Math.max(parseInt(turnPick, 10) || 1, 1), currentMeta[target].turnCount
+            ) - 1;
+            setPlayback(model, target, turnTarget);
+        });
+        header.appendChild(jump);
 
-    const opacityControl = elem("label", "shell-opacity-control");
+        const opacityControl = elem("label", "shell-opacity-control");
+        const opacityCopy = elem("span", "shell-opacity-label", "Unclaimed opacity");
+        const opacityOutput = elem("output", "shell-opacity-value");
+        const opacitySlider = elem("input", "shell-opacity-slider");
+        opacitySlider.type = "range";
+        opacitySlider.min = "0";
+        opacitySlider.max = "1";
+        opacitySlider.step = "0.05";
+        opacitySlider.addEventListener("input", () => {
+            const value = Number(opacitySlider.value);
+            opacityOutput.value = value.toFixed(2);
+            opacityOutput.textContent = value.toFixed(2);
+            model.set("unclaimed_route_opacity", value);
+        });
+        opacitySlider.addEventListener("change", () => model.save_changes());
+        opacityControl.append(opacityCopy, opacityOutput, opacitySlider);
+        header.appendChild(opacityControl);
+        container.appendChild(header);
+    }
+    header.querySelector(".shell-eyebrow").textContent =
+        `Round ${round + 1} · Turn ${turn + 1}`;
+    header.querySelector(".shell-play-toggle").textContent = playState.playing ? "⏸" : "▶";
     const opacityValue = Number(model.get("unclaimed_route_opacity") ?? 0.5);
-    const opacityCopy = elem("span", "shell-opacity-label", "Unclaimed opacity");
-    const opacityOutput = elem("output", "shell-opacity-value", opacityValue.toFixed(2));
-    const opacitySlider = elem("input", "shell-opacity-slider");
-    opacitySlider.type = "range";
-    opacitySlider.min = "0";
-    opacitySlider.max = "1";
-    opacitySlider.step = "0.05";
-    opacitySlider.value = String(opacityValue);
-    opacitySlider.addEventListener("input", () => {
-        const value = Number(opacitySlider.value);
-        opacityOutput.value = value.toFixed(2);
-        opacityOutput.textContent = value.toFixed(2);
-        model.set("unclaimed_route_opacity", value);
-    });
-    opacitySlider.addEventListener("change", () => model.save_changes());
-    opacityControl.append(opacityCopy, opacityOutput, opacitySlider);
-    header.appendChild(opacityControl);
-    container.appendChild(header);
+    const opacitySlider = header.querySelector(".shell-opacity-slider");
+    const opacityOutput = header.querySelector(".shell-opacity-value");
+    if (document.activeElement !== opacitySlider) opacitySlider.value = String(opacityValue);
+    opacityOutput.value = opacityValue.toFixed(2);
+    opacityOutput.textContent = opacityValue.toFixed(2);
 
-    const board = elem("div", "shell-section");
-    board.appendChild(elem("p", "shell-section-heading", "Players"));
+    let board = container.querySelector(":scope > .shell-section");
+    if (!board) {
+        board = elem("div", "shell-section");
+        container.appendChild(board);
+    }
+    board.replaceChildren(elem("p", "shell-section-heading", "Players"));
     const selected = model.get("selected_player") || "";
     const active = frameValue(model, "current_player") || "";
     (frameValue(model, "leaderboard") || []).forEach((entry) => {
@@ -155,7 +178,6 @@ function renderSidebar(model, container, playState) {
         });
         board.appendChild(card);
     });
-    container.appendChild(board);
 }
 
 function renderPlayerCard(model, entry, selected, active) {
@@ -265,7 +287,7 @@ function render({ model, el }) {
     drawTickets();
     model.on("change:frame", drawSidebar);
     model.on("change:frame", drawTickets);
-    ["change:leaderboard", "change:playback", "change:aggregates", "change:selected_player", "change:rounds_meta"]
+    ["change:selected_player", "change:rounds_meta"]
         .forEach((event) => model.on(event, drawSidebar));
     model.on("change:aggregates", drawAggregates);
     model.on("change:tickets", drawTickets);

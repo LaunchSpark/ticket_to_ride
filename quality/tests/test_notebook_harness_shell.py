@@ -79,10 +79,27 @@ class ShellWidgetTests(unittest.TestCase):
             "static", "spectate_shell_widget.js"
         ).read_text()
         self.assertIn('"Unclaimed opacity"', source)
-        self.assertIn('opacitySlider.type = "range"', source)
-        self.assertIn('opacitySlider.step = "0.05"', source)
+        self.assertIn('.type = "range"', source)
+        self.assertIn('.step = "0.05"', source)
         self.assertIn('model.set("unclaimed_route_opacity", value)', source)
         self.assertIn('model.on("change:unclaimed_route_opacity"', source)
+
+    def test_bundled_playback_controls_survive_leaderboard_redraws(self) -> None:
+        source = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.js"
+        ).read_text()
+        self.assertIn(
+            'container.querySelector(":scope > .shell-sidebar-header")', source
+        )
+        self.assertIn('header.querySelector(".shell-play-toggle").textContent', source)
+        self.assertIn(
+            'board.replaceChildren(elem("p", "shell-section-heading", "Players"))',
+            source,
+        )
+        self.assertNotIn(
+            '["change:leaderboard", "change:playback", "change:aggregates"',
+            source,
+        )
 
     def test_update_shell_pushes_step_payloads(self) -> None:
         shell = build_shell(self.series)
