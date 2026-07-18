@@ -53,7 +53,7 @@ class ShellWidgetTests(unittest.TestCase):
         source = files("notebook_harness").joinpath(
             "static", "spectate_shell_widget.js"
         ).read_text()
-        self.assertIn("var unclaimed_route_opacity = 0.8", source)
+        self.assertIn("var unclaimed_route_opacity = 0.5", source)
         self.assertIn(
             "ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity",
             source,
@@ -68,9 +68,10 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertIn('frameValue(model, "ticket_player")', source)
         self.assertNotIn("openStatsModal", source)
         self.assertIn(
-            ".linkOpacity((link) => link.claimedColor ? 0 : unclaimed_route_opacity)",
+            'color_with_alpha(link.color || "#999999", unclaimed_route_opacity)',
             source,
         )
+        self.assertNotIn(".linkOpacity(", source)
 
     def test_update_shell_pushes_step_payloads(self) -> None:
         shell = build_shell(self.series)

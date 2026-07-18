@@ -41,7 +41,7 @@ let train_space_width = 6;
 // Fraction of each slot the rectangle fills; the rest is the gap between spaces.
 let train_space_fill = 0.72;
 // Unclaimed routes recede slightly so claimed routes remain visually primary.
-let unclaimed_route_opacity = 0.8;
+let unclaimed_route_opacity = 0.5;
 // Claim-marker inset on every side, as a fraction of the space width, so the
 // route's base color pokes out around the owner's color.
 let claim_inset_fraction = 0.25;
@@ -132,6 +132,13 @@ const is_dark_color = (color) => {
     const g = (value >> 8) & 255;
     const b = value & 255;
     return (r * 299 + g * 587 + b * 114) / 1000 < 90;
+};
+
+const color_with_alpha = (color, alpha) => {
+    const hex = /^#?([0-9a-f]{6})$/i.exec(color || "");
+    if (!hex) return color;
+    const value = parseInt(hex[1], 16);
+    return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${alpha})`;
 };
 
 // Quadratic bezier helpers matching force-graph's own curved-link geometry
@@ -318,8 +325,9 @@ function render({ model, el }) {
             .warmupTicks(10)
             // Claimed links hide the default line entirely; paint_train_spaces
             // strokes a full-width claim band in its place.
-            .linkColor((link) => (link.claimedColor ? "rgba(0,0,0,0)" : link.color || "#999999"))
-            .linkOpacity((link) => link.claimedColor ? 0 : unclaimed_route_opacity)
+            .linkColor((link) => link.claimedColor
+                ? "rgba(0,0,0,0)"
+                : color_with_alpha(link.color || "#999999", unclaimed_route_opacity))
             // Thin roadbed only - the visible route body is the train spaces
             // painted on top in "after" mode.
             .linkWidth(() => 1)
