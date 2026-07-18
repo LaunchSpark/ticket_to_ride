@@ -214,5 +214,46 @@ class SpectateViewTests(unittest.TestCase):
         self.assertEqual(mo.output.appended, [shell])
 
 
+class ReplayControlsTests(unittest.TestCase):
+    def test_replay_controls_lists_stored_matches(self) -> None:
+        mo = FakeMo()
+        matches = [
+            {"matchId": "match-alpha-123", "name": "Alpha"},
+            {"matchId": "match-beta-456", "name": "Beta"},
+        ]
+
+        with patch("notebook_harness.stored_match.list_stored_matches", return_value=matches):
+            picker = spectate.replay_controls(mo, api_base="http://test")
+
+        self.assertEqual(
+            picker.options,
+            {"Alpha (match-al)": "match-alpha-123", "Beta (match-be)": "match-beta-456"},
+        )
+        self.assertEqual(picker.value, "match-alpha-123")
+        self.assertEqual(mo.output.appended, [picker])
+
+    def test_replay_controls_stops_when_backend_has_no_matches(self) -> None:
+        mo = FakeMo()
+        with patch("notebook_harness.stored_match.list_stored_matches", return_value=[]):
+            with self.assertRaisesRegex(FakeStop, "No stored matches"):
+                spectate.replay_controls(mo, api_base="http://test")
+
+    def test_load_replay_loads_selected_match(self) -> None:
+        mo = FakeMo()
+        picker = SimpleNamespace(value="match-alpha-123")
+        series = object()
+
+        with patch("notebook_harness.stored_match.load_stored_match", return_value=series) as load:
+            result = spectate.load_replay(mo, picker, api_base="http://test")
+
+        self.assertIs(result, series)
+        load.assert_called_once_with("match-alpha-123", "http://test")
+
+    def test_load_replay_stops_without_selection(self) -> None:
+        mo = FakeMo()
+        with self.assertRaisesRegex(FakeStop, "Pick a stored match"):
+            spectate.load_replay(mo, SimpleNamespace(value=""), api_base="http://test")
+
+
 if __name__ == "__main__":
     unittest.main()

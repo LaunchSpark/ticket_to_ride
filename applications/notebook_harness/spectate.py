@@ -90,3 +90,31 @@ def spectate_view(mo: Any, harness_series: Any, shell: Any) -> None:
 
     update_shell(shell, harness_series)
     mo.output.append(shell)
+
+
+def replay_controls(mo: Any, api_base: str | None = None):
+    """Create a dropdown over the matches available from the replay API."""
+    from notebook_harness.stored_match import DEFAULT_API_BASE, list_stored_matches
+
+    base = api_base or DEFAULT_API_BASE
+    matches = list_stored_matches(base)
+    mo.stop(
+        not matches,
+        mo.md(f"No stored matches at {base}. Run `uv run run` and play one."),
+    )
+    options = {
+        f"{record.get('name') or record['matchId']} ({record['matchId'][:8]})": record["matchId"]
+        for record in matches
+    }
+    first = next(iter(options))
+    match_picker = mo.ui.dropdown(options=options, value=first, label="Stored match")
+    mo.output.append(match_picker)
+    return match_picker
+
+
+def load_replay(mo: Any, match_picker: Any, api_base: str | None = None):
+    """Load the selected stored match through the shared series protocol."""
+    from notebook_harness.stored_match import DEFAULT_API_BASE, load_stored_match
+
+    mo.stop(not match_picker.value, mo.md("Pick a stored match to replay."))
+    return load_stored_match(match_picker.value, api_base or DEFAULT_API_BASE)
