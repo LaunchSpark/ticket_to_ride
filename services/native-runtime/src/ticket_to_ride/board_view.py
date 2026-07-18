@@ -53,7 +53,10 @@ def card_color_hex() -> 'Dict[str, str | Dict[str, List[str]]]':
 
 def build_nodes(map_graph: MapGraph) -> List[Dict[str, Any]]:
     """Build node dicts, one per city on the map."""
-    return [{"id": city, "name": city} for city in sorted(map_graph.cities())]
+    return [
+        {"id": city, "name": city, "data": {"members": [city]}}
+        for city in sorted(map_graph.cities())
+    ]
 
 
 def claimed_by_from_turn_state(turn_state: Dict[str, Any]) -> Dict[str, str]:
@@ -133,7 +136,17 @@ def _curvature_by_route_id(map_graph: MapGraph) -> Dict[str, float]:
 
 def build_culled_nodes(culled: CulledMap) -> List[Dict[str, Any]]:
     """Node dicts for a player's culled map; merged nodes read as "A + B"."""
-    return [{"id": node, "name": node.replace("+", " + ")} for node in sorted(culled.nodes)]
+    members_by_node: Dict[str, List[str]] = defaultdict(list)
+    for city, node in culled.city_to_node.items():
+        members_by_node[node].append(city)
+    return [
+        {
+            "id": node,
+            "name": node.replace("+", " + "),
+            "data": {"members": sorted(members_by_node[node])},
+        }
+        for node in sorted(culled.nodes)
+    ]
 
 
 def build_culled_edges(culled: CulledMap) -> List[Dict[str, Any]]:

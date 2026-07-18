@@ -12253,7 +12253,10 @@ function render3({ model, el }) {
     }
   };
   const create_plot = (data2) => {
-    return forceGraph()(el).width(width).height(height).graphData(data2).enablePointerInteraction(false).enableNodeDrag(false).cooldownTime(5e3).warmupTicks(10).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : color_with_alpha(link.color || "#999999", unclaimed_route_opacity)).linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineStop(() => {
+    return forceGraph()(el).width(width).height(height).graphData(data2).enablePointerInteraction(false).enableNodeDrag(false).cooldownTime(5e3).warmupTicks(10).linkColor((link) => link.claimedColor ? "rgba(0,0,0,0)" : color_with_alpha(link.color || "#999999", unclaimed_route_opacity)).linkWidth(() => 1).linkCanvasObjectMode(() => "after").linkCanvasObject(paint_train_spaces).linkCurvature((link) => link.curvature || 0).d3AlphaDecay(1e-3).minZoom(1e-3).nodeCanvasObjectMode(() => "replace").autoPauseRedraw(false).onEngineTick(() => {
+      simulation_running = true;
+    }).onEngineStop(() => {
+      simulation_running = false;
       if (zoom_to_fit_pending) {
         zoom_to_fit_pending = false;
         plot.zoomToFit(400);
@@ -12264,6 +12267,9 @@ function render3({ model, el }) {
   const idSet = (items) => new Set(items.map((item) => item.id));
   const idSetsEqual = (a3, b2) => a3.size === b2.size && [...a3].every((id2) => b2.has(id2));
   let data = model.get("data");
+  let simulation_running = true;
+  let last_simulation_alpha = 1;
+  let alpha_decay_to_restore = null;
   let zoom_to_fit_pending = true;
   let node_scale = model.get("node_scale") || default_node_scale;
   let configured_width = model.get("width") || default_width;
@@ -12286,6 +12292,14 @@ function render3({ model, el }) {
   select_feature_value = model.get("select_feature_value");
   let global_selected_ids = model.get("selected_ids");
   plot = create_plot(data);
+  plot.d3Force("__continuity_probe", (alpha) => {
+    last_simulation_alpha = alpha;
+    if (alpha_decay_to_restore !== null) {
+      const decay = alpha_decay_to_restore;
+      alpha_decay_to_restore = null;
+      plot.d3AlphaDecay(decay);
+    }
+  });
   const container = el.querySelector(".force-graph-container");
   const canvas = container.querySelector("canvas");
   const graph_coords_from_event = (ev) => {
@@ -12395,25 +12409,71 @@ function render3({ model, el }) {
     const coords = graph_coords_from_event(ev);
     return node_at(coords.x, coords.y) === null;
   });
+  const patch_node = (current, incoming) => {
+    for (const [key, value] of Object.entries(incoming)) {
+      if (!["x", "y", "vx", "vy", "fx", "fy", "index"].includes(key)) {
+        current[key] = value;
+      }
+    }
+  };
+  const patch_link = (current, incoming) => {
+    for (const [key, value] of Object.entries(incoming)) {
+      if (!["source", "target", "index", "__controlPoints"].includes(key)) {
+        current[key] = value;
+      }
+    }
+  };
+  const node_members = (node) => {
+    const members = node.data && node.data.members;
+    return Array.isArray(members) && members.length ? members : [node.id];
+  };
+  const seed_from_members = (node, currentNodes) => {
+    const members = new Set(node_members(node));
+    const sources = currentNodes.filter(
+      (candidate) => node_members(candidate).some((member) => members.has(member))
+    );
+    if (!sources.length) return;
+    for (const field of ["x", "y", "vx", "vy"]) {
+      const values = sources.map((source) => source[field]).filter((value) => Number.isFinite(value));
+      if (values.length) {
+        node[field] = values.reduce((sum2, value) => sum2 + value, 0) / values.length;
+      }
+    }
+  };
   const update_data = () => {
     const newData = model.get("data");
     const currentData = plot.graphData();
     const currentNodesById = new Map(currentData.nodes.map((node) => [node.id, node]));
+    const currentLinksById = new Map(currentData.links.map((link) => [link.id, link]));
     const sameTopology = idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) && idSetsEqual(idSet(currentData.links), idSet(newData.links));
-    const sameLayoutView = currentData.layoutKey === newData.layoutKey;
-    newData.nodes.forEach((node) => {
-      const previous = currentNodesById.get(node.id);
-      if (!previous) return;
-      node.x = previous.x;
-      node.y = previous.y;
-      if (Number.isFinite(previous.vx)) node.vx = previous.vx;
-      if (Number.isFinite(previous.vy)) node.vy = previous.vy;
-    });
-    if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true;
-    plot.cooldownTicks(Infinity);
-    plot.warmupTicks(0);
-    data = newData;
-    plot.graphData(data);
+    if (sameTopology) {
+      newData.nodes.forEach((node) => patch_node(currentNodesById.get(node.id), node));
+      newData.links.forEach((link) => patch_link(currentLinksById.get(link.id), link));
+      currentData.layoutKey = newData.layoutKey;
+      data = currentData;
+    } else {
+      const was_running = simulation_running;
+      newData.nodes.forEach((node) => {
+        const previous = currentNodesById.get(node.id);
+        if (previous) {
+          node.x = previous.x;
+          node.y = previous.y;
+          if (Number.isFinite(previous.vx)) node.vx = previous.vx;
+          if (Number.isFinite(previous.vy)) node.vy = previous.vy;
+        } else {
+          seed_from_members(node, currentData.nodes);
+        }
+      });
+      zoom_to_fit_pending = true;
+      plot.cooldownTicks(Infinity);
+      plot.warmupTicks(0);
+      const desired_alpha = was_running ? Math.min(0.999, Math.max(0, last_simulation_alpha)) : 0.08;
+      alpha_decay_to_restore = plot.d3AlphaDecay();
+      plot.d3AlphaDecay(1 - desired_alpha);
+      simulation_running = true;
+      data = newData;
+      plot.graphData(data);
+    }
     build_colour_scale();
     create_node_canvas_object(plot, node_scale, node_size_feature);
   };
@@ -12610,7 +12670,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-093337Z" : "dev";
+  const build_tag = true ? "20260718-094950Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {

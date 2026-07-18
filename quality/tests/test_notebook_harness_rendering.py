@@ -38,6 +38,9 @@ class RenderingTests(unittest.TestCase):
         node_ids = {node["id"] for node in nodes}
         self.assertEqual(node_ids, game_map.cities())
         self.assertTrue(all(node["name"] == node["id"] for node in nodes))
+        self.assertTrue(
+            all(node["data"]["members"] == [node["id"]] for node in nodes)
+        )
 
     def test_claimed_by_from_snapshot_merges_player_and_opponent_claims(self) -> None:
         turn_state = make_turn_state(
@@ -121,7 +124,9 @@ class CulledRenderingTests(unittest.TestCase):
         nodes_by_id = {node["id"]: node for node in nodes}
         self.assertIn("A+B", nodes_by_id)
         self.assertEqual(nodes_by_id["A+B"]["name"], "A + B")
+        self.assertEqual(nodes_by_id["A+B"]["data"]["members"], ["A", "B"])
         self.assertIn("C", nodes_by_id)
+        self.assertEqual(nodes_by_id["C"]["data"]["members"], ["C"])
 
     def test_build_culled_edges_remaps_endpoints_and_shows_no_claims(self) -> None:
         edges = build_culled_edges(self.make_culled())

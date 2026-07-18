@@ -344,10 +344,14 @@ function render({ model, el }) {
             // Repaint every frame regardless of engine state, so board
             // updates always show immediately even when the layout is idle.
             .autoPauseRedraw(false)
+            .onEngineTick(() => {
+                simulation_running = true;
+            })
             .onEngineStop(() => {
+                simulation_running = false;
                 // Fit only after an initial or topology-change settle - the
-                // engine also stops after every frozen playback ingest and
-                // after drag cooldowns, which must not re-zoom.
+                // engine also stops after drag cooldowns, which must not
+                // re-zoom.
                 if (zoom_to_fit_pending) {
                     zoom_to_fit_pending = false;
                     plot.zoomToFit(400);
@@ -360,6 +364,12 @@ function render({ model, el }) {
     const idSetsEqual = (a, b) => a.size === b.size && [...a].every((id) => b.has(id));
 
     let data = model.get("data");
+    // ForceGraph's graphData setter always resets d3's alpha to 1. Track the
+    // live alpha so a genuine topology change can be ingested at the energy
+    // the prior graph actually had, rather than visibly exploding outward.
+    let simulation_running = true;
+    let last_simulation_alpha = 1;
+    let alpha_decay_to_restore = null;
     // True while an initial or topology-change layout is still settling;
     // cleared by onEngineStop after the one zoomToFit it gates.
     let zoom_to_fit_pending = true;
@@ -393,6 +403,17 @@ function render({ model, el }) {
     let global_selected_ids = model.get("selected_ids");
 
     plot = create_plot(data);
+    // A force receives the simulation alpha on every tick. It runs after the
+    // built-in forces, records that alpha, and restores the normal decay after
+    // the one specially tempered tick used for a topology change.
+    plot.d3Force("__continuity_probe", (alpha) => {
+        last_simulation_alpha = alpha;
+        if (alpha_decay_to_restore !== null) {
+            const decay = alpha_decay_to_restore;
+            alpha_decay_to_restore = null;
+            plot.d3AlphaDecay(decay);
+        }
+    });
 
     // ------------------------------------------------------------------
     // Coordinate-based pointer interaction (hover, tooltip, drag).
@@ -543,38 +564,99 @@ function render({ model, el }) {
         return node_at(coords.x, coords.y) === null;
     });
 
-    // Rebuild the graph from every incoming payload. Matching nodes inherit
-    // x/y and velocity from the objects they replace, preserving continuous
-    // motion without carrying drag pins. The incoming graph then runs a
-    // normal live settle from that state.
+    const patch_node = (current, incoming) => {
+        // Never overwrite force-owned kinematics or a live drag pin.
+        for (const [key, value] of Object.entries(incoming)) {
+            if (!["x", "y", "vx", "vy", "fx", "fy", "index"].includes(key)) {
+                current[key] = value;
+            }
+        }
+    };
+
+    const patch_link = (current, incoming) => {
+        // d3-force replaces source/target ids with node object references.
+        // Preserve those references and its private curve cache.
+        for (const [key, value] of Object.entries(incoming)) {
+            if (!["source", "target", "index", "__controlPoints"].includes(key)) {
+                current[key] = value;
+            }
+        }
+    };
+
+    const node_members = (node) => {
+        const members = node.data && node.data.members;
+        return Array.isArray(members) && members.length ? members : [node.id];
+    };
+
+    const seed_from_members = (node, currentNodes) => {
+        const members = new Set(node_members(node));
+        const sources = currentNodes.filter((candidate) =>
+            node_members(candidate).some((member) => members.has(member))
+        );
+        if (!sources.length) return;
+
+        for (const field of ["x", "y", "vx", "vy"]) {
+            const values = sources
+                .map((source) => source[field])
+                .filter((value) => Number.isFinite(value));
+            if (values.length) {
+                node[field] = values.reduce((sum, value) => sum + value, 0) / values.length;
+            }
+        }
+    };
+
+    // A same-topology frame only changes board styling and metadata. Patch
+    // the objects already owned by d3-force so alpha, countdown, positions,
+    // velocities and stopped/running state all continue untouched. Only a
+    // real topology change is passed through graphData().
     const update_data = () => {
         const newData = model.get("data");
         const currentData = plot.graphData();
         const currentNodesById = new Map(currentData.nodes.map((node) => [node.id, node]));
+        const currentLinksById = new Map(currentData.links.map((link) => [link.id, link]));
 
         const sameTopology =
             idSetsEqual(idSet(currentData.nodes), idSet(newData.nodes)) &&
             idSetsEqual(idSet(currentData.links), idSet(newData.links));
-        const sameLayoutView = currentData.layoutKey === newData.layoutKey;
+        if (sameTopology) {
+            newData.nodes.forEach((node) => patch_node(currentNodesById.get(node.id), node));
+            newData.links.forEach((link) => patch_link(currentLinksById.get(link.id), link));
+            currentData.layoutKey = newData.layoutKey;
+            data = currentData;
+        } else {
+            const was_running = simulation_running;
+            newData.nodes.forEach((node) => {
+                const previous = currentNodesById.get(node.id);
+                if (previous) {
+                    node.x = previous.x;
+                    node.y = previous.y;
+                    if (Number.isFinite(previous.vx)) node.vx = previous.vx;
+                    if (Number.isFinite(previous.vy)) node.vy = previous.vy;
+                } else {
+                    // Contracted nodes start at their member-city centroid;
+                    // expanding a contraction seeds each city from the old
+                    // merged node. Velocities are averaged the same way.
+                    seed_from_members(node, currentData.nodes);
+                }
+            });
 
-        // Unmatched ids (fresh merged nodes in a culled view) remain
-        // unseeded and are placed by the force engine.
-        newData.nodes.forEach((node) => {
-            const previous = currentNodesById.get(node.id);
-            if (!previous) return;
-            node.x = previous.x;
-            node.y = previous.y;
-            if (Number.isFinite(previous.vx)) node.vx = previous.vx;
-            if (Number.isFinite(previous.vy)) node.vy = previous.vy;
-        });
+            zoom_to_fit_pending = true;
+            plot.cooldownTicks(Infinity);
+            plot.warmupTicks(0);
 
-        if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true;
-        plot.cooldownTicks(Infinity);
-        // No synchronous warmup burst: paint the exact carried state first,
-        // then let the unlimited live simulation advance it smoothly.
-        plot.warmupTicks(0);
-        data = newData;
-        plot.graphData(data);
+            // graphData() internally forces alpha(1). Choose a one-tick decay
+            // that lands on the previous live alpha before any force runs.
+            // A genuinely new topology gets a small amount of energy when
+            // the old graph was idle so its new nodes can settle naturally.
+            const desired_alpha = was_running
+                ? Math.min(0.999, Math.max(0, last_simulation_alpha))
+                : 0.08;
+            alpha_decay_to_restore = plot.d3AlphaDecay();
+            plot.d3AlphaDecay(1 - desired_alpha);
+            simulation_running = true;
+            data = newData;
+            plot.graphData(data);
+        }
 
         build_colour_scale();
         create_node_canvas_object(plot, node_scale, node_size_feature);

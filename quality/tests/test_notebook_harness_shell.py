@@ -138,18 +138,15 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertEqual(shell.frame["ticket_player"], "bot_1")
         self.assertEqual(shell.board["layoutKey"], "bot_1")
 
-    def test_bundled_culled_view_switch_seeds_then_settles(self) -> None:
+    def test_bundled_graph_updates_preserve_force_continuity(self) -> None:
         source = files("notebook_harness").joinpath(
             "static", "spectate_shell_widget.js"
         ).read_text()
-        self.assertIn(
-            "const sameLayoutView = currentData.layoutKey === newData.layoutKey",
-            source,
-        )
-        self.assertIn(
-            "if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true",
-            source,
-        )
+        self.assertIn("if (sameTopology)", source)
+        self.assertIn("currentData.layoutKey = newData.layoutKey", source)
+        self.assertIn('plot.d3Force("__continuity_probe"', source)
+        self.assertIn("plot.d3AlphaDecay(1 - desired_alpha)", source)
+        self.assertIn("seed_from_members(node, currentData.nodes)", source)
         self.assertIn("plot.cooldownTicks(Infinity)", source)
         self.assertNotIn("plot.cooldownTicks(0)", source)
         self.assertIn("plot.warmupTicks(0)", source)
