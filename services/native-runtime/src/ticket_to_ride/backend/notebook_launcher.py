@@ -27,6 +27,11 @@ def default_spawner(notebook_path: str, port: int) -> "subprocess.Popen[bytes]":
             "--port",
             str(port),
             "--headless",
+            # The launcher returns a bare loopback URL to the viewer. Marimo
+            # enables a random login token by default, but that token is not
+            # available to the browser opened by the viewer. Loopback-only
+            # notebook servers can safely skip session authentication.
+            "--no-token",
         ],
         cwd=str(_repo_root()),
     )

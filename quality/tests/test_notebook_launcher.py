@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
-from ticket_to_ride.backend.notebook_launcher import NotebookLauncher
+from ticket_to_ride.backend.notebook_launcher import NotebookLauncher, default_spawner
 
 
 class FakeProcess:
@@ -14,6 +15,15 @@ class FakeProcess:
 
 
 class NotebookLauncherTests(unittest.TestCase):
+    def test_default_spawner_disables_token_for_bare_loopback_url(self) -> None:
+        with patch("ticket_to_ride.backend.notebook_launcher.subprocess.Popen") as popen:
+            default_spawner("/repo/bots/random_bot.py", 12345)
+
+        command = popen.call_args.args[0]
+        self.assertEqual(command[-2:], ["--headless", "--no-token"])
+        self.assertIn("edit", command)
+        self.assertIn("/repo/bots/random_bot.py", command)
+
     def test_launch_spawns_a_process_and_returns_its_url(self) -> None:
         spawn_calls = []
 
