@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
 
@@ -179,3 +180,54 @@ def initialize_game(
     game = Game(context, players, logger, round_number)
 
     return HarnessGame(game=game, players=players, logger=logger)
+
+
+@dataclass
+class HarnessSeries:
+    """A sequence of rounds: one fully-independent HarnessGame per round,
+    same seats and map, seed derived as base_seed + round_index so every
+    round is individually reproducible."""
+
+    games: List[HarnessGame]
+
+    def play(self) -> None:
+        for game in self.games:
+            game.play()
+
+    def roster(self) -> List[Dict[str, str]]:
+        return self.games[0].roster()
+
+    def round_count(self) -> int:
+        return len(self.games)
+
+    def turn_count(self, round_index: int) -> int:
+        return self.games[round_index].snapshot_count()
+
+    def rounds_meta(self) -> List[Dict[str, int]]:
+        return [
+            {"roundNumber": index, "turnCount": game.snapshot_count()}
+            for index, game in enumerate(self.games)
+        ]
+
+
+def initialize_series(
+    bot_classes: List[type],
+    map_name: str = DEFAULT_MAP_NAME,
+    rounds: int = 1,
+    seed: 'int | None' = None,
+) -> HarnessSeries:
+    """Build one unplayed HarnessGame per round from bot *classes* (a fresh
+    instance per seat per round, so bot state never leaks across rounds)."""
+    if rounds < 1:
+        raise ValueError("initialize_series requires at least one round.")
+    base_seed = seed if seed is not None else random.randrange(2**32)
+    games = [
+        initialize_game(
+            [bot_class() for bot_class in bot_classes],
+            map_name=map_name,
+            round_number=round_index,
+            seed=base_seed + round_index,
+        )
+        for round_index in range(rounds)
+    ]
+    return HarnessSeries(games=games)
