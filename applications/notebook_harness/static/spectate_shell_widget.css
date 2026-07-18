@@ -1,1 +1,89 @@
-/* Placeholder CSS - implemented in Task 4 */
+/* Dashboard-grid port, themed via light-dark() with light fallbacks. */
+.spectate-shell {
+    --shell-bg: #f4f2ee;
+    --shell-panel: #ffffff;
+    --shell-text: #1c1a17;
+    --shell-muted: #6b675f;
+    --shell-border: rgba(0, 0, 0, 0.12);
+    --shell-bg: light-dark(#f4f2ee, #17140f);
+    --shell-panel: light-dark(#ffffff, #201c15);
+    --shell-text: light-dark(#1c1a17, #f0ece4);
+    --shell-muted: light-dark(#6b675f, #a39c8f);
+    --shell-border: light-dark(rgba(0, 0, 0, 0.12), rgba(255, 255, 255, 0.12));
+    color: var(--shell-text);
+    background: var(--shell-bg);
+    border-radius: 14px;
+    padding: 14px;
+    font-family: inherit;
+}
+.spectate-shell-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-areas:
+        "hero sidebar"
+        "market sidebar"
+        "current tickets";
+}
+.shell-slot-hero { grid-area: hero; }
+.shell-slot-sidebar { grid-area: sidebar; }
+.shell-slot-market { grid-area: market; }
+.shell-slot-current { grid-area: current; }
+.shell-slot-tickets { grid-area: tickets; }
+.shell-slot-hero, .shell-slot-sidebar, .shell-slot-market,
+.shell-slot-current, .shell-slot-tickets {
+    background: var(--shell-panel);
+    border: 1px solid var(--shell-border);
+    border-radius: 12px;
+    padding: 12px;
+    min-width: 0;
+}
+.shell-eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--shell-muted); margin: 0 0 8px; }
+.shell-section-heading { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--shell-muted); margin: 12px 0 6px; }
+.shell-playback-controls { display: flex; gap: 6px; }
+.shell-playback-button, .shell-jump-button {
+    background: transparent; color: var(--shell-text);
+    border: 1px solid var(--shell-border); border-radius: 8px;
+    padding: 6px 10px; cursor: pointer;
+}
+.shell-jump-button { width: 100%; margin-top: 8px; }
+.shell-leader-row, .shell-metric-row {
+    display: flex; align-items: center; gap: 8px;
+    border-left: 3px solid var(--accent, var(--shell-muted));
+    background: color-mix(in srgb, var(--shell-panel) 92%, var(--accent, transparent));
+    border-radius: 8px; padding: 8px; margin: 6px 0; cursor: pointer;
+}
+.shell-leader-row.selected { outline: 2px solid var(--accent, var(--shell-text)); }
+.shell-leader-rank { color: var(--shell-muted); font-size: 12px; }
+.shell-leader-copy { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.shell-leader-sub, .shell-metric-values { color: var(--shell-muted); font-size: 12px; }
+.shell-leader-score { font-size: 18px; font-weight: 700; }
+.shell-leader-hands { background: transparent; border: none; cursor: pointer; font-size: 16px; color: var(--shell-text); }
+.shell-aggregates summary { cursor: pointer; }
+.shell-metric-row { flex-direction: column; align-items: flex-start; cursor: default; }
+.shell-metric-bar { height: 4px; border-radius: 2px; background: var(--accent, var(--shell-muted)); }
+.shell-stats-card { border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px; }
+.shell-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.shell-chip { border: 1px solid var(--shell-border); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.shell-hand-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.shell-hand-cell { display: inline-flex; align-items: center; gap: 4px; }
+.shell-hand-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--shell-border); background: var(--hand-color, #888); }
+.hand-black .shell-hand-dot { --hand-color: #35322c; }
+.hand-blue .shell-hand-dot { --hand-color: #3b6fb3; }
+.hand-green .shell-hand-dot { --hand-color: #3f9c58; }
+.hand-locomotive .shell-hand-dot { --hand-color: #b58fd6; }
+.hand-orange .shell-hand-dot { --hand-color: #e08a3c; }
+.hand-purple .shell-hand-dot { --hand-color: #8d5bb8; }
+.hand-red .shell-hand-dot { --hand-color: #d05045; }
+.hand-white .shell-hand-dot { --hand-color: #f0ede6; }
+.hand-yellow .shell-hand-dot { --hand-color: #d8b93e; }
+.shell-ticket-row { display: flex; align-items: center; gap: 8px; border: 1px solid var(--shell-border); border-radius: 8px; padding: 8px; margin: 6px 0; }
+.shell-ticket-seq { color: var(--shell-muted); font-size: 11px; text-transform: uppercase; }
+.shell-ticket-route { flex: 1; min-width: 0; }
+.shell-ticket-badge { font-size: 11px; border: 1px solid var(--shell-border); border-radius: 999px; padding: 2px 8px; }
+.shell-ticket-row.status-completed .shell-ticket-badge { border-color: #3f9c58; color: #3f9c58; }
+.shell-ticket-row.status-cut_off .shell-ticket-badge { border-color: #d05045; color: #d05045; }
+.shell-ticket-points { font-weight: 700; }
+@media (max-width: 980px) {
+    .spectate-shell-grid { grid-template-columns: 1fr; grid-template-areas: "hero" "sidebar" "market" "current" "tickets"; }
+}
