@@ -12406,10 +12406,12 @@ function render3({ model, el }) {
       if (!previous) return;
       node.x = previous.x;
       node.y = previous.y;
+      if (Number.isFinite(previous.vx)) node.vx = previous.vx;
+      if (Number.isFinite(previous.vy)) node.vy = previous.vy;
     });
     if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true;
     plot.cooldownTicks(Infinity);
-    plot.warmupTicks(10);
+    plot.warmupTicks(0);
     data = newData;
     plot.graphData(data);
     build_colour_scale();
@@ -12608,7 +12610,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-092956Z" : "dev";
+  const build_tag = true ? "20260718-093337Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {

@@ -544,9 +544,9 @@ function render({ model, el }) {
     });
 
     // Rebuild the graph from every incoming payload. Matching nodes inherit
-    // only x/y from the objects they replace; velocities, drag pins and force
-    // engine state are never carried over or frozen. The incoming graph then
-    // runs a normal live settle from those seeded positions.
+    // x/y and velocity from the objects they replace, preserving continuous
+    // motion without carrying drag pins. The incoming graph then runs a
+    // normal live settle from that state.
     const update_data = () => {
         const newData = model.get("data");
         const currentData = plot.graphData();
@@ -564,11 +564,15 @@ function render({ model, el }) {
             if (!previous) return;
             node.x = previous.x;
             node.y = previous.y;
+            if (Number.isFinite(previous.vx)) node.vx = previous.vx;
+            if (Number.isFinite(previous.vy)) node.vy = previous.vy;
         });
 
         if (!sameTopology || !sameLayoutView) zoom_to_fit_pending = true;
         plot.cooldownTicks(Infinity);
-        plot.warmupTicks(10);
+        // No synchronous warmup burst: paint the exact carried state first,
+        // then let the unlimited live simulation advance it smoothly.
+        plot.warmupTicks(0);
         data = newData;
         plot.graphData(data);
 
