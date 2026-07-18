@@ -12670,7 +12670,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-095656Z" : "dev";
+  const build_tag = true ? "20260718-100002Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
@@ -13003,7 +13003,7 @@ function renderPlayerCard(model, entry, selected, active) {
   card.appendChild(chips);
   const hand = elem("div", "shell-hand-row");
   const locomotiveColor = ((frameValue(model, "market") || {}).colors || {}).L;
-  Object.entries(stats.hand || {}).filter(([, count]) => Number(count) > 1).sort(
+  Object.entries(stats.hand || {}).filter(([, count]) => Number(count) > 0).sort(
     ([colorA, countA], [colorB, countB]) => Number(countB) - Number(countA) || colorA.localeCompare(colorB)
   ).forEach(([color2, count]) => {
     const cell = elem("span", `shell-hand-cell hand-${color2}`);

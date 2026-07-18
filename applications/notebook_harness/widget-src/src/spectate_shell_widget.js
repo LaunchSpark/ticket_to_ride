@@ -208,7 +208,7 @@ function renderPlayerCard(model, entry, selected, active) {
     const hand = elem("div", "shell-hand-row");
     const locomotiveColor = ((frameValue(model, "market") || {}).colors || {}).L;
     Object.entries(stats.hand || {})
-        .filter(([, count]) => Number(count) > 1)
+        .filter(([, count]) => Number(count) > 0)
         .sort(([colorA, countA], [colorB, countB]) =>
             Number(countB) - Number(countA) || colorA.localeCompare(colorB)
         )

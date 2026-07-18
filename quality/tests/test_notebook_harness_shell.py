@@ -81,7 +81,7 @@ class ShellWidgetTests(unittest.TestCase):
         css = files("notebook_harness").joinpath(
             "static", "spectate_shell_widget.css"
         ).read_text()
-        self.assertIn(".filter(([, count]) => Number(count) > 1)", source)
+        self.assertIn(".filter(([, count]) => Number(count) > 0)", source)
         self.assertIn("Number(countB) - Number(countA)", source)
         self.assertIn('frameValue(model, "market")', source)
         self.assertIn("shellCssColor(locomotiveColor)", source)
