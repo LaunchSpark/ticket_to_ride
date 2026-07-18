@@ -23,6 +23,15 @@ from notebook_harness.rendering import (
 
 _SEAT_COLORS = ["red", "blue", "green", "yellow", "black"]
 
+_HAND_LABELS = {
+    "B": "black", "U": "blue", "G": "green", "L": "locomotive", "O": "orange",
+    "P": "purple", "R": "red", "W": "white", "Y": "yellow",
+}
+
+
+def _hand_counts(hand: Dict[str, int]) -> Dict[str, int]:
+    return {label: hand.get(code, 0) for code, label in _HAND_LABELS.items()}
+
 
 def list_maps() -> List[str]:
     """Return the names of every map a notebook can play on."""
@@ -109,6 +118,64 @@ class HarnessGame:
             game = replay_to_turn(record_of(self.game), step_index)
             self._market_games[step_index] = game
         return game
+
+    def _snapshot_rows(self, step_index: int) -> List[Dict[str, Any]]:
+        state = self.logger.snapshots[step_index]["turnState"]
+        return [state["player"], *state["opponents"]]
+
+    def active_player_at(self, step_index: int) -> str:
+        return self.logger.snapshots[step_index]["turnState"]["player"]["playerId"]
+
+    def leaderboard_at(self, step_index: int) -> List[Dict[str, Any]]:
+        meta = {entry["id"]: entry for entry in self.roster()}
+        rows = sorted(self._snapshot_rows(step_index), key=lambda row: -row["score"])
+        return [
+            {
+                "playerId": row["playerId"],
+                "name": meta[row["playerId"]]["name"],
+                "color": meta[row["playerId"]]["color"],
+                "score": row["score"],
+                "remainingTrains": row["remainingTrains"],
+                "place": place,
+            }
+            for place, row in enumerate(rows, start=1)
+        ]
+
+    def stats_at(self, step_index: int) -> Dict[str, Dict[str, Any]]:
+        """Omniscient per-player stats at a step: full hands come from the
+        replayed game (snapshots only carry the active player's hand)."""
+        replayed = self._replayed_game(step_index)
+        routes = {row["playerId"]: len(row["claimedRoutes"]) for row in self._snapshot_rows(step_index)}
+        scores = {row["playerId"]: row["score"] for row in self._snapshot_rows(step_index)}
+        trains = {row["playerId"]: row["remainingTrains"] for row in self._snapshot_rows(step_index)}
+        return {
+            player.player_id: {
+                "hand": _hand_counts(player.get_hand()),
+                "hiddenCards": None,
+                "score": scores[player.player_id],
+                "remainingTrains": trains[player.player_id],
+                "ticketCount": len(player.get_tickets()),
+                "routeCount": routes.get(player.player_id, 0),
+            }
+            for player in replayed.players
+        }
+
+    def tickets_at(self, step_index: int, player_id: str) -> List[Dict[str, Any]]:
+        replayed = self._replayed_game(step_index)
+        view = PlayerView(player_id, replayed.context, replayed.players)
+        results = []
+        for ticket, cost in zip(view.tickets, view.ticket_costs()):
+            if ticket.is_completed:
+                status, short = "completed", 0
+            elif cost is None:
+                status, short = "cut_off", None
+            else:
+                status, short = "open", cost
+            results.append(
+                {"from": ticket.city1, "to": ticket.city2, "points": ticket.value,
+                 "status": status, "trainsShort": short}
+            )
+        return results
 
     def market_at(self, step_index: int, viewpoint: 'str | None' = None) -> Dict[str, Any]:
         """Market payload for the InfoBarWidget as of the given recorded turn.
@@ -207,6 +274,46 @@ class HarnessSeries:
         return [
             {"roundNumber": index, "turnCount": game.snapshot_count()}
             for index, game in enumerate(self.games)
+        ]
+
+    def active_player_at(self, round_index: int, turn_index: int) -> str:
+        return self.games[round_index].active_player_at(turn_index)
+
+    def board_at(self, round_index: int, turn_index: int, viewpoint: 'str | None' = None):
+        return self.games[round_index].board_at(turn_index, viewpoint)
+
+    def market_at(self, round_index: int, turn_index: int, viewpoint: 'str | None' = None):
+        return self.games[round_index].market_at(turn_index, viewpoint)
+
+    def leaderboard_at(self, round_index: int, turn_index: int):
+        return self.games[round_index].leaderboard_at(turn_index)
+
+    def stats_at(self, round_index: int, turn_index: int):
+        return self.games[round_index].stats_at(turn_index)
+
+    def tickets_at(self, round_index: int, turn_index: int, player_id: str):
+        return self.games[round_index].tickets_at(turn_index, player_id)
+
+    def aggregates(self) -> List[Dict[str, Any]]:
+        meta = self.roster()
+        scores: Dict[str, List[int]] = {entry["id"]: [] for entry in meta}
+        wins: Dict[str, int] = {entry["id"]: 0 for entry in meta}
+        for game in self.games:
+            final = game.leaderboard_at(game.snapshot_count() - 1)
+            for row in final:
+                scores[row["playerId"]].append(row["score"])
+            wins[final[0]["playerId"]] += 1
+        return [
+            {
+                "playerId": entry["id"],
+                "name": entry["name"],
+                "color": entry["color"],
+                "scores": scores[entry["id"]],
+                "averageScore": round(sum(scores[entry["id"]]) / len(scores[entry["id"]]), 1),
+                "bestScore": max(scores[entry["id"]]),
+                "wins": wins[entry["id"]],
+            }
+            for entry in meta
         ]
 
 
