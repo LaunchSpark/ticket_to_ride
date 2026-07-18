@@ -34,20 +34,20 @@ def _():
 
     from notebook_harness.spectate import spectate_controls
 
-    map_picker, seat_pickers = spectate_controls(
+    map_picker, seat_pickers, rounds_picker = spectate_controls(
         mo,
         bot_name=BOT_META["name"],
         bot_class=YourBotName,
         title=BOT_META["name"],
     )
-    return map_picker, mo, seat_pickers
+    return map_picker, mo, rounds_picker, seat_pickers
 
 
 @app.cell(hide_code=True)
-def _(map_picker, mo, seat_pickers):
+def _(map_picker, mo, rounds_picker, seat_pickers):
     from notebook_harness.spectate import play_match
 
-    harness_game = play_match(mo, map_picker, seat_pickers)
+    harness_game = play_match(mo, map_picker, seat_pickers, rounds_picker)
     return (harness_game,)
 
 
@@ -55,15 +55,15 @@ def _(map_picker, mo, seat_pickers):
 def _(harness_game, mo):
     from notebook_harness.spectate import spectate_widgets
 
-    graph, player_list, info_bar, step_slider = spectate_widgets(mo, harness_game)
-    return graph, info_bar, player_list, step_slider
+    shell = spectate_widgets(mo, harness_game)
+    return (shell,)
 
 
 @app.cell(hide_code=True)
-def _(graph, harness_game, info_bar, mo, player_list, step_slider):
+def _(harness_game, mo, shell):
     from notebook_harness.spectate import spectate_view
 
-    spectate_view(mo, harness_game, graph, player_list, info_bar, step_slider)
+    spectate_view(mo, harness_game, shell)
     return
 
 
