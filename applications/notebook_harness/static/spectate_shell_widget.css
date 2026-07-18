@@ -48,6 +48,12 @@
     padding: 6px 10px; cursor: pointer;
 }
 .shell-jump-button { width: 100%; margin-top: 8px; }
+.shell-opacity-control {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 8px;
+    align-items: center; margin-top: 10px; color: var(--shell-muted); font-size: 11px;
+}
+.shell-opacity-value { color: var(--shell-text); font-variant-numeric: tabular-nums; }
+.shell-opacity-slider { grid-column: 1 / -1; width: 100%; accent-color: var(--shell-text); }
 .shell-metric-row {
     display: flex; align-items: center; gap: 8px;
     border-left: 3px solid var(--accent, var(--shell-muted));

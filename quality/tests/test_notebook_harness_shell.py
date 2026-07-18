@@ -23,6 +23,7 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertEqual(shell.rounds_meta, self.series.rounds_meta())
         self.assertEqual(len(shell.aggregates), 2)
         self.assertEqual(shell.playback, {"round": 0, "turn": 0})
+        self.assertEqual(shell.unclaimed_route_opacity, 0.5)
         self.assertEqual(shell.frame["round"], 0)
         self.assertEqual(shell.frame["turn"], 0)
         self.assertEqual(shell.frame["leaderboard"], shell.leaderboard)
@@ -53,7 +54,7 @@ class ShellWidgetTests(unittest.TestCase):
         source = files("notebook_harness").joinpath(
             "static", "spectate_shell_widget.js"
         ).read_text()
-        self.assertIn("var unclaimed_route_opacity = 0.5", source)
+        self.assertIn("var default_unclaimed_route_opacity = 0.5", source)
         self.assertIn(
             "ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity",
             source,
@@ -72,6 +73,16 @@ class ShellWidgetTests(unittest.TestCase):
             source,
         )
         self.assertNotIn(".linkOpacity(", source)
+
+    def test_bundled_shell_exposes_live_unclaimed_opacity_slider(self) -> None:
+        source = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.js"
+        ).read_text()
+        self.assertIn('"Unclaimed opacity"', source)
+        self.assertIn('opacitySlider.type = "range"', source)
+        self.assertIn('opacitySlider.step = "0.05"', source)
+        self.assertIn('model.set("unclaimed_route_opacity", value)', source)
+        self.assertIn('model.on("change:unclaimed_route_opacity"', source)
 
     def test_update_shell_pushes_step_payloads(self) -> None:
         shell = build_shell(self.series)

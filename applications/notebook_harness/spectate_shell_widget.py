@@ -58,6 +58,7 @@ class SpectateShellWidget(anywidget.AnyWidget):
     repulsion = traitlets.Int(80).tag(sync=True)
     link_distance_base = traitlets.Float(30).tag(sync=True)
     link_distance_scale = traitlets.Float(15).tag(sync=True)
+    unclaimed_route_opacity = traitlets.Float(0.5, min=0.0, max=1.0).tag(sync=True)
     node_scale = traitlets.Float(3).tag(sync=True)
     node_size_feature = traitlets.Unicode("").tag(sync=True)
     colour_feature = traitlets.Unicode("").tag(sync=True)

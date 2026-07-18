@@ -12038,7 +12038,7 @@ var default_link_distance_scale = 15;
 var default_node_scale = 3;
 var train_space_width = 6;
 var train_space_fill = 0.72;
-var unclaimed_route_opacity = 0.5;
+var default_unclaimed_route_opacity = 0.5;
 var claim_inset_fraction = 0.25;
 var claim_band_alpha = 0.45;
 var MyRBush = class extends RBush {
@@ -12142,6 +12142,10 @@ function link_distance_for(model, link) {
 }
 function render3({ model, el }) {
   const debouncedSaveChanges = debounce2(() => model.save_changes(), 300);
+  const normalized_opacity = (value) => Math.min(1, Math.max(0, Number(value)));
+  let unclaimed_route_opacity = normalized_opacity(
+    model.get("unclaimed_route_opacity") ?? default_unclaimed_route_opacity
+  );
   const node_radius = (node) => {
     if (node_size_feature == void 0 || node_size_feature == "") {
       return default_node_size * node_scale;
@@ -12456,6 +12460,12 @@ function render3({ model, el }) {
   };
   model.on("change:link_distance_base", update_link_distance);
   model.on("change:link_distance_scale", update_link_distance);
+  const update_unclaimed_route_opacity = () => {
+    unclaimed_route_opacity = normalized_opacity(
+      model.get("unclaimed_route_opacity") ?? default_unclaimed_route_opacity
+    );
+  };
+  model.on("change:unclaimed_route_opacity", update_unclaimed_route_opacity);
   const update_node_scale = () => {
     node_scale = model.get("node_scale");
     create_node_canvas_object(plot, node_scale, node_size_feature);
@@ -12627,7 +12637,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-091538Z" : "dev";
+  const build_tag = true ? "20260718-091943Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
@@ -12635,6 +12645,7 @@ function render3({ model, el }) {
     if (refit_frame != null) cancelAnimationFrame(refit_frame);
     host_resize_observer.disconnect();
     model.off("change:width", update_configured_width);
+    model.off("change:unclaimed_route_opacity", update_unclaimed_route_opacity);
   };
 }
 var route_graph_widget_default = { render: render3 };

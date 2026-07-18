@@ -112,6 +112,26 @@ function renderSidebar(model, container, playState) {
         setPlayback(model, target, turnTarget);
     });
     header.appendChild(jump);
+
+    const opacityControl = elem("label", "shell-opacity-control");
+    const opacityValue = Number(model.get("unclaimed_route_opacity") ?? 0.5);
+    const opacityCopy = elem("span", "shell-opacity-label", "Unclaimed opacity");
+    const opacityOutput = elem("output", "shell-opacity-value", opacityValue.toFixed(2));
+    const opacitySlider = elem("input", "shell-opacity-slider");
+    opacitySlider.type = "range";
+    opacitySlider.min = "0";
+    opacitySlider.max = "1";
+    opacitySlider.step = "0.05";
+    opacitySlider.value = String(opacityValue);
+    opacitySlider.addEventListener("input", () => {
+        const value = Number(opacitySlider.value);
+        opacityOutput.value = value.toFixed(2);
+        opacityOutput.textContent = value.toFixed(2);
+        model.set("unclaimed_route_opacity", value);
+    });
+    opacitySlider.addEventListener("change", () => model.save_changes());
+    opacityControl.append(opacityCopy, opacityOutput, opacitySlider);
+    header.appendChild(opacityControl);
     container.appendChild(header);
 
     const board = elem("div", "shell-section");
