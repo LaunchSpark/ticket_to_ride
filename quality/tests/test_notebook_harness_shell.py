@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from importlib.resources import files
 
 from external.bots.random_bot import RandomBot
 
@@ -28,6 +29,14 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertIn(".info-bar-widget", css)
         self.assertIn(".float-tooltip-kap", css)
         self.assertIn(".spectate-shell-grid", css)
+        self.assertIn(".shell-slot-hero { overflow: hidden; }", css)
+
+    def test_bundled_graph_resizes_its_canvas_to_the_shell_column(self) -> None:
+        source = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.js"
+        ).read_text()
+        self.assertIn("new ResizeObserver(resize_to_host)", source)
+        self.assertIn("Math.min(configured_width, host_content_width())", source)
 
     def test_update_shell_pushes_step_payloads(self) -> None:
         shell = build_shell(self.series)

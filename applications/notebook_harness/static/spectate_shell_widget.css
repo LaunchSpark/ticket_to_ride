@@ -26,6 +26,7 @@
         "current tickets";
 }
 .shell-slot-hero { grid-area: hero; }
+.shell-slot-hero { overflow: hidden; }
 .shell-slot-sidebar { grid-area: sidebar; }
 .shell-slot-market { grid-area: market; }
 .shell-slot-current { grid-area: current; }

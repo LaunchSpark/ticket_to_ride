@@ -19,6 +19,10 @@ function facadeModel(model, mapping) {
             const [kind, key] = event.split(":");
             model.on(key ? `${kind}:${mapKey(key)}` : event, callback);
         },
+        off: (event, callback) => {
+            const [kind, key] = event.split(":");
+            model.off(key ? `${kind}:${mapKey(key)}` : event, callback);
+        },
     };
 }
 
