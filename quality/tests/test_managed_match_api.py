@@ -204,6 +204,33 @@ class ManagedMatchApiTests(unittest.TestCase):
         self.assertEqual(seat_zero_round_zero["outcome"], "runtime_failure")
         self.assertEqual(seat_one_round_zero["outcome"], "won_by_forfeit")
 
+    def test_default_runtime_plays_action_bots_in_process(self) -> None:
+        self._register_bot("qualifier_bot", "Qualifier Bot")
+        runtime_manager = ManagedMatchRuntimeManager(self.repository)
+        client = TestClient(create_app(repository=self.repository, runtime_manager=runtime_manager))
+
+        response = client.post(
+            "/managed-matches",
+            json={
+                "name": "local-action-bots",
+                "seats": [
+                    {"seatId": "seat_1", "primaryBotId": "random_bot"},
+                    {"seatId": "seat_2", "primaryBotId": "qualifier_bot"},
+                ],
+                "fallbackBotId": "random_bot",
+                "roundCount": 1,
+                "timeControl": {"initialTimeMs": 60000, "incrementMs": 0},
+                "timeoutPolicy": "loss_on_time",
+                "executionMode": "bot_api",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        match = self._wait_for_terminal_match(client, response.json()["matchId"])
+        self.assertEqual(match["status"], "completed")
+        replay = client.get(f"/matches/{match['replayMatchId']}").json()
+        self.assertGreater(len(replay["rounds"][0]["turns"]), 0)
+
     def _register_bot(self, bot_id: str, name: str) -> None:
         self.repository.upsert_bot(
             schema_version=1,

@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 DEFAULT_BOT_API_BASE_URL = "http://127.0.0.1:8001"
 LOCAL_API_SOURCE_KIND = "local_api"
 LOCAL_API_DISCOVERY_PATH = "/bots"
+BOT_API_ENABLE_ENV = "TICKET_TO_RIDE_ENABLE_BOT_API"
 
 
 class BotCatalogError(RuntimeError):
@@ -165,5 +166,55 @@ class LocalApiBotCatalogClient(BotCatalogClient):
             raise BotCatalogError("Bot catalog returned invalid JSON.") from exc
 
 
+class LocalModuleBotCatalogClient(BotCatalogClient):
+    """Discover repository bots directly, without requiring an HTTP sidecar."""
+
+    def __init__(self, loader=None) -> None:
+        if loader is None:
+            from external.clients.bot_api.loader import BotLoader
+
+            loader = BotLoader()
+        self.loader = loader
+
+    def list_bots(self) -> list[BotCatalogRecord]:
+        try:
+            descriptors = self.loader.load_bots().values()
+        except Exception as exc:
+            raise BotCatalogError(f"Local bot discovery failed: {exc}") from exc
+
+        records = [
+            BotCatalogRecord(
+                schema_version=descriptor.metadata.schemaVersion,
+                bot_id=descriptor.metadata.botId,
+                name=descriptor.metadata.name,
+                version=descriptor.metadata.version,
+                description=descriptor.metadata.description,
+                author=descriptor.metadata.author,
+                tags=list(descriptor.metadata.tags),
+                # Keep the persisted v1 source schema stable. Local execution
+                # uses module_path; the API URL remains useful if the opt-in
+                # sidecar is enabled for a later run.
+                source_kind=LOCAL_API_SOURCE_KIND,
+                source_base_url=DEFAULT_BOT_API_BASE_URL,
+                discovery_path=LOCAL_API_DISCOVERY_PATH,
+                module_path=descriptor.module_path,
+            )
+            for descriptor in descriptors
+        ]
+        return sorted(records, key=lambda record: (record.name.casefold(), record.bot_id.casefold()))
+
+    def resolve_bot(self, bot_id: str) -> BotCatalogRecord:
+        requested_bot_id = bot_id.strip()
+        if not requested_bot_id:
+            raise BotCatalogError("Bot ID is required.")
+        requested_key = requested_bot_id.casefold()
+        for record in self.list_bots():
+            if record.bot_id.casefold() == requested_key:
+                return record
+        raise KeyError(f"Unknown bot '{requested_bot_id}'.")
+
+
 def build_bot_catalog_client_from_env() -> BotCatalogClient:
-    return LocalApiBotCatalogClient()
+    if os.getenv(BOT_API_ENABLE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}:
+        return LocalApiBotCatalogClient()
+    return LocalModuleBotCatalogClient()

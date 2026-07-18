@@ -23,6 +23,7 @@ from typing import Any, Dict, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from external.clients.bot_api.loader import BotLoader
 from external.clients.bot_api.views import route_payload, ticket_payload
 from ticket_to_ride.backend.runtime.models import ExecutionResult
 from ticket_to_ride.engine.player import Player
@@ -57,6 +58,59 @@ class BotExecutor:
         """Tear down any controller/session resources for this executor."""
 
         raise NotImplementedError
+
+
+class InProcessBotExecutor(BotExecutor):
+    """Run a repository ActionBot directly for the default local workflow."""
+
+    def __init__(self, bot_id: str, loader: BotLoader | None = None) -> None:
+        self.bot_id = bot_id
+        self.loader = loader or BotLoader()
+        self.bot = None
+
+    def start(self) -> None:
+        descriptor = self.loader.load_bots().get(self.bot_id)
+        if descriptor is None:
+            raise KeyError(f"Unknown bot '{self.bot_id}'.")
+        self.bot = descriptor.bot_class()
+
+    def invoke(
+        self,
+        action_name: str,
+        *,
+        player: Player,
+        timeout_ms: Optional[int],
+        remaining_time_ms: int,
+        initial_time_ms: int,
+        increment_ms: int,
+        args: tuple[Any, ...],
+    ) -> ExecutionResult:
+        if self.bot is None:
+            return ExecutionResult(status="transport_error", elapsed_ms=0, detail="Controller has not been started.")
+
+        started_at = time.monotonic()
+        try:
+            callback = getattr(self.bot, action_name)
+            payload = callback(*args)
+        except Exception as exc:
+            return ExecutionResult(
+                status="bot_exception",
+                elapsed_ms=_elapsed_ms_since(started_at),
+                detail=str(exc) or exc.__class__.__name__,
+            )
+
+        elapsed_ms = _elapsed_ms_since(started_at)
+        if timeout_ms is not None and elapsed_ms > timeout_ms:
+            return ExecutionResult(
+                status="per_call_timeout",
+                elapsed_ms=elapsed_ms,
+                detail=f"Bot call exceeded its {timeout_ms} ms hard limit.",
+            )
+        return ExecutionResult(status="ok", elapsed_ms=elapsed_ms, payload=payload)
+
+    def close(self) -> ExecutionResult:
+        self.bot = None
+        return ExecutionResult(status="ok", elapsed_ms=0)
 
 
 class BotApiExecutor(BotExecutor):

@@ -1,10 +1,12 @@
 import socket
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.error import URLError
 
 from external.contracts.abstract_interface import Interface
-from ticket_to_ride.backend.runtime.executor import BotApiExecutor
+from ticket_to_ride.backend.runtime.executor import BotApiExecutor, InProcessBotExecutor
+from ticket_to_ride.engine.actions import DrawBlind, Pass
 from ticket_to_ride.engine.player import Player
 from ticket_to_ride.engine.state.game_context import GameContext
 from ticket_to_ride.engine.state.views import PlayerView
@@ -85,6 +87,89 @@ class BotApiExecutorTests(unittest.TestCase):
             )
 
         self.assertEqual(result.status, "transport_error")
+
+
+class InProcessBotExecutorTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.player = build_test_players()[0]
+
+    @staticmethod
+    def _loader(bot_class):
+        return SimpleNamespace(
+            load_bots=lambda: {
+                "menu_bot": SimpleNamespace(bot_class=bot_class),
+            }
+        )
+
+    def test_action_bot_receives_and_returns_canonical_legal_action(self) -> None:
+        class LastActionBot:
+            def act(self, view, legal_actions):
+                self.seen_view = view
+                self.seen_actions = legal_actions
+                return legal_actions[-1]
+
+        executor = InProcessBotExecutor("menu_bot", loader=self._loader(LastActionBot))
+        executor.start()
+        legal_actions = [DrawBlind(), Pass()]
+
+        result = executor.invoke(
+            "act",
+            player=self.player,
+            timeout_ms=100,
+            remaining_time_ms=1000,
+            initial_time_ms=1000,
+            increment_ms=0,
+            args=("safe-view", legal_actions),
+        )
+
+        self.assertEqual(result.status, "ok")
+        self.assertIs(result.payload, legal_actions[-1])
+        self.assertEqual(executor.bot.seen_view, "safe-view")
+        self.assertIs(executor.bot.seen_actions, legal_actions)
+
+    def test_bot_exception_is_a_runtime_result(self) -> None:
+        class ExplodingBot:
+            def act(self, view, legal_actions):
+                raise RuntimeError("boom")
+
+        executor = InProcessBotExecutor("menu_bot", loader=self._loader(ExplodingBot))
+        executor.start()
+        result = executor.invoke(
+            "act",
+            player=self.player,
+            timeout_ms=100,
+            remaining_time_ms=1000,
+            initial_time_ms=1000,
+            increment_ms=0,
+            args=("safe-view", [Pass()]),
+        )
+
+        self.assertEqual(result.status, "bot_exception")
+        self.assertEqual(result.detail, "boom")
+
+    def test_elapsed_hard_limit_is_reported(self) -> None:
+        class FastBot:
+            def act(self, view, legal_actions):
+                return legal_actions[0]
+
+        executor = InProcessBotExecutor("menu_bot", loader=self._loader(FastBot))
+        executor.start()
+        with patch(
+            "ticket_to_ride.backend.runtime.executor.time.monotonic",
+            side_effect=[1.0, 1.050],
+        ):
+            result = executor.invoke(
+                "act",
+                player=self.player,
+                timeout_ms=10,
+                remaining_time_ms=1000,
+                initial_time_ms=1000,
+                increment_ms=0,
+                args=("safe-view", [Pass()]),
+            )
+
+        self.assertEqual(result.status, "per_call_timeout")
+        self.assertEqual(result.elapsed_ms, 50)
 
 
 if __name__ == "__main__":

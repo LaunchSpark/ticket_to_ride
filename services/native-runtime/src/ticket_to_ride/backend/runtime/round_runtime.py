@@ -67,6 +67,13 @@ class ManagedSeatInterface(Interface):
         if self._turn_depth == 0 and completed:
             self.round_context.complete_turn(self.seat_id)
 
+    def act(self, view, legal_actions):
+        """Send the engine's canonical legal menu to an ActionBot executor."""
+
+        return self.round_context.execute_action(
+            self.seat_id, "act", self.player, view, legal_actions
+        )
+
     def choose_turn_action(self):
         return self.round_context.execute_action(self.seat_id, "choose_turn_action", self.player)
 

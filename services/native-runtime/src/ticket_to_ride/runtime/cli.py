@@ -110,11 +110,11 @@ def bot_api_base_url() -> str:
 
 
 def bot_api_enabled() -> bool:
-    """Opt-in flag for the sandboxed bot-api startup flow.
+    """Opt-in flag for the legacy external bot-api transport.
 
-    The bot-api HTTP protocol still speaks the legacy choose_* contract, which
-    ActionBot-based bots do not implement, so managed matches created through
-    it cannot play yet. Off by default until the protocol migrates to act().
+    Local repository bots are discovered and run in-process by default. The
+    sidecar remains available for compatibility while its HTTP protocol still
+    speaks the legacy choose_* contract.
     """
     return os.getenv(BOT_API_ENABLE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 

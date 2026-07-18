@@ -15,6 +15,7 @@ This module does not own:
 - replay persistence internals
 """
 
+import os
 import threading
 from typing import Any, Callable, Dict, List, Literal, Optional
 
@@ -32,7 +33,7 @@ from ticket_to_ride.backend.models import (
     TimeControlConfig,
 )
 from ticket_to_ride.backend.repository import MatchRepository
-from ticket_to_ride.backend.runtime.executor import BotApiExecutor, BotExecutor
+from ticket_to_ride.backend.runtime.executor import BotApiExecutor, BotExecutor, InProcessBotExecutor
 from ticket_to_ride.backend.runtime.models import MatchExecutionContext
 from ticket_to_ride.backend.runtime.replay_transport import build_managed_replay_logger
 from ticket_to_ride.backend.runtime.round_runtime import RoundExecutionContext
@@ -62,7 +63,7 @@ class ManagedMatchRuntimeManager:
     ) -> None:
         self.repository = repository
         self.repository.interrupt_incomplete_managed_matches()
-        self.executor_factory = executor_factory or (lambda bot_id: BotApiExecutor(bot_id))
+        self.executor_factory = executor_factory or _default_executor_factory
         self._lock = threading.RLock()
         self._matches: Dict[str, MatchExecutionContext] = {}
         self._threads: Dict[str, threading.Thread] = {}
@@ -291,6 +292,15 @@ def _managed_match_summary_from_record(record: Dict[str, Any]) -> ManagedMatchSu
         aggregateResults=[ManagedSeatAggregateResult.model_validate(entry) for entry in record.get("aggregateResults", [])],
         createdAt=record.get("createdAt", ""),
     )
+
+
+def _default_executor_factory(bot_id: str) -> BotExecutor:
+    """Use safe local ActionBot execution unless the HTTP sidecar is opted in."""
+
+    enabled = os.getenv("TICKET_TO_RIDE_ENABLE_BOT_API", "").strip().lower()
+    if enabled in {"1", "true", "yes", "on"}:
+        return BotApiExecutor(bot_id)
+    return InProcessBotExecutor(bot_id)
 
 
 def _managed_round_summary_from_record(record: Dict[str, Any]) -> ManagedRoundSummary:

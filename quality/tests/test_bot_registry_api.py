@@ -98,6 +98,16 @@ class BotRegistryApiTests(unittest.TestCase):
         self.assertEqual(len(list_response.json()), 1)
         self.assertEqual(list_response.json()[0]["botId"], "random_bot")
 
+    def test_default_backend_registers_repository_bot_without_http_catalog(self) -> None:
+        with patch.dict("os.environ", {"TICKET_TO_RIDE_ENABLE_BOT_API": ""}):
+            client = TestClient(create_app(repository=self.repository))
+
+        response = client.post("/bots", json={"botId": "random_bot"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["botId"], "random_bot")
+        self.assertEqual(self.repository.get_bot("random_bot")["name"], "Random Bot")
+
     def test_duplicate_registration_refreshes_existing_record(self) -> None:
         first_client = TestClient(
             create_app(
@@ -147,7 +157,13 @@ class BotRegistryApiTests(unittest.TestCase):
         self.assertEqual(response.json()["service"], "bot_catalog")
 
     def test_non_local_bot_api_base_url_is_rejected_in_v1(self) -> None:
-        with patch.dict("os.environ", {"BOT_API_BASE_URL": "http://example.com:8001"}):
+        with patch.dict(
+            "os.environ",
+            {
+                "BOT_API_BASE_URL": "http://example.com:8001",
+                "TICKET_TO_RIDE_ENABLE_BOT_API": "1",
+            },
+        ):
             client = TestClient(create_app(repository=self.repository))
             response = client.post("/bots", json={"botId": "random_bot"})
 

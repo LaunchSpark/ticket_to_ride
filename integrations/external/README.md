@@ -24,6 +24,8 @@ Each bot module must define:
 
 ## Startup Integration
 
-When `TICKET_TO_RIDE_ENABLE_BOT_API=1` is set, `uv run run` may auto-start the external bot API at `BOT_API_BASE_URL` if that URL points to a local loopback `http://` service. Startup then registers `random_bot` through the native backend before creating the default managed bootstrap match.
-
-This flow is disabled by default: the bot API's HTTP protocol still speaks the legacy `choose_*` decision contract, while current bots are `ActionBot`s that only implement `act(view, legal_actions)` (their `choose_*` methods intentionally raise). Migrating the HTTP protocol to `act()` is the known follow-up before sandboxed/external bots can play managed matches; until then, bots run in-process through the engine and notebook harness.
+By default, `uv run run` discovers repository bots and executes their
+`act(view, legal_actions)` method in-process, so the Bots page works without a
+second service. When `TICKET_TO_RIDE_ENABLE_BOT_API=1` is set, startup instead
+uses the external bot API at `BOT_API_BASE_URL`; that opt-in transport retains
+the legacy `choose_*` protocol for compatibility.
