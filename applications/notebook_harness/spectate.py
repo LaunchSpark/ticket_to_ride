@@ -45,7 +45,7 @@ def spectate_controls(mo: Any, *, bot_name: str, bot_class: type, title: str | N
         mo.output.append(mo.md(f"# {title} - spectate & debug").left())
 
     map_picker = mo.ui.dropdown(options=maps, value=maps[0], label="Map")
-    rounds_picker = mo.ui.number(start=1, stop=20, value=1, label="Rounds")
+    rounds_picker = mo.ui.number(start=1, step=1, value=1, label="Rounds")
     seat_pickers = mo.ui.array(
         [
             mo.ui.dropdown(
@@ -65,13 +65,23 @@ def play_match(mo: Any, map_picker: Any, seat_pickers: Any, rounds_picker: Any =
     number of rounds."""
 
     from notebook_harness.game_runner import initialize_series
+    from wigglystuff import ProgressBar
 
     seated_bot_classes = [bot_class for bot_class in seat_pickers.value if bot_class is not None]
     mo.stop(len(seated_bot_classes) < 2, mo.md("Pick bots for at least two seats to run a game."))
 
     rounds = int(rounds_picker.value) if rounds_picker is not None else 1
+    progress = mo.ui.anywidget(ProgressBar(value=0, max_value=rounds))
+    # Appending before the blocking play loop puts the live indicator at the
+    # bottom of this match-setup cell and lets anywidget trait updates paint
+    # between completed rounds.
+    mo.output.append(progress)
     series = initialize_series(seated_bot_classes, map_name=map_picker.value, rounds=rounds)
-    series.play()
+    series.play(
+        on_round_complete=lambda completed, total: setattr(
+            progress, "value", completed
+        )
+    )
     return series
 
 

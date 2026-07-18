@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 from ticket_to_ride.board_view import card_color_hex
 from ticket_to_ride.engine.game import Game
@@ -262,9 +262,14 @@ class HarnessSeries:
 
     games: List[HarnessGame]
 
-    def play(self) -> None:
-        for game in self.games:
+    def play(
+        self, on_round_complete: 'Callable[[int, int], None] | None' = None
+    ) -> None:
+        total = len(self.games)
+        for completed, game in enumerate(self.games, start=1):
             game.play()
+            if on_round_complete is not None:
+                on_round_complete(completed, total)
 
     def roster(self) -> List[Dict[str, str]]:
         return self.games[0].roster()

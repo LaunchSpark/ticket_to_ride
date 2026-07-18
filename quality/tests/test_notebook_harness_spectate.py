@@ -30,9 +30,10 @@ class FakeDropdown:
 
 
 class FakeNumber:
-    def __init__(self, *, start, stop, value, label) -> None:
+    def __init__(self, *, start=None, stop=None, step=None, value=None, label="") -> None:
         self.start = start
         self.stop = stop
+        self.step = step
         self.value = value
         self.label = label
 
@@ -58,8 +59,8 @@ class FakeUI:
     def dropdown(self, *, options, value, label):
         return FakeDropdown(options=options, value=value, label=label)
 
-    def number(self, *, start, stop, value, label):
-        return FakeNumber(start=start, stop=stop, value=value, label=label)
+    def number(self, *, start=None, stop=None, step=None, value=None, label=""):
+        return FakeNumber(start=start, stop=stop, step=step, value=value, label=label)
 
     def array(self, items):
         return FakeArray(items)
@@ -117,7 +118,8 @@ class SpectateControlsTests(unittest.TestCase):
         self.assertEqual(seat_pickers.items[0].options["Other Bot"], discovered_bot)
         self.assertEqual(rounds_picker.value, 1)
         self.assertEqual(rounds_picker.start, 1)
-        self.assertEqual(rounds_picker.stop, 20)
+        self.assertIsNone(rounds_picker.stop)
+        self.assertEqual(rounds_picker.step, 1)
         self.assertEqual(rounds_picker.label, "Rounds")
 
     def test_spectate_controls_appends_title_and_picker_layout(self) -> None:
@@ -154,12 +156,18 @@ class PlayMatchTests(unittest.TestCase):
         seat_pickers = SimpleNamespace(value=[bot_a, None, bot_b, None, None])
         rounds_picker = SimpleNamespace(value=2)
 
-        with patch("notebook_harness.game_runner.initialize_series", return_value=series) as initialize_series:
+        progress = SimpleNamespace(value=0, max_value=0)
+        with patch("notebook_harness.game_runner.initialize_series", return_value=series) as initialize_series, \
+             patch("wigglystuff.ProgressBar", return_value=progress) as progress_bar:
             result = spectate.play_match(mo, map_picker, seat_pickers, rounds_picker)
 
         self.assertIs(result, series)
         initialize_series.assert_called_once_with([bot_a, bot_b], map_name="classic", rounds=2)
-        series.play.assert_called_once_with()
+        progress_bar.assert_called_once_with(value=0, max_value=2)
+        callback = series.play.call_args.kwargs["on_round_complete"]
+        callback(1, 2)
+        self.assertEqual(progress.value, 1)
+        self.assertEqual(mo.output.appended, [progress])
         self.assertEqual(result.round_count(), 2)
 
     def test_play_match_defaults_to_one_round_without_a_rounds_picker(self) -> None:
@@ -171,10 +179,13 @@ class PlayMatchTests(unittest.TestCase):
         map_picker = SimpleNamespace(value="classic")
         seat_pickers = SimpleNamespace(value=[bot_a, bot_b, None, None, None])
 
-        with patch("notebook_harness.game_runner.initialize_series", return_value=series) as initialize_series:
+        progress = SimpleNamespace(value=0, max_value=0)
+        with patch("notebook_harness.game_runner.initialize_series", return_value=series) as initialize_series, \
+             patch("wigglystuff.ProgressBar", return_value=progress):
             spectate.play_match(mo, map_picker, seat_pickers)
 
         initialize_series.assert_called_once_with([bot_a, bot_b], map_name="classic", rounds=1)
+        self.assertIn("on_round_complete", series.play.call_args.kwargs)
 
 
 class SpectateWidgetsTests(unittest.TestCase):

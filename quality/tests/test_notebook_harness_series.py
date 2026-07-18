@@ -29,6 +29,14 @@ class HarnessSeriesTests(unittest.TestCase):
         self.assertEqual(meta[0], {"roundNumber": 0, "turnCount": series.turn_count(0)})
         self.assertEqual(meta[1], {"roundNumber": 1, "turnCount": series.turn_count(1)})
 
+    def test_play_reports_round_progress_after_each_completed_game(self) -> None:
+        series = initialize_series([RandomBot, RandomBot], rounds=2, seed=7)
+        progress = []
+
+        series.play(on_round_complete=lambda completed, total: progress.append((completed, total)))
+
+        self.assertEqual(progress, [(1, 2), (2, 2)])
+
     def test_initialize_series_rejects_zero_rounds(self) -> None:
         with self.assertRaises(ValueError):
             initialize_series([RandomBot, RandomBot], rounds=0)
