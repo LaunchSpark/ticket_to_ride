@@ -353,12 +353,15 @@ function render({ model, el }) {
     let zoom_to_fit_pending = true;
     let node_scale = model.get("node_scale") || default_node_scale;
     let configured_width = model.get("width") || default_width;
-    const host_content_width = () => {
+    const measured_host_content_width = () => {
         const style = window.getComputedStyle(el);
         const horizontal_padding =
             (Number.parseFloat(style.paddingLeft) || 0) +
             (Number.parseFloat(style.paddingRight) || 0);
-        const measured_width = Math.floor(el.clientWidth - horizontal_padding);
+        return Math.floor(el.clientWidth - horizontal_padding);
+    };
+    const host_content_width = () => {
+        const measured_width = measured_host_content_width();
         // AnyWidget may render while its output is still detached. Treat
         // that transient zero-width measurement as "not laid out yet" so
         // the initial zoom-to-fit is never calculated against a 1px canvas.
@@ -368,6 +371,7 @@ function render({ model, el }) {
     // narrower grid column, in which case ForceGraph's actual canvas and
     // backing store must shrink too (CSS-only scaling breaks hit testing).
     let width = Math.min(configured_width, host_content_width());
+    let host_layout_ready = measured_host_content_width() > 32;
     let height = model.get("height") || default_height;
     colour_scale_type = model.get("colour_scale_type");
     colour_feature = model.get("colour_feature");
@@ -770,20 +774,37 @@ function render({ model, el }) {
         .extent([[0, 0], [width, height]])
         .on("start brush end", brushed);
 
+    let refit_frame = null;
+    const refit_after_layout = () => {
+        if (refit_frame != null) cancelAnimationFrame(refit_frame);
+        // Two frames lets marimo finish replacing and expanding its output
+        // wrapper before force-graph reads the canvas bounds.
+        refit_frame = requestAnimationFrame(() => {
+            refit_frame = requestAnimationFrame(() => {
+                refit_frame = null;
+                plot.zoomToFit(0, 20);
+            });
+        });
+    };
     const resize_to_host = () => {
-        const next_width = Math.min(configured_width, host_content_width());
-        if (next_width === width) return;
+        const measured_width = measured_host_content_width();
+        if (measured_width <= 32) return;
 
-        width = next_width;
-        plot.width(width).height(height);
-        my_brush.extent([[0, 0], [width, height]]);
-        if (!overlay.select("#brush_group").empty()) {
-            overlay.select("#brush_group").call(my_brush);
+        const became_visible = !host_layout_ready;
+        host_layout_ready = true;
+        const next_width = Math.min(configured_width, measured_width);
+        const changed_size = next_width !== width;
+        if (changed_size) {
+            width = next_width;
+            plot.width(width).height(height);
+            my_brush.extent([[0, 0], [width, height]]);
+            if (!overlay.select("#brush_group").empty()) {
+                overlay.select("#brush_group").call(my_brush);
+            }
         }
-        // A previous fit may have happened while the host was collapsed.
-        // Refit after every real column resize so the board cannot remain
-        // microscopically zoomed or centered outside the new viewport.
-        plot.zoomToFit(0, 20);
+        // Do not skip the first visible fit merely because the fallback
+        // canvas happened to have the same numeric width as the real host.
+        if (changed_size || became_visible) refit_after_layout();
     };
     const host_resize_observer = new ResizeObserver(resize_to_host);
     host_resize_observer.observe(el);
@@ -843,6 +864,7 @@ function render({ model, el }) {
 
     return () => {
         clearInterval(device_pixel_ratio_watch);
+        if (refit_frame != null) cancelAnimationFrame(refit_frame);
         host_resize_observer.disconnect();
         model.off("change:width", update_configured_width);
     };

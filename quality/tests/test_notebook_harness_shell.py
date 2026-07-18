@@ -23,6 +23,9 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertEqual(shell.rounds_meta, self.series.rounds_meta())
         self.assertEqual(len(shell.aggregates), 2)
         self.assertEqual(shell.playback, {"round": 0, "turn": 0})
+        self.assertEqual(shell.frame["round"], 0)
+        self.assertEqual(shell.frame["turn"], 0)
+        self.assertEqual(shell.frame["leaderboard"], shell.leaderboard)
 
     def test_composite_css_includes_embedded_widget_styles(self) -> None:
         css = SpectateShellWidget._css
@@ -40,6 +43,11 @@ class ShellWidgetTests(unittest.TestCase):
         self.assertIn("Math.min(configured_width, host_content_width())", source)
         self.assertIn("measured_width > 32 ? measured_width : configured_width", source)
         self.assertIn("plot.zoomToFit(0, 20)", source)
+        self.assertIn("const became_visible = !host_layout_ready", source)
+        self.assertIn("if (changed_size || became_visible) refit_after_layout()", source)
+        self.assertGreaterEqual(
+            source.count("refit_frame = requestAnimationFrame(() => {"), 2
+        )
 
     def test_bundled_graph_dims_only_unclaimed_routes(self) -> None:
         source = files("notebook_harness").joinpath(
@@ -50,6 +58,15 @@ class ShellWidgetTests(unittest.TestCase):
             "ctx.globalAlpha = link.claimedColor ? 1 : unclaimed_route_opacity",
             source,
         )
+
+    def test_bundled_shell_uses_inline_player_cards_without_a_modal(self) -> None:
+        source = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.js"
+        ).read_text()
+        self.assertIn("shell-stats-card shell-player-card", source)
+        self.assertIn('"Aggregate Stats"', source)
+        self.assertIn('frameValue(model, "ticket_player")', source)
+        self.assertNotIn("openStatsModal", source)
         self.assertIn(
             ".linkOpacity((link) => link.claimedColor ? 0 : unclaimed_route_opacity)",
             source,
@@ -63,6 +80,9 @@ class ShellWidgetTests(unittest.TestCase):
 
         self.assertEqual(shell.current_player, self.series.active_player_at(1, 0))
         self.assertEqual(shell.leaderboard, self.series.leaderboard_at(1, 0))
+        self.assertEqual(shell.frame["leaderboard"], shell.leaderboard)
+        self.assertEqual((shell.frame["round"], shell.frame["turn"]), (1, 0))
+        self.assertEqual(shell.frame["ticket_player"], shell.current_player)
         self.assertIn("nodes", shell.board)
         self.assertIn("links", shell.board)
         self.assertEqual(shell.tickets, self.series.tickets_at(1, 0, shell.current_player))
@@ -85,3 +105,4 @@ class ShellWidgetTests(unittest.TestCase):
         update_shell(shell, self.series)
 
         self.assertEqual(shell.tickets, self.series.tickets_at(0, 0, "bot_1"))
+        self.assertEqual(shell.frame["ticket_player"], "bot_1")

@@ -12257,13 +12257,17 @@ function render3({ model, el }) {
   let zoom_to_fit_pending = true;
   let node_scale = model.get("node_scale") || default_node_scale;
   let configured_width = model.get("width") || default_width;
-  const host_content_width = () => {
+  const measured_host_content_width = () => {
     const style = window.getComputedStyle(el);
     const horizontal_padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
-    const measured_width = Math.floor(el.clientWidth - horizontal_padding);
+    return Math.floor(el.clientWidth - horizontal_padding);
+  };
+  const host_content_width = () => {
+    const measured_width = measured_host_content_width();
     return measured_width > 32 ? measured_width : configured_width;
   };
   let width = Math.min(configured_width, host_content_width());
+  let host_layout_ready = measured_host_content_width() > 32;
   let height = model.get("height") || default_height;
   colour_scale_type = model.get("colour_scale_type");
   colour_feature = model.get("colour_feature");
@@ -12552,16 +12556,32 @@ function render3({ model, el }) {
     const modifierKey = isMac ? event.metaKey : event.ctrlKey;
     return event.button == 0 && (modifierKey || ["selection", "s", "e", "n", "w"].includes(event.target.__data__.type));
   }).extent([[0, 0], [width, height]]).on("start brush end", brushed);
+  let refit_frame = null;
+  const refit_after_layout = () => {
+    if (refit_frame != null) cancelAnimationFrame(refit_frame);
+    refit_frame = requestAnimationFrame(() => {
+      refit_frame = requestAnimationFrame(() => {
+        refit_frame = null;
+        plot.zoomToFit(0, 20);
+      });
+    });
+  };
   const resize_to_host = () => {
-    const next_width = Math.min(configured_width, host_content_width());
-    if (next_width === width) return;
-    width = next_width;
-    plot.width(width).height(height);
-    my_brush.extent([[0, 0], [width, height]]);
-    if (!overlay.select("#brush_group").empty()) {
-      overlay.select("#brush_group").call(my_brush);
+    const measured_width = measured_host_content_width();
+    if (measured_width <= 32) return;
+    const became_visible = !host_layout_ready;
+    host_layout_ready = true;
+    const next_width = Math.min(configured_width, measured_width);
+    const changed_size = next_width !== width;
+    if (changed_size) {
+      width = next_width;
+      plot.width(width).height(height);
+      my_brush.extent([[0, 0], [width, height]]);
+      if (!overlay.select("#brush_group").empty()) {
+        overlay.select("#brush_group").call(my_brush);
+      }
     }
-    plot.zoomToFit(0, 20);
+    if (changed_size || became_visible) refit_after_layout();
   };
   const host_resize_observer = new ResizeObserver(resize_to_host);
   host_resize_observer.observe(el);
@@ -12601,11 +12621,12 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-085704Z" : "dev";
+  const build_tag = true ? "20260718-091033Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
     clearInterval(device_pixel_ratio_watch);
+    if (refit_frame != null) cancelAnimationFrame(refit_frame);
     host_resize_observer.disconnect();
     model.off("change:width", update_configured_width);
   };

@@ -116,9 +116,12 @@ class StoredMatchSeries:
     def leaderboard_at(
         self, round_index: int, turn_index: int
     ) -> List[Dict[str, Any]]:
-        metadata = {entry["id"]: entry for entry in self.roster()}
+        roster = self.roster()
+        metadata = {entry["id"]: entry for entry in roster}
+        seat = {entry["id"]: index for index, entry in enumerate(roster)}
         rows = sorted(
-            self._rows(round_index, turn_index), key=lambda row: -row["score"]
+            self._rows(round_index, turn_index),
+            key=lambda row: (-row["score"], seat[row["playerId"]]),
         )
         return [
             {

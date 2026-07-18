@@ -127,8 +127,13 @@ class HarnessGame:
         return self.logger.snapshots[step_index]["turnState"]["player"]["playerId"]
 
     def leaderboard_at(self, step_index: int) -> List[Dict[str, Any]]:
-        meta = {entry["id"]: entry for entry in self.roster()}
-        rows = sorted(self._snapshot_rows(step_index), key=lambda row: -row["score"])
+        roster = self.roster()
+        meta = {entry["id"]: entry for entry in roster}
+        seat = {entry["id"]: index for index, entry in enumerate(roster)}
+        rows = sorted(
+            self._snapshot_rows(step_index),
+            key=lambda row: (-row["score"], seat[row["playerId"]]),
+        )
         return [
             {
                 "playerId": row["playerId"],

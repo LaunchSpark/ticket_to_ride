@@ -52,6 +52,19 @@ class SeriesAccessorTests(unittest.TestCase):
             self.assertIn("color", entry)
             self.assertIn("name", entry)
 
+    def test_leaderboard_ties_keep_stable_seat_order(self) -> None:
+        game = self.series.games[0]
+        state = game.logger.snapshots[0]["turnState"]
+        for row in (state["player"], *state["opponents"]):
+            row["score"] = 10
+
+        board = game.leaderboard_at(0)
+
+        self.assertEqual(
+            [entry["playerId"] for entry in board],
+            [entry["id"] for entry in game.roster()],
+        )
+
     def test_stats_include_full_hands_for_every_player(self) -> None:
         stats = self.series.stats_at(0, 0)
 

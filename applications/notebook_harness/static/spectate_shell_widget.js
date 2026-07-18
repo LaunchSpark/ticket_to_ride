@@ -12257,13 +12257,17 @@ function render3({ model, el }) {
   let zoom_to_fit_pending = true;
   let node_scale = model.get("node_scale") || default_node_scale;
   let configured_width = model.get("width") || default_width;
-  const host_content_width = () => {
+  const measured_host_content_width = () => {
     const style = window.getComputedStyle(el);
     const horizontal_padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
-    const measured_width = Math.floor(el.clientWidth - horizontal_padding);
+    return Math.floor(el.clientWidth - horizontal_padding);
+  };
+  const host_content_width = () => {
+    const measured_width = measured_host_content_width();
     return measured_width > 32 ? measured_width : configured_width;
   };
   let width = Math.min(configured_width, host_content_width());
+  let host_layout_ready = measured_host_content_width() > 32;
   let height = model.get("height") || default_height;
   colour_scale_type = model.get("colour_scale_type");
   colour_feature = model.get("colour_feature");
@@ -12552,16 +12556,32 @@ function render3({ model, el }) {
     const modifierKey = isMac ? event.metaKey : event.ctrlKey;
     return event.button == 0 && (modifierKey || ["selection", "s", "e", "n", "w"].includes(event.target.__data__.type));
   }).extent([[0, 0], [width, height]]).on("start brush end", brushed);
+  let refit_frame = null;
+  const refit_after_layout = () => {
+    if (refit_frame != null) cancelAnimationFrame(refit_frame);
+    refit_frame = requestAnimationFrame(() => {
+      refit_frame = requestAnimationFrame(() => {
+        refit_frame = null;
+        plot.zoomToFit(0, 20);
+      });
+    });
+  };
   const resize_to_host = () => {
-    const next_width = Math.min(configured_width, host_content_width());
-    if (next_width === width) return;
-    width = next_width;
-    plot.width(width).height(height);
-    my_brush.extent([[0, 0], [width, height]]);
-    if (!overlay.select("#brush_group").empty()) {
-      overlay.select("#brush_group").call(my_brush);
+    const measured_width = measured_host_content_width();
+    if (measured_width <= 32) return;
+    const became_visible = !host_layout_ready;
+    host_layout_ready = true;
+    const next_width = Math.min(configured_width, measured_width);
+    const changed_size = next_width !== width;
+    if (changed_size) {
+      width = next_width;
+      plot.width(width).height(height);
+      my_brush.extent([[0, 0], [width, height]]);
+      if (!overlay.select("#brush_group").empty()) {
+        overlay.select("#brush_group").call(my_brush);
+      }
     }
-    plot.zoomToFit(0, 20);
+    if (changed_size || became_visible) refit_after_layout();
   };
   const host_resize_observer = new ResizeObserver(resize_to_host);
   host_resize_observer.observe(el);
@@ -12601,11 +12621,12 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-085704Z" : "dev";
+  const build_tag = true ? "20260718-091033Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
     clearInterval(device_pixel_ratio_watch);
+    if (refit_frame != null) cancelAnimationFrame(refit_frame);
     host_resize_observer.disconnect();
     model.off("change:width", update_configured_width);
   };
@@ -12754,46 +12775,6 @@ function render4({ model, el }) {
 }
 var info_bar_widget_default = { render: render4 };
 
-// src/spectate_stats_modal.js
-function openStatsModal(model, shellRoot, playerId) {
-  if (!shellRoot || shellRoot.querySelector(".shell-stats-backdrop")) return;
-  const backdrop = document.createElement("div");
-  backdrop.className = "shell-stats-backdrop";
-  const dialog = document.createElement("div");
-  dialog.className = "shell-stats-modal";
-  dialog.setAttribute("role", "dialog");
-  dialog.setAttribute("aria-modal", "true");
-  const close = () => {
-    backdrop.remove();
-    document.removeEventListener("keydown", onKey);
-    if (model.off) model.off("change:stats", refresh);
-  };
-  const onKey = (event) => {
-    if (event.key === "Escape") close();
-  };
-  const header = document.createElement("div");
-  header.className = "shell-stats-modal-header";
-  const title = document.createElement("p");
-  title.className = "shell-eyebrow";
-  title.textContent = "Player Stats";
-  const closeButton = document.createElement("button");
-  closeButton.className = "shell-playback-button";
-  closeButton.textContent = "\u2715";
-  closeButton.setAttribute("aria-label", "Close player stats");
-  closeButton.addEventListener("click", close);
-  header.append(title, closeButton);
-  const body = document.createElement("div");
-  const refresh = () => body.replaceChildren(renderStatsCard(model, playerId));
-  refresh();
-  model.on("change:stats", refresh);
-  dialog.append(header, body);
-  dialog.addEventListener("click", (event) => event.stopPropagation());
-  backdrop.addEventListener("click", close);
-  document.addEventListener("keydown", onKey);
-  backdrop.appendChild(dialog);
-  shellRoot.appendChild(backdrop);
-}
-
 // src/spectate_shell_widget.js
 function facadeModel(model, mapping) {
   const mapKey = (key) => mapping[key] || key;
@@ -12821,6 +12802,20 @@ function playbackOf(model) {
   const value = model.get("playback") || {};
   return { round: value.round || 0, turn: value.turn || 0 };
 }
+function frameOf(model) {
+  return model.get("frame") || {};
+}
+function frameValue(model, key) {
+  const frame2 = frameOf(model);
+  return Object.prototype.hasOwnProperty.call(frame2, key) ? frame2[key] : model.get(key);
+}
+function displayedPlaybackOf(model) {
+  const frame2 = frameOf(model);
+  if (Number.isInteger(frame2.round) && Number.isInteger(frame2.turn)) {
+    return { round: frame2.round, turn: frame2.turn };
+  }
+  return playbackOf(model);
+}
 function setPlayback(model, round, turn) {
   model.set("playback", { round, turn });
   model.save_changes();
@@ -12847,7 +12842,7 @@ function stepBack(model) {
 }
 function renderSidebar(model, container, playState) {
   container.replaceChildren();
-  const { round, turn } = playbackOf(model);
+  const { round, turn } = displayedPlaybackOf(model);
   const meta = model.get("rounds_meta") || [];
   const header = elem("div", "shell-sidebar-header");
   header.appendChild(elem("p", "shell-eyebrow", `Round ${round + 1} \xB7 Turn ${turn + 1}`));
@@ -12873,62 +12868,37 @@ function renderSidebar(model, container, playState) {
   header.appendChild(jump);
   container.appendChild(header);
   const board = elem("div", "shell-section");
-  board.appendChild(elem("p", "shell-section-heading", "Leaderboard"));
+  board.appendChild(elem("p", "shell-section-heading", "Players"));
   const selected = model.get("selected_player") || "";
-  (model.get("leaderboard") || []).forEach((entry) => {
-    const row = elem("div", "shell-leader-row" + (entry.playerId === selected ? " selected" : ""));
-    row.style.setProperty("--accent", entry.color);
-    row.appendChild(elem("span", "shell-leader-rank", String(entry.place).padStart(2, "0")));
-    const copy2 = elem("div", "shell-leader-copy");
-    copy2.appendChild(elem("strong", "shell-leader-name", entry.name));
-    copy2.appendChild(elem("span", "shell-leader-sub", `${entry.remainingTrains} trains left`));
-    row.appendChild(copy2);
-    row.appendChild(elem("span", "shell-leader-score", String(entry.score)));
-    const hands = elem("button", "shell-leader-hands", "\u{1F0A0}");
-    hands.title = "View hand";
-    hands.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openStatsModal(model, container.closest(".spectate-shell"), entry.playerId);
-    });
-    row.appendChild(hands);
-    row.addEventListener("click", () => {
+  const active = frameValue(model, "current_player") || "";
+  (frameValue(model, "leaderboard") || []).forEach((entry) => {
+    const card = renderPlayerCard(
+      model,
+      entry,
+      entry.playerId === selected,
+      entry.playerId === active
+    );
+    card.addEventListener("click", () => {
       const current = model.get("selected_player") || "";
       model.set("selected_player", current === entry.playerId ? "" : entry.playerId);
       model.save_changes();
     });
-    board.appendChild(row);
+    board.appendChild(card);
   });
   container.appendChild(board);
-  const details = elem("details", "shell-aggregates");
-  details.appendChild(elem("summary", "shell-section-heading", "Aggregate Stats"));
-  const maxAverage = Math.max(1, ...(model.get("aggregates") || []).map((a3) => a3.averageScore));
-  (model.get("aggregates") || []).forEach((entry) => {
-    const row = elem("div", "shell-metric-row");
-    row.style.setProperty("--accent", entry.color);
-    row.appendChild(elem("strong", "shell-leader-name", entry.name));
-    row.appendChild(
-      elem(
-        "span",
-        "shell-metric-values",
-        `avg ${entry.averageScore} \xB7 best ${entry.bestScore} \xB7 wins ${entry.wins}`
-      )
-    );
-    const bar = elem("div", "shell-metric-bar");
-    bar.style.width = `${Math.max(8, entry.averageScore / maxAverage * 100)}%`;
-    row.appendChild(bar);
-    details.appendChild(row);
-  });
-  container.appendChild(details);
 }
-function renderStatsCard(model, playerId) {
-  const stats = (model.get("stats") || {})[playerId];
-  const roster = (model.get("players") || []).find((p2) => p2.id === playerId) || {};
-  const card = elem("div", "shell-stats-card");
-  card.style.setProperty("--accent", roster.color || "#888");
-  card.appendChild(elem("strong", "shell-leader-name", roster.name || playerId));
+function renderPlayerCard(model, entry, selected, active) {
+  const stats = (frameValue(model, "stats") || {})[entry.playerId];
+  const card = elem("div", `shell-stats-card shell-player-card${selected ? " selected" : ""}`);
+  card.style.setProperty("--accent", entry.color || "#888");
+  const header = elem("div", "shell-player-card-header");
+  header.appendChild(elem("span", "shell-leader-rank", String(entry.place).padStart(2, "0")));
+  header.appendChild(elem("strong", "shell-leader-name", entry.name || entry.playerId));
+  if (active) header.appendChild(elem("span", "shell-turn-badge", "TURN"));
+  header.appendChild(elem("span", "shell-leader-score", String(entry.score)));
+  card.appendChild(header);
   if (!stats) return card;
   const chips = elem("div", "shell-chip-row");
-  chips.appendChild(elem("span", "shell-chip", `Score ${stats.score}`));
   chips.appendChild(elem("span", "shell-chip", `Trains ${stats.remainingTrains}`));
   chips.appendChild(elem("span", "shell-chip", `Tickets ${stats.ticketCount}`));
   chips.appendChild(elem("span", "shell-chip", `Routes ${stats.routeCount}`));
@@ -12945,10 +12915,35 @@ function renderStatsCard(model, playerId) {
   card.appendChild(hand);
   return card;
 }
+function renderAggregates(model, container) {
+  container.replaceChildren();
+  container.appendChild(elem("p", "shell-section-heading", "Aggregate Stats"));
+  const aggregates = model.get("aggregates") || [];
+  const maxAverage = Math.max(1, ...aggregates.map((entry) => entry.averageScore));
+  aggregates.forEach((entry) => {
+    const row = elem("div", "shell-metric-row");
+    row.style.setProperty("--accent", entry.color);
+    row.appendChild(elem("strong", "shell-leader-name", entry.name));
+    row.appendChild(
+      elem(
+        "span",
+        "shell-metric-values",
+        `avg ${entry.averageScore} \xB7 best ${entry.bestScore} \xB7 wins ${entry.wins}`
+      )
+    );
+    const bar = elem("div", "shell-metric-bar");
+    bar.style.width = `${Math.max(8, entry.averageScore / maxAverage * 100)}%`;
+    row.appendChild(bar);
+    container.appendChild(row);
+  });
+}
 function renderTickets(model, container) {
   container.replaceChildren();
-  container.appendChild(elem("p", "shell-section-heading", "Destination Tickets"));
-  (model.get("tickets") || []).forEach((ticket, index7) => {
+  const ticketPlayer = frameValue(model, "ticket_player");
+  const roster = (model.get("players") || []).find((player) => player.id === ticketPlayer) || {};
+  const owner = roster.name ? ` \xB7 ${roster.name}` : "";
+  container.appendChild(elem("p", "shell-section-heading", `Destination Tickets${owner}`));
+  (frameValue(model, "tickets") || []).forEach((ticket, index7) => {
     const row = elem("div", `shell-ticket-row status-${ticket.status}`);
     row.appendChild(elem("span", "shell-ticket-seq", `Ticket ${String(index7 + 1).padStart(2, "0")}`));
     row.appendChild(elem("strong", "shell-ticket-route", `${ticket.from} \u2192 ${ticket.to}`));
@@ -12964,9 +12959,9 @@ function render5({ model, el }) {
   const hero = elem("section", "shell-slot-hero");
   const sidebar = elem("section", "shell-slot-sidebar");
   const market = elem("section", "shell-slot-market");
-  const current = elem("section", "shell-slot-current");
+  const aggregates = elem("section", "shell-slot-current");
   const tickets = elem("section", "shell-slot-tickets");
-  grid.append(hero, sidebar, market, current, tickets);
+  grid.append(hero, sidebar, market, aggregates, tickets);
   el.appendChild(grid);
   route_graph_widget_default.render({ model: facadeModel(model, { data: "board" }), el: hero });
   info_bar_widget_default.render({ model: facadeModel(model, {}), el: market });
@@ -12992,17 +12987,15 @@ function render5({ model, el }) {
     }
   };
   const drawSidebar = () => renderSidebar(model, sidebar, playState);
-  const drawCurrent = () => {
-    current.replaceChildren();
-    current.appendChild(elem("p", "shell-section-heading", "Current Player"));
-    current.appendChild(renderStatsCard(model, model.get("current_player")));
-  };
+  const drawAggregates = () => renderAggregates(model, aggregates);
   const drawTickets = () => renderTickets(model, tickets);
   drawSidebar();
-  drawCurrent();
+  drawAggregates();
   drawTickets();
+  model.on("change:frame", drawSidebar);
+  model.on("change:frame", drawTickets);
   ["change:leaderboard", "change:playback", "change:aggregates", "change:selected_player", "change:rounds_meta"].forEach((event) => model.on(event, drawSidebar));
-  ["change:stats", "change:current_player"].forEach((event) => model.on(event, drawCurrent));
+  model.on("change:aggregates", drawAggregates);
   model.on("change:tickets", drawTickets);
   return () => {
     if (timer2 != null) clearInterval(timer2);
@@ -13010,8 +13003,7 @@ function render5({ model, el }) {
 }
 var spectate_shell_widget_default = { render: render5 };
 export {
-  spectate_shell_widget_default as default,
-  renderStatsCard
+  spectate_shell_widget_default as default
 };
 /*! Bundled license information:
 

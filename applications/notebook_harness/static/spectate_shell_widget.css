@@ -48,22 +48,29 @@
     padding: 6px 10px; cursor: pointer;
 }
 .shell-jump-button { width: 100%; margin-top: 8px; }
-.shell-leader-row, .shell-metric-row {
+.shell-metric-row {
     display: flex; align-items: center; gap: 8px;
     border-left: 3px solid var(--accent, var(--shell-muted));
     background: color-mix(in srgb, var(--shell-panel) 92%, var(--accent, transparent));
     border-radius: 8px; padding: 8px; margin: 6px 0; cursor: pointer;
 }
-.shell-leader-row.selected { outline: 2px solid var(--accent, var(--shell-text)); }
 .shell-leader-rank { color: var(--shell-muted); font-size: 12px; }
-.shell-leader-copy { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .shell-leader-sub, .shell-metric-values { color: var(--shell-muted); font-size: 12px; }
 .shell-leader-score { font-size: 18px; font-weight: 700; }
-.shell-leader-hands { background: transparent; border: none; cursor: pointer; font-size: 16px; color: var(--shell-text); }
-.shell-aggregates summary { cursor: pointer; }
 .shell-metric-row { flex-direction: column; align-items: flex-start; cursor: default; }
 .shell-metric-bar { height: 4px; border-radius: 2px; background: var(--accent, var(--shell-muted)); }
-.shell-stats-card { border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px; }
+.shell-stats-card {
+    border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px;
+    background: color-mix(in srgb, var(--shell-panel) 92%, var(--accent, transparent));
+}
+.shell-player-card { margin: 6px 0; cursor: pointer; }
+.shell-player-card.selected { outline: 2px solid var(--accent, var(--shell-text)); }
+.shell-player-card-header { display: flex; align-items: center; gap: 8px; }
+.shell-player-card-header .shell-leader-name { flex: 1; min-width: 0; }
+.shell-turn-badge {
+    border: 1px solid var(--accent); border-radius: 999px; padding: 1px 6px;
+    color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+}
 .shell-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .shell-chip { border: 1px solid var(--shell-border); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
 .shell-hand-row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -91,16 +98,3 @@
 @container (max-width: 760px) {
     .spectate-shell-grid { grid-template-columns: 1fr; grid-template-areas: "hero" "sidebar" "market" "current" "tickets"; }
 }
-.shell-stats-backdrop {
-    position: absolute; inset: 0; z-index: 10;
-    background: rgba(0, 0, 0, 0.45);
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 14px;
-}
-.spectate-shell { position: relative; }
-.shell-stats-modal {
-    background: var(--shell-panel); color: var(--shell-text);
-    border: 1px solid var(--shell-border); border-radius: 12px;
-    padding: 14px; min-width: 320px; max-width: 90%;
-}
-.shell-stats-modal-header { display: flex; justify-content: space-between; align-items: center; }

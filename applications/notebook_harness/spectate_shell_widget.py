@@ -38,6 +38,10 @@ class SpectateShellWidget(anywidget.AnyWidget):
     leaderboard = traitlets.List([]).tag(sync=True)
     stats = traitlets.Dict().tag(sync=True)
     tickets = traitlets.List([]).tag(sync=True)
+    # One atomic playback payload. The individual traits remain for the
+    # standalone renderers and backwards compatibility, while the composite
+    # shell reads this frame so it never combines two different turns.
+    frame = traitlets.Dict().tag(sync=True)
     aggregates = traitlets.List([]).tag(sync=True)
     rounds_meta = traitlets.List([]).tag(sync=True)
     current_player = traitlets.Unicode("").tag(sync=True)
@@ -94,9 +98,28 @@ def update_shell(shell: Any, series: Any) -> None:
     nodes, edges = series.board_at(round_index, turn_index, viewpoint)
     active = series.active_player_at(round_index, turn_index)
 
-    shell.board = build_graph_data(nodes, edges)
-    shell.market = series.market_at(round_index, turn_index, viewpoint)
-    shell.leaderboard = series.leaderboard_at(round_index, turn_index)
-    shell.stats = series.stats_at(round_index, turn_index)
-    shell.tickets = series.tickets_at(round_index, turn_index, viewpoint or active)
+    board = build_graph_data(nodes, edges)
+    market = series.market_at(round_index, turn_index, viewpoint)
+    leaderboard = series.leaderboard_at(round_index, turn_index)
+    stats = series.stats_at(round_index, turn_index)
+    tickets = series.tickets_at(round_index, turn_index, viewpoint or active)
+
+    # Publish the coherent frame first. JS redraws from this single trait;
+    # the legacy trait assignments that follow cannot expose partial state.
+    shell.frame = {
+        "round": round_index,
+        "turn": turn_index,
+        "board": board,
+        "market": market,
+        "leaderboard": leaderboard,
+        "stats": stats,
+        "tickets": tickets,
+        "ticket_player": viewpoint or active,
+        "current_player": active,
+    }
+    shell.board = board
+    shell.market = market
+    shell.leaderboard = leaderboard
+    shell.stats = stats
+    shell.tickets = tickets
     shell.current_player = active

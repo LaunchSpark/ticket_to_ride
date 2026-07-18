@@ -1,10 +1,9 @@
 // widget-src/src/spectate_shell_widget.js
 // The viewer replay dashboard's grid, rebuilt around the existing route
 // graph and info bar renderers. Layout mirrors replay-dashboard-grid:
-// hero board + sidebar on top, market / current player / tickets below.
+// hero board + player sidebar on top, market / aggregates / tickets below.
 import routeGraph from "./route_graph_widget.js";
 import infoBar from "./info_bar_widget.js";
-import { openStatsModal } from "./spectate_stats_modal.js";
 
 // Adapts the shell's model for an embedded widget whose render() expects
 // its own trait names (the route graph reads `data`; the shell stores the
@@ -38,6 +37,23 @@ function playbackOf(model) {
     return { round: value.round || 0, turn: value.turn || 0 };
 }
 
+function frameOf(model) {
+    return model.get("frame") || {};
+}
+
+function frameValue(model, key) {
+    const frame = frameOf(model);
+    return Object.prototype.hasOwnProperty.call(frame, key) ? frame[key] : model.get(key);
+}
+
+function displayedPlaybackOf(model) {
+    const frame = frameOf(model);
+    if (Number.isInteger(frame.round) && Number.isInteger(frame.turn)) {
+        return { round: frame.round, turn: frame.turn };
+    }
+    return playbackOf(model);
+}
+
 function setPlayback(model, round, turn) {
     model.set("playback", { round, turn });
     model.save_changes();
@@ -67,7 +83,10 @@ function stepBack(model) {
 
 function renderSidebar(model, container, playState) {
     container.replaceChildren();
-    const { round, turn } = playbackOf(model);
+    // Use the cursor bundled with the scores, not the optimistic JS cursor.
+    // This keeps the heading and leaderboard on the same recorded turn while
+    // Python is preparing the next frame.
+    const { round, turn } = displayedPlaybackOf(model);
     const meta = model.get("rounds_meta") || [];
 
     const header = elem("div", "shell-sidebar-header");
@@ -96,62 +115,41 @@ function renderSidebar(model, container, playState) {
     container.appendChild(header);
 
     const board = elem("div", "shell-section");
-    board.appendChild(elem("p", "shell-section-heading", "Leaderboard"));
+    board.appendChild(elem("p", "shell-section-heading", "Players"));
     const selected = model.get("selected_player") || "";
-    (model.get("leaderboard") || []).forEach((entry) => {
-        const row = elem("div", "shell-leader-row" + (entry.playerId === selected ? " selected" : ""));
-        row.style.setProperty("--accent", entry.color);
-        row.appendChild(elem("span", "shell-leader-rank", String(entry.place).padStart(2, "0")));
-        const copy = elem("div", "shell-leader-copy");
-        copy.appendChild(elem("strong", "shell-leader-name", entry.name));
-        copy.appendChild(elem("span", "shell-leader-sub", `${entry.remainingTrains} trains left`));
-        row.appendChild(copy);
-        row.appendChild(elem("span", "shell-leader-score", String(entry.score)));
-        const hands = elem("button", "shell-leader-hands", "🂠");
-        hands.title = "View hand";
-        hands.addEventListener("click", (event) => {
-            event.stopPropagation();
-            openStatsModal(model, container.closest(".spectate-shell"), entry.playerId);
-        });
-        row.appendChild(hands);
-        // Row click = culling selection (same contract as PlayerListWidget)
-        row.addEventListener("click", () => {
+    const active = frameValue(model, "current_player") || "";
+    (frameValue(model, "leaderboard") || []).forEach((entry) => {
+        const card = renderPlayerCard(
+            model,
+            entry,
+            entry.playerId === selected,
+            entry.playerId === active,
+        );
+        // The same selection drives both the culled graph and ticket owner.
+        // Clicking the selected card again returns to the full graph and the
+        // active player's tickets.
+        card.addEventListener("click", () => {
             const current = model.get("selected_player") || "";
             model.set("selected_player", current === entry.playerId ? "" : entry.playerId);
             model.save_changes();
         });
-        board.appendChild(row);
+        board.appendChild(card);
     });
     container.appendChild(board);
-
-    const details = elem("details", "shell-aggregates");
-    details.appendChild(elem("summary", "shell-section-heading", "Aggregate Stats"));
-    const maxAverage = Math.max(1, ...(model.get("aggregates") || []).map((a) => a.averageScore));
-    (model.get("aggregates") || []).forEach((entry) => {
-        const row = elem("div", "shell-metric-row");
-        row.style.setProperty("--accent", entry.color);
-        row.appendChild(elem("strong", "shell-leader-name", entry.name));
-        row.appendChild(
-            elem("span", "shell-metric-values",
-                `avg ${entry.averageScore} · best ${entry.bestScore} · wins ${entry.wins}`)
-        );
-        const bar = elem("div", "shell-metric-bar");
-        bar.style.width = `${Math.max(8, (entry.averageScore / maxAverage) * 100)}%`;
-        row.appendChild(bar);
-        details.appendChild(row);
-    });
-    container.appendChild(details);
 }
 
-function renderStatsCard(model, playerId) {
-    const stats = (model.get("stats") || {})[playerId];
-    const roster = (model.get("players") || []).find((p) => p.id === playerId) || {};
-    const card = elem("div", "shell-stats-card");
-    card.style.setProperty("--accent", roster.color || "#888");
-    card.appendChild(elem("strong", "shell-leader-name", roster.name || playerId));
+function renderPlayerCard(model, entry, selected, active) {
+    const stats = (frameValue(model, "stats") || {})[entry.playerId];
+    const card = elem("div", `shell-stats-card shell-player-card${selected ? " selected" : ""}`);
+    card.style.setProperty("--accent", entry.color || "#888");
+    const header = elem("div", "shell-player-card-header");
+    header.appendChild(elem("span", "shell-leader-rank", String(entry.place).padStart(2, "0")));
+    header.appendChild(elem("strong", "shell-leader-name", entry.name || entry.playerId));
+    if (active) header.appendChild(elem("span", "shell-turn-badge", "TURN"));
+    header.appendChild(elem("span", "shell-leader-score", String(entry.score)));
+    card.appendChild(header);
     if (!stats) return card;
     const chips = elem("div", "shell-chip-row");
-    chips.appendChild(elem("span", "shell-chip", `Score ${stats.score}`));
     chips.appendChild(elem("span", "shell-chip", `Trains ${stats.remainingTrains}`));
     chips.appendChild(elem("span", "shell-chip", `Tickets ${stats.ticketCount}`));
     chips.appendChild(elem("span", "shell-chip", `Routes ${stats.routeCount}`));
@@ -169,10 +167,33 @@ function renderStatsCard(model, playerId) {
     return card;
 }
 
+function renderAggregates(model, container) {
+    container.replaceChildren();
+    container.appendChild(elem("p", "shell-section-heading", "Aggregate Stats"));
+    const aggregates = model.get("aggregates") || [];
+    const maxAverage = Math.max(1, ...aggregates.map((entry) => entry.averageScore));
+    aggregates.forEach((entry) => {
+        const row = elem("div", "shell-metric-row");
+        row.style.setProperty("--accent", entry.color);
+        row.appendChild(elem("strong", "shell-leader-name", entry.name));
+        row.appendChild(
+            elem("span", "shell-metric-values",
+                `avg ${entry.averageScore} · best ${entry.bestScore} · wins ${entry.wins}`)
+        );
+        const bar = elem("div", "shell-metric-bar");
+        bar.style.width = `${Math.max(8, (entry.averageScore / maxAverage) * 100)}%`;
+        row.appendChild(bar);
+        container.appendChild(row);
+    });
+}
+
 function renderTickets(model, container) {
     container.replaceChildren();
-    container.appendChild(elem("p", "shell-section-heading", "Destination Tickets"));
-    (model.get("tickets") || []).forEach((ticket, index) => {
+    const ticketPlayer = frameValue(model, "ticket_player");
+    const roster = (model.get("players") || []).find((player) => player.id === ticketPlayer) || {};
+    const owner = roster.name ? ` · ${roster.name}` : "";
+    container.appendChild(elem("p", "shell-section-heading", `Destination Tickets${owner}`));
+    (frameValue(model, "tickets") || []).forEach((ticket, index) => {
         const row = elem("div", `shell-ticket-row status-${ticket.status}`);
         row.appendChild(elem("span", "shell-ticket-seq", `Ticket ${String(index + 1).padStart(2, "0")}`));
         row.appendChild(elem("strong", "shell-ticket-route", `${ticket.from} → ${ticket.to}`));
@@ -191,9 +212,9 @@ function render({ model, el }) {
     const hero = elem("section", "shell-slot-hero");
     const sidebar = elem("section", "shell-slot-sidebar");
     const market = elem("section", "shell-slot-market");
-    const current = elem("section", "shell-slot-current");
+    const aggregates = elem("section", "shell-slot-current");
     const tickets = elem("section", "shell-slot-tickets");
-    grid.append(hero, sidebar, market, current, tickets);
+    grid.append(hero, sidebar, market, aggregates, tickets);
     el.appendChild(grid);
 
     // Embedded renderers: the graph keeps its force-sim state because its
@@ -216,23 +237,20 @@ function render({ model, el }) {
     };
 
     const drawSidebar = () => renderSidebar(model, sidebar, playState);
-    const drawCurrent = () => {
-        current.replaceChildren();
-        current.appendChild(elem("p", "shell-section-heading", "Current Player"));
-        current.appendChild(renderStatsCard(model, model.get("current_player")));
-    };
+    const drawAggregates = () => renderAggregates(model, aggregates);
     const drawTickets = () => renderTickets(model, tickets);
 
     drawSidebar();
-    drawCurrent();
+    drawAggregates();
     drawTickets();
+    model.on("change:frame", drawSidebar);
+    model.on("change:frame", drawTickets);
     ["change:leaderboard", "change:playback", "change:aggregates", "change:selected_player", "change:rounds_meta"]
         .forEach((event) => model.on(event, drawSidebar));
-    ["change:stats", "change:current_player"].forEach((event) => model.on(event, drawCurrent));
+    model.on("change:aggregates", drawAggregates);
     model.on("change:tickets", drawTickets);
 
     return () => { if (timer != null) clearInterval(timer); };
 }
 
 export default { render };
-export { renderStatsCard };
