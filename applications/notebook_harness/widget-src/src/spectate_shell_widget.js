@@ -32,6 +32,14 @@ function elem(tag, className, text) {
     return node;
 }
 
+function shellCssColor(value) {
+    if (typeof value === "string") return value;
+    if (value && Array.isArray(value.stops) && value.stops.length) {
+        return `linear-gradient(to right, ${value.stops.join(", ")})`;
+    }
+    return "";
+}
+
 function playbackOf(model) {
     const value = model.get("playback") || {};
     return { round: value.round || 0, turn: value.turn || 0 };
@@ -198,13 +206,24 @@ function renderPlayerCard(model, entry, selected, active) {
     if (stats.hiddenCards != null) chips.appendChild(elem("span", "shell-chip", `Hidden ${stats.hiddenCards}`));
     card.appendChild(chips);
     const hand = elem("div", "shell-hand-row");
-    Object.entries(stats.hand || {}).forEach(([color, count]) => {
-        const cell = elem("span", `shell-hand-cell hand-${color}`);
-        cell.appendChild(elem("span", "shell-hand-dot"));
-        cell.appendChild(elem("span", "shell-hand-count", String(count)));
-        cell.title = color;
-        hand.appendChild(cell);
-    });
+    const locomotiveColor = ((frameValue(model, "market") || {}).colors || {}).L;
+    Object.entries(stats.hand || {})
+        .filter(([, count]) => Number(count) > 1)
+        .sort(([colorA, countA], [colorB, countB]) =>
+            Number(countB) - Number(countA) || colorA.localeCompare(colorB)
+        )
+        .forEach(([color, count]) => {
+            const cell = elem("span", `shell-hand-cell hand-${color}`);
+            const dot = elem("span", "shell-hand-dot");
+            if (color === "locomotive") {
+                const background = shellCssColor(locomotiveColor);
+                if (background) dot.style.background = background;
+            }
+            cell.appendChild(dot);
+            cell.appendChild(elem("span", "shell-hand-count", String(count)));
+            cell.title = color;
+            hand.appendChild(cell);
+        });
     card.appendChild(hand);
     return card;
 }

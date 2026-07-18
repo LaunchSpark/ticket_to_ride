@@ -85,7 +85,9 @@
 .hand-black .shell-hand-dot { --hand-color: #35322c; }
 .hand-blue .shell-hand-dot { --hand-color: #3b6fb3; }
 .hand-green .shell-hand-dot { --hand-color: #3f9c58; }
-.hand-locomotive .shell-hand-dot { --hand-color: #b58fd6; }
+.hand-locomotive .shell-hand-dot {
+    background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);
+}
 .hand-orange .shell-hand-dot { --hand-color: #e08a3c; }
 .hand-purple .shell-hand-dot { --hand-color: #8d5bb8; }
 .hand-red .shell-hand-dot { --hand-color: #d05045; }

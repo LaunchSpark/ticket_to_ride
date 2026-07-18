@@ -12670,7 +12670,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-094950Z" : "dev";
+  const build_tag = true ? "20260718-095656Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {
@@ -12848,6 +12848,13 @@ function elem(tag, className, text) {
   if (text != null) node.textContent = text;
   return node;
 }
+function shellCssColor(value) {
+  if (typeof value === "string") return value;
+  if (value && Array.isArray(value.stops) && value.stops.length) {
+    return `linear-gradient(to right, ${value.stops.join(", ")})`;
+  }
+  return "";
+}
 function playbackOf(model) {
   const value = model.get("playback") || {};
   return { round: value.round || 0, turn: value.turn || 0 };
@@ -12995,9 +13002,17 @@ function renderPlayerCard(model, entry, selected, active) {
   if (stats.hiddenCards != null) chips.appendChild(elem("span", "shell-chip", `Hidden ${stats.hiddenCards}`));
   card.appendChild(chips);
   const hand = elem("div", "shell-hand-row");
-  Object.entries(stats.hand || {}).forEach(([color2, count]) => {
+  const locomotiveColor = ((frameValue(model, "market") || {}).colors || {}).L;
+  Object.entries(stats.hand || {}).filter(([, count]) => Number(count) > 1).sort(
+    ([colorA, countA], [colorB, countB]) => Number(countB) - Number(countA) || colorA.localeCompare(colorB)
+  ).forEach(([color2, count]) => {
     const cell = elem("span", `shell-hand-cell hand-${color2}`);
-    cell.appendChild(elem("span", "shell-hand-dot"));
+    const dot = elem("span", "shell-hand-dot");
+    if (color2 === "locomotive") {
+      const background = shellCssColor(locomotiveColor);
+      if (background) dot.style.background = background;
+    }
+    cell.appendChild(dot);
     cell.appendChild(elem("span", "shell-hand-count", String(count)));
     cell.title = color2;
     hand.appendChild(cell);

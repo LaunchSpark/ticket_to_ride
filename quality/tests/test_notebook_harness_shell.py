@@ -74,6 +74,22 @@ class ShellWidgetTests(unittest.TestCase):
         )
         self.assertNotIn(".linkOpacity(", source)
 
+    def test_bundled_player_hands_filter_sort_and_share_locomotive_rainbow(self) -> None:
+        source = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.js"
+        ).read_text()
+        css = files("notebook_harness").joinpath(
+            "static", "spectate_shell_widget.css"
+        ).read_text()
+        self.assertIn(".filter(([, count]) => Number(count) > 1)", source)
+        self.assertIn("Number(countB) - Number(countA)", source)
+        self.assertIn('frameValue(model, "market")', source)
+        self.assertIn("shellCssColor(locomotiveColor)", source)
+        self.assertIn(
+            "linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)",
+            css,
+        )
+
     def test_bundled_shell_exposes_live_unclaimed_opacity_slider(self) -> None:
         source = files("notebook_harness").joinpath(
             "static", "spectate_shell_widget.js"
