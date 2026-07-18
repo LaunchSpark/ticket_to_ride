@@ -12573,7 +12573,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260718-060634Z" : "dev";
+  const build_tag = true ? "20260718-061211Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => clearInterval(device_pixel_ratio_watch);
@@ -12724,7 +12724,42 @@ var info_bar_widget_default = { render: render4 };
 
 // src/spectate_stats_modal.js
 function openStatsModal(model, shellRoot, playerId) {
-  console.log("stats modal stub", playerId);
+  if (!shellRoot || shellRoot.querySelector(".shell-stats-backdrop")) return;
+  const backdrop = document.createElement("div");
+  backdrop.className = "shell-stats-backdrop";
+  const dialog = document.createElement("div");
+  dialog.className = "shell-stats-modal";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener("keydown", onKey);
+    if (model.off) model.off("change:stats", refresh);
+  };
+  const onKey = (event) => {
+    if (event.key === "Escape") close();
+  };
+  const header = document.createElement("div");
+  header.className = "shell-stats-modal-header";
+  const title = document.createElement("p");
+  title.className = "shell-eyebrow";
+  title.textContent = "Player Stats";
+  const closeButton = document.createElement("button");
+  closeButton.className = "shell-playback-button";
+  closeButton.textContent = "\u2715";
+  closeButton.setAttribute("aria-label", "Close player stats");
+  closeButton.addEventListener("click", close);
+  header.append(title, closeButton);
+  const body = document.createElement("div");
+  const refresh = () => body.replaceChildren(renderStatsCard(model, playerId));
+  refresh();
+  model.on("change:stats", refresh);
+  dialog.append(header, body);
+  dialog.addEventListener("click", (event) => event.stopPropagation());
+  backdrop.addEventListener("click", close);
+  document.addEventListener("keydown", onKey);
+  backdrop.appendChild(dialog);
+  shellRoot.appendChild(backdrop);
 }
 
 // src/spectate_shell_widget.js

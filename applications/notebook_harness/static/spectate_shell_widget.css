@@ -87,3 +87,16 @@
 @media (max-width: 980px) {
     .spectate-shell-grid { grid-template-columns: 1fr; grid-template-areas: "hero" "sidebar" "market" "current" "tickets"; }
 }
+.shell-stats-backdrop {
+    position: absolute; inset: 0; z-index: 10;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 14px;
+}
+.spectate-shell { position: relative; }
+.shell-stats-modal {
+    background: var(--shell-panel); color: var(--shell-text);
+    border: 1px solid var(--shell-border); border-radius: 12px;
+    padding: 14px; min-width: 320px; max-width: 90%;
+}
+.shell-stats-modal-header { display: flex; justify-content: space-between; align-items: center; }
