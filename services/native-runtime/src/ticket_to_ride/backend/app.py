@@ -127,7 +127,10 @@ def create_app(
 
     def get_runtime_manager() -> ManagedMatchRuntimeManager:
         if app.state.runtime_manager is None:
-            app.state.runtime_manager = ManagedMatchRuntimeManager(app.state.match_repository)
+            app.state.runtime_manager = ManagedMatchRuntimeManager(
+                app.state.match_repository,
+                bot_directory=app.state.bot_directory,
+            )
         return app.state.runtime_manager
 
     @app.get("/bots", response_model=BotListResponse)

@@ -7,9 +7,39 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from ticket_to_ride.backend.app import create_app
+from ticket_to_ride.backend.bot_directory import DirectoryBot, DirectoryListing
 from ticket_to_ride.backend.runtime import BotExecutor, ExecutionResult, ManagedMatchRuntimeManager
 from ticket_to_ride.backend.repository import InMemoryMatchRepository
 from ticket_to_ride.engine.state.views import PlayerView
+
+
+def local_directory_bot(bot_id: str, name: str) -> DirectoryBot:
+    return DirectoryBot(
+        bot_id=bot_id,
+        name=name,
+        version="1.0.0",
+        description=f"{name} description",
+        author="Test",
+        tags=[],
+        source="local",
+        connection_id=None,
+        base_url=None,
+        module_path=f"/repo/bots/{bot_id}.py",
+    )
+
+
+class FakeBotDirectory:
+    def __init__(self, bots: list[DirectoryBot]) -> None:
+        self.bots = list(bots)
+
+    def list_all(self) -> DirectoryListing:
+        return DirectoryListing(bots=list(self.bots), connections=[])
+
+    def resolve(self, bot_id: str) -> DirectoryBot:
+        for bot in self.bots:
+            if bot.bot_id == bot_id:
+                return bot
+        raise KeyError(f"Unknown bot '{bot_id}'.")
 
 
 class FakeExecutor(BotExecutor):
@@ -82,9 +112,14 @@ class ScriptedGame:
 class ManagedMatchApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.repository = InMemoryMatchRepository()
-        self._register_bot("slow_bot", "Slow Bot")
-        self._register_bot("steady_bot", "Steady Bot")
-        self._register_bot("random_bot", "Random Bot")
+        self.bot_directory = FakeBotDirectory(
+            [
+                local_directory_bot("slow_bot", "Slow Bot"),
+                local_directory_bot("steady_bot", "Steady Bot"),
+                local_directory_bot("random_bot", "Random Bot"),
+                local_directory_bot("qualifier_bot", "Qualifier Bot"),
+            ]
+        )
 
     def test_failover_is_round_scoped_and_primary_returns_next_round(self) -> None:
         factory = FakeExecutorFactory(
@@ -94,7 +129,9 @@ class ManagedMatchApiTests(unittest.TestCase):
                 "random_bot": [[("ok", 10)]],
             }
         )
-        runtime_manager = ManagedMatchRuntimeManager(self.repository, executor_factory=factory)
+        runtime_manager = ManagedMatchRuntimeManager(
+            self.repository, executor_factory=factory, bot_directory=self.bot_directory
+        )
         client = TestClient(create_app(repository=self.repository, runtime_manager=runtime_manager))
 
         with patch("ticket_to_ride.backend.runtime.round_runtime.Game", ScriptedGame):
@@ -162,7 +199,9 @@ class ManagedMatchApiTests(unittest.TestCase):
                 "random_bot": [[("bot_exception", 10)]],
             }
         )
-        runtime_manager = ManagedMatchRuntimeManager(self.repository, executor_factory=factory)
+        runtime_manager = ManagedMatchRuntimeManager(
+            self.repository, executor_factory=factory, bot_directory=self.bot_directory
+        )
         client = TestClient(create_app(repository=self.repository, runtime_manager=runtime_manager))
 
         with patch("ticket_to_ride.backend.runtime.round_runtime.Game", ScriptedGame):
@@ -205,8 +244,7 @@ class ManagedMatchApiTests(unittest.TestCase):
         self.assertEqual(seat_one_round_zero["outcome"], "won_by_forfeit")
 
     def test_default_runtime_plays_action_bots_in_process(self) -> None:
-        self._register_bot("qualifier_bot", "Qualifier Bot")
-        runtime_manager = ManagedMatchRuntimeManager(self.repository)
+        runtime_manager = ManagedMatchRuntimeManager(self.repository, bot_directory=self.bot_directory)
         client = TestClient(create_app(repository=self.repository, runtime_manager=runtime_manager))
 
         response = client.post(
@@ -230,20 +268,6 @@ class ManagedMatchApiTests(unittest.TestCase):
         self.assertEqual(match["status"], "completed")
         replay = client.get(f"/matches/{match['replayMatchId']}").json()
         self.assertGreater(len(replay["rounds"][0]["turns"]), 0)
-
-    def _register_bot(self, bot_id: str, name: str) -> None:
-        self.repository.upsert_bot(
-            schema_version=1,
-            bot_id=bot_id,
-            name=name,
-            version="1.0.0",
-            description=f"{name} description",
-            author="Test",
-            tags=[],
-            source_kind="local_api",
-            source_base_url="http://127.0.0.1:8001",
-            discovery_path="/bots",
-        )
 
     def _wait_for_terminal_match(self, client: TestClient, match_id: str) -> dict:
         for _ in range(200):

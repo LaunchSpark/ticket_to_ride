@@ -19,6 +19,8 @@ import os
 import threading
 from typing import Any, Callable, Dict, List, Literal, Optional
 
+from ticket_to_ride.backend.bot_catalog import BotCatalogError
+from ticket_to_ride.backend.bot_directory import BotDirectory
 from ticket_to_ride.backend.models import (
     ManagedMatchCreateRequest,
     ManagedMatchSeatConfig,
@@ -60,13 +62,24 @@ class ManagedMatchRuntimeManager:
         repository: MatchRepository,
         *,
         executor_factory: Optional[Callable[[str], BotExecutor]] = None,
+        bot_directory: Optional[BotDirectory] = None,
     ) -> None:
         self.repository = repository
         self.repository.interrupt_incomplete_managed_matches()
-        self.executor_factory = executor_factory or _default_executor_factory
+        self.bot_directory = bot_directory or BotDirectory(repository)
+        self.executor_factory = executor_factory or self._build_executor
         self._lock = threading.RLock()
         self._matches: Dict[str, MatchExecutionContext] = {}
         self._threads: Dict[str, threading.Thread] = {}
+
+    def _build_executor(self, bot_id: str) -> BotExecutor:
+        try:
+            bot = self.bot_directory.resolve(bot_id)
+        except (KeyError, BotCatalogError):
+            bot = None
+        if bot is not None and bot.source == "remote" and bot.base_url:
+            return BotApiExecutor(bot_id, base_url=bot.base_url)
+        return _default_executor_factory(bot_id)
 
     def create_managed_match(self, request: ManagedMatchCreateRequest) -> ManagedMatchSummary:
         """Persist and start a new managed match in the background."""
@@ -266,13 +279,16 @@ class ManagedMatchRuntimeManager:
         self.repository.update_managed_match(match_id, aggregateResults=list(aggregate.values()))
 
     def _resolve_bot_names(self, bot_ids: List[str]) -> Dict[str, str]:
+        listing = self.bot_directory.list_all()
+        by_id = {bot.bot_id: bot for bot in listing.bots}
         resolved: Dict[str, str] = {}
         for bot_id in bot_ids:
-            try:
-                record = self.repository.get_bot(bot_id)
-            except KeyError as exc:
-                raise ManagedRuntimeError(f"Unknown registered bot '{bot_id}'. Register it before creating a managed match.") from exc
-            resolved[bot_id] = record["name"]
+            bot = by_id.get(bot_id)
+            if bot is None:
+                raise ManagedRuntimeError(
+                    f"Unknown bot '{bot_id}'. It is not locally discoverable or available on any connection."
+                )
+            resolved[bot_id] = bot.name
         return resolved
 
 
