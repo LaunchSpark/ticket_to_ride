@@ -441,6 +441,34 @@ class PocketBaseRepositoryTests(unittest.TestCase):
             {"id": "t1", "matchId": "m1", "roundId": "r1", "turnIndex": 0, "turnState": {}},
         )
 
+    def test_bot_connection_round_trip_uses_the_bot_connections_collection(self) -> None:
+        repository = PocketBaseMatchRepository("http://127.0.0.1:8090")
+
+        with patch.object(
+            repository,
+            "_request_json",
+            return_value={"id": "conn1", "url": "http://friend-a:8001", "created": "2026-07-19 10:00:00.000Z"},
+        ) as request_json:
+            record = repository.create_bot_connection("http://friend-a:8001")
+
+        request_json.assert_called_once_with(
+            "POST", "/api/collections/bot_connections/records", {"url": "http://friend-a:8001"}
+        )
+        self.assertEqual(record, {"id": "conn1", "url": "http://friend-a:8001", "createdAt": "2026-07-19 10:00:00.000Z"})
+
+    def test_delete_unknown_bot_connection_raises_key_error(self) -> None:
+        from ticket_to_ride.backend.pocketbase import PocketBaseError
+
+        repository = PocketBaseMatchRepository("http://127.0.0.1:8090")
+
+        with patch.object(
+            repository,
+            "_request_json",
+            side_effect=PocketBaseError("PocketBase request failed (404): missing"),
+        ):
+            with self.assertRaises(KeyError):
+                repository.delete_bot_connection("nope")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -111,6 +111,13 @@ COLLECTIONS: list[dict[str, Any]] = [
             {"name": "runtime_state", "type": "json", "required": False},
         ],
     },
+    {
+        "name": "bot_connections",
+        "type": "base",
+        "fields": [
+            {"name": "url", "type": "text", "required": True},
+        ],
+    },
 ]
 
 PROJECT_COLLECTION_NAMES = tuple(collection["name"] for collection in COLLECTIONS)
@@ -240,7 +247,7 @@ def validate_project_collections(existing_collections: dict[str, dict[str, Any]]
 def reset_project_collections(base_url: str, token: str, existing_collections: dict[str, dict[str, Any]]) -> list[str]:
     reset_names: list[str] = []
 
-    for collection_name in ("managed_rounds", "managed_matches", "turns", "rounds", "matches", "bots"):
+    for collection_name in ("bot_connections", "managed_rounds", "managed_matches", "turns", "rounds", "matches", "bots"):
         current = existing_collections.get(collection_name)
         if current is None:
             continue

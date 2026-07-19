@@ -55,6 +55,7 @@ class PocketBaseSchemaTests(unittest.TestCase):
             "turns": {"id": "turn-col", "name": "turns", "fields": [{"name": "id", "type": "text"}]},
             "managed_matches": {"id": "managed-match-col", "name": "managed_matches", "fields": [{"name": "id", "type": "text"}]},
             "managed_rounds": {"id": "managed-round-col", "name": "managed_rounds", "fields": [{"name": "id", "type": "text"}]},
+            "bot_connections": {"id": "bot-conn-col", "name": "bot_connections", "fields": [{"name": "id", "type": "text"}]},
             "users": {"id": "users-col", "name": "users", "fields": [{"name": "id", "type": "text"}]},
         }
 
@@ -62,14 +63,14 @@ class PocketBaseSchemaTests(unittest.TestCase):
              patch("ticket_to_ride.backend.bootstrap_pocketbase.create_collection") as create_collection:
             reset_names = reset_project_collections("http://127.0.0.1:8090", "token", existing)
 
-        self.assertEqual(reset_names, ["managed_rounds", "managed_matches", "turns", "rounds", "matches", "bots"])
+        self.assertEqual(reset_names, ["bot_connections", "managed_rounds", "managed_matches", "turns", "rounds", "matches", "bots"])
         deleted_ids = [call.args[2] for call in delete_collection.call_args_list]
         self.assertEqual(
             deleted_ids,
-            ["managed-round-col", "managed-match-col", "turn-col", "round-col", "match-col", "bot-col"],
+            ["bot-conn-col", "managed-round-col", "managed-match-col", "turn-col", "round-col", "match-col", "bot-col"],
         )
         created_names = [call.args[2]["name"] for call in create_collection.call_args_list]
-        self.assertEqual(created_names, ["bots", "matches", "rounds", "turns", "managed_matches", "managed_rounds"])
+        self.assertEqual(created_names, ["bots", "matches", "rounds", "turns", "managed_matches", "managed_rounds", "bot_connections"])
 
     def test_ensure_collections_repairs_invalid_project_collections(self) -> None:
         invalid_existing = [
@@ -87,6 +88,14 @@ class PocketBaseSchemaTests(unittest.TestCase):
 
         self.assertIn("reset and recreated collections", result)
         reset_project_collections_mock.assert_called_once()
+
+    def test_bot_connections_collection_has_a_url_field(self) -> None:
+        bot_connections = next(
+            collection for collection in COLLECTIONS if collection["name"] == "bot_connections"
+        )
+
+        field_names = {field["name"] for field in bot_connections["fields"]}
+        self.assertEqual(field_names, {"url"})
 
 
 if __name__ == "__main__":
