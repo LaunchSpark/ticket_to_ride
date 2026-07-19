@@ -35,6 +35,18 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def create_bot_connection(self, url: str) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_bot_connections(self) -> List[Dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_bot_connection(self, connection_id: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def create_match(
         self,
         name: str,
@@ -132,6 +144,7 @@ class InMemoryMatchRepository(MatchRepository):
         self.turns: Dict[str, Dict[str, Any]] = {}
         self.managed_matches: Dict[str, Dict[str, Any]] = {}
         self.managed_rounds: Dict[str, Dict[str, Any]] = {}
+        self.bot_connections: Dict[str, Dict[str, Any]] = {}
 
     def upsert_bot(
         self,
@@ -192,6 +205,22 @@ class InMemoryMatchRepository(MatchRepository):
             if record["botId"] == bot_id:
                 return deepcopy(record)
         raise KeyError(f"Unknown bot '{bot_id}'")
+
+    def create_bot_connection(self, url: str) -> Dict[str, Any]:
+        record = {"id": str(uuid4()), "url": url, "createdAt": utc_now_iso()}
+        self.bot_connections[record["id"]] = record
+        return deepcopy(record)
+
+    def list_bot_connections(self) -> List[Dict[str, Any]]:
+        return sorted(
+            (deepcopy(record) for record in self.bot_connections.values()),
+            key=lambda record: record["createdAt"],
+        )
+
+    def delete_bot_connection(self, connection_id: str) -> None:
+        if connection_id not in self.bot_connections:
+            raise KeyError(f"Unknown bot connection '{connection_id}'")
+        del self.bot_connections[connection_id]
 
     def create_match(
         self,

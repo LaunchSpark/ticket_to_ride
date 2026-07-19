@@ -75,6 +75,23 @@ class PocketBaseMatchRepository(MatchRepository):
             raise KeyError(f"Unknown bot '{bot_id}'")
         return self._normalize_bot(records[0])
 
+    def create_bot_connection(self, url: str) -> Dict[str, Any]:
+        record = self._request_json("POST", "/api/collections/bot_connections/records", {"url": url})
+        return self._normalize_bot_connection(record)
+
+    def list_bot_connections(self) -> List[Dict[str, Any]]:
+        records = self._request_all_items("/api/collections/bot_connections/records")
+        connections = [self._normalize_bot_connection(record) for record in records]
+        return sorted(connections, key=lambda connection: connection["createdAt"])
+
+    def delete_bot_connection(self, connection_id: str) -> None:
+        try:
+            self._request_json("DELETE", f"/api/collections/bot_connections/records/{connection_id}")
+        except PocketBaseError as exc:
+            if "(404)" in str(exc):
+                raise KeyError(f"Unknown bot connection '{connection_id}'") from exc
+            raise
+
     def create_match(
         self,
         name: str,
@@ -410,6 +427,14 @@ class PocketBaseMatchRepository(MatchRepository):
             "sourceKind": record.get("source_kind") or "local_api",
             "sourceBaseUrl": (record.get("source_base_url") or "").rstrip("/"),
             "discoveryPath": record.get("discovery_path") or "/bots",
+            "createdAt": record.get("created") or record.get("createdAt") or "",
+        }
+
+    @staticmethod
+    def _normalize_bot_connection(record: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": record["id"],
+            "url": (record.get("url") or "").rstrip("/"),
             "createdAt": record.get("created") or record.get("createdAt") or "",
         }
 
