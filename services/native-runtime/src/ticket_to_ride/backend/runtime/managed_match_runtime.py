@@ -67,6 +67,7 @@ class ManagedMatchRuntimeManager:
         self.repository = repository
         self.repository.interrupt_incomplete_managed_matches()
         self.bot_directory = bot_directory or BotDirectory(repository)
+        self._injected_executor_factory = executor_factory
         self.executor_factory = executor_factory or self._build_executor
         self._lock = threading.RLock()
         self._matches: Dict[str, MatchExecutionContext] = {}
@@ -80,6 +81,42 @@ class ManagedMatchRuntimeManager:
         if bot is not None and bot.source == "remote" and bot.base_url:
             return BotApiExecutor(bot_id, base_url=bot.base_url)
         return _default_executor_factory(bot_id)
+
+    def _round_executor_factory(self) -> Callable[[str], BotExecutor]:
+        """Build the executor factory to use for a single round.
+
+        If the caller injected a custom ``executor_factory`` (test seams,
+        alternate routing, etc.), it is returned unchanged. Otherwise this
+        wraps the default directory-based resolution so that a single round
+        shares ONE ``list_all()`` call across every seat resolution instead of
+        doing a fresh directory resolve (local discovery + concurrent pings of
+        every connection) per seat. The fetch is lazy and memoized behind a
+        lock so concurrent seat resolutions within the round only trigger it
+        once.
+        """
+
+        if self._injected_executor_factory is not None:
+            return self.executor_factory
+
+        lock = threading.Lock()
+        state: Dict[str, Any] = {"loaded": False, "by_id": {}}
+
+        def factory(bot_id: str) -> BotExecutor:
+            with lock:
+                if not state["loaded"]:
+                    try:
+                        listing = self.bot_directory.list_all()
+                        state["by_id"] = {bot.bot_id: bot for bot in listing.bots}
+                    except BotCatalogError:
+                        state["by_id"] = {}
+                    state["loaded"] = True
+                by_id = state["by_id"]
+            bot = by_id.get(bot_id)
+            if bot is not None and bot.source == "remote" and bot.base_url:
+                return BotApiExecutor(bot_id, base_url=bot.base_url)
+            return _default_executor_factory(bot_id)
+
+        return factory
 
     def create_managed_match(self, request: ManagedMatchCreateRequest) -> ManagedMatchSummary:
         """Persist and start a new managed match in the background."""
@@ -228,7 +265,7 @@ class ManagedMatchRuntimeManager:
                     managed_round_id=managed_round_id,
                     round_number=round_number,
                     replay_round_id=replay_round_id,
-                    executor_factory=self.executor_factory,
+                    executor_factory=self._round_executor_factory(),
                 )
                 with self._lock:
                     match_context.active_round = round_context

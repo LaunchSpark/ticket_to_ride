@@ -55,6 +55,26 @@ class ScaffoldBotTests(unittest.TestCase):
         with self.assertRaises(BotScaffoldError):
             scaffold_bot("my cool BOT", bots_dir=self.bots_dir)
 
+    def test_scaffold_rejects_a_colliding_bot_id_even_without_an_existing_file(self) -> None:
+        # The slug "my_cool_bot" is already claimed by a bot registered under a
+        # different filename/source, so there is no file on disk to collide with.
+        with self.assertRaises(BotScaffoldError):
+            scaffold_bot(
+                "My Cool Bot",
+                bots_dir=self.bots_dir,
+                existing_bot_ids={"my_cool_bot"},
+            )
+
+        self.assertFalse((self.bots_dir / "my_cool_bot.py").exists())
+
+    def test_scaffold_existing_bot_ids_comparison_is_case_insensitive(self) -> None:
+        with self.assertRaises(BotScaffoldError):
+            scaffold_bot(
+                "My Cool Bot",
+                bots_dir=self.bots_dir,
+                existing_bot_ids={"MY_COOL_BOT"},
+            )
+
     def test_scaffold_rejects_empty_and_quoted_names(self) -> None:
         with self.assertRaises(BotScaffoldError):
             scaffold_bot("   ", bots_dir=self.bots_dir)

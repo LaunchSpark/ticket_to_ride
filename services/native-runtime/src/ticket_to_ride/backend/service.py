@@ -74,8 +74,9 @@ def list_bot_directory(directory: BotDirectory) -> BotListResponse:
     )
 
 
-def create_bot(notebook_launcher: NotebookLauncher, name: str) -> BotCreateResponse:
-    scaffolded = scaffold_bot(name)
+def create_bot(directory: BotDirectory, notebook_launcher: NotebookLauncher, name: str) -> BotCreateResponse:
+    existing = {bot.bot_id for bot in directory.list_all().bots if bot.source == "local"}
+    scaffolded = scaffold_bot(name, existing_bot_ids=existing)
     url = notebook_launcher.launch(scaffolded.bot_id, scaffolded.path)
     return BotCreateResponse(botId=scaffolded.bot_id, url=url)
 

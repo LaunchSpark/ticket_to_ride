@@ -26,8 +26,10 @@ def directory_bot(bot_id: str, *, source: str, base_url: str | None = None) -> D
 class FakeBotDirectory:
     def __init__(self, bots: list[DirectoryBot]) -> None:
         self.bots = list(bots)
+        self.list_all_calls = 0
 
     def list_all(self) -> DirectoryListing:
+        self.list_all_calls += 1
         return DirectoryListing(bots=list(self.bots), connections=[])
 
     def resolve(self, bot_id: str) -> DirectoryBot:
@@ -67,6 +69,42 @@ class RemoteExecutorRoutingTests(unittest.TestCase):
         executor = manager.executor_factory("ghost_bot")
 
         self.assertIsInstance(executor, InProcessBotExecutor)
+
+    def test_round_executor_factory_fetches_directory_listing_only_once(self) -> None:
+        fake_directory = FakeBotDirectory(
+            [
+                directory_bot("friend_bot", source="remote", base_url="http://friend-host:8001"),
+                directory_bot("random_bot", source="local"),
+            ]
+        )
+        manager = ManagedMatchRuntimeManager(
+            InMemoryMatchRepository(),
+            bot_directory=fake_directory,
+        )
+
+        round_factory = manager._round_executor_factory()
+
+        remote_executor = round_factory("friend_bot")
+        local_executor = round_factory("random_bot")
+        another_remote_lookup = round_factory("friend_bot")
+
+        self.assertIsInstance(remote_executor, BotApiExecutor)
+        self.assertEqual(remote_executor.base_url, "http://friend-host:8001")
+        self.assertIsInstance(local_executor, InProcessBotExecutor)
+        self.assertIsInstance(another_remote_lookup, BotApiExecutor)
+        self.assertEqual(fake_directory.list_all_calls, 1)
+
+    def test_round_executor_factory_passes_through_injected_factory_unchanged(self) -> None:
+        def custom_factory(bot_id: str) -> BotApiExecutor:
+            return BotApiExecutor(bot_id, base_url="http://custom-host:9000")
+
+        manager = ManagedMatchRuntimeManager(
+            InMemoryMatchRepository(),
+            executor_factory=custom_factory,
+            bot_directory=FakeBotDirectory([]),
+        )
+
+        self.assertIs(manager._round_executor_factory(), custom_factory)
 
 
 if __name__ == "__main__":

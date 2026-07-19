@@ -128,7 +128,7 @@ class NewBotApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"botId": "my_cool_bot", "url": "http://127.0.0.1:2718"})
-        scaffold.assert_called_once_with("My Cool Bot")
+        scaffold.assert_called_once_with("My Cool Bot", existing_bot_ids=set())
         self.assertEqual(self.notebook_launcher.launch_calls, [("my_cool_bot", "/repo/bots/my_cool_bot.py")])
 
     def test_invalid_bot_name_returns_bad_request(self) -> None:

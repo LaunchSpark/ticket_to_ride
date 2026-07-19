@@ -46,6 +46,7 @@ def scaffold_bot(
     *,
     bots_dir: Path | None = None,
     template_path: Path | None = None,
+    existing_bot_ids: set[str] | frozenset[str] | None = None,
 ) -> ScaffoldedBot:
     display_name = name.strip()
     if not display_name:
@@ -54,14 +55,19 @@ def scaffold_bot(
         raise BotScaffoldError("Bot name must not contain quotes or backslashes.")
 
     slug = slugify_bot_name(display_name)
+    if existing_bot_ids and slug.casefold() in {bot_id.casefold() for bot_id in existing_bot_ids}:
+        raise BotScaffoldError(f"A bot with id '{slug}' already exists.")
+
     resolved_bots_dir = bots_dir or _default_bots_dir()
     target_path = resolved_bots_dir / f"{slug}.py"
-    if target_path.exists():
-        raise BotScaffoldError(f"A bot module named '{slug}' already exists.")
 
     source = (template_path or _default_template_path()).read_text(encoding="utf-8")
     source = source.replace('"id": "your_bot_id"', f'"id": "{slug}"')
     source = source.replace('"name": "Your Bot Name"', f'"name": "{display_name}"')
     source = source.replace("YourBotName", class_name_from_slug(slug))
-    target_path.write_text(source, encoding="utf-8")
+    try:
+        with target_path.open("x", encoding="utf-8") as handle:
+            handle.write(source)
+    except FileExistsError as exc:
+        raise BotScaffoldError(f"A bot module named '{slug}' already exists.") from exc
     return ScaffoldedBot(bot_id=slug, name=display_name, path=str(target_path))

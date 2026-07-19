@@ -219,7 +219,6 @@ class RuntimeCliTests(unittest.TestCase):
             bootstrap_managed_random_match_via_api.__globals__["JsonHttpTransport"],
             "request",
             side_effect=[
-                {"botId": "random_bot"},
                 [{"matchId": "match-1"}],
                 [],
             ],
@@ -233,7 +232,6 @@ class RuntimeCliTests(unittest.TestCase):
             bootstrap_managed_random_match_via_api.__globals__["JsonHttpTransport"],
             "request",
             side_effect=[
-                {"botId": "random_bot"},
                 [],
                 [{"matchId": "managed-1"}],
             ],
@@ -247,7 +245,6 @@ class RuntimeCliTests(unittest.TestCase):
             bootstrap_managed_random_match_via_api.__globals__["JsonHttpTransport"],
             "request",
             side_effect=[
-                {"botId": "random_bot"},
                 [],
                 [],
                 {"matchId": "managed-1"},
@@ -259,7 +256,6 @@ class RuntimeCliTests(unittest.TestCase):
         self.assertEqual(
             request.call_args_list,
             [
-                unittest.mock.call("POST", "/bots", {"botId": "random_bot"}),
                 unittest.mock.call("GET", "/matches"),
                 unittest.mock.call("GET", "/managed-matches"),
                 unittest.mock.call(
@@ -366,7 +362,7 @@ class RuntimeCliTests(unittest.TestCase):
         fake_backend_process.terminate.assert_called_once()
         fake_bot_api_process.terminate.assert_called_once()
 
-    def test_run_raises_when_random_bot_registration_fails(self) -> None:
+    def test_run_raises_when_managed_match_bootstrap_fails(self) -> None:
         fake_viewer_server = MagicMock()
         fake_backend_process = MagicMock()
         fake_backend_process.poll.return_value = None
@@ -391,13 +387,13 @@ class RuntimeCliTests(unittest.TestCase):
              patch(
                  "ticket_to_ride.runtime.cli.bootstrap_managed_random_match_via_api",
                  side_effect=RuntimeError(
-                     "Backend /bots registration failed for 'random_bot' while using BOT_API_BASE_URL http://127.0.0.1:8001"
+                     "Unable to inspect existing backend matches at http://127.0.0.1:8000: boom"
                  ),
              ):
             with self.assertRaises(RuntimeError) as exc:
                 run()
 
-        self.assertIn("Backend /bots registration failed", str(exc.exception))
+        self.assertIn("Unable to inspect existing backend matches", str(exc.exception))
         fake_viewer_server.shutdown.assert_called_once()
         fake_viewer_server.server_close.assert_called_once()
         fake_backend_process.terminate.assert_called_once()

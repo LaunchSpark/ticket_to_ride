@@ -140,10 +140,11 @@ def create_app(
     @app.post("/bots/new", response_model=BotCreateResponse)
     def post_new_bot(
         request: BotCreateRequest,
+        directory: BotDirectory = Depends(get_bot_directory),
         notebook_launcher: NotebookLauncher = Depends(get_notebook_launcher),
     ) -> BotCreateResponse:
         try:
-            return create_bot(notebook_launcher, request.name)
+            return create_bot(directory, notebook_launcher, request.name)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

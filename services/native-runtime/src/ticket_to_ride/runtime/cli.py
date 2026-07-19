@@ -614,14 +614,6 @@ def bootstrap_managed_random_match_via_api(api_base_url: str) -> bool:
     transport = JsonHttpTransport(api_base_url)
 
     try:
-        transport.request("POST", "/bots", {"botId": DEFAULT_BOOTSTRAP_BOT_ID})
-    except LoggerClientError as exc:
-        raise RuntimeError(
-            "Backend /bots registration failed for "
-            f"'{DEFAULT_BOOTSTRAP_BOT_ID}' while using BOT_API_BASE_URL {bot_api_base_url()}: {exc}"
-        ) from exc
-
-    try:
         replay_matches = transport.request("GET", "/matches")
         managed_matches = transport.request("GET", "/managed-matches")
     except LoggerClientError as exc:
@@ -703,11 +695,11 @@ def run() -> None:
             bootstrapped = bootstrap_managed_random_match_via_api(f"http://{host}:{port}")
             if bootstrapped:
                 print(
-                    "Registered random_bot and created a 3-round managed match with a 1-minute clock."
+                    "Discovered random_bot via live bot discovery and created a 3-round managed match with a 1-minute clock."
                 )
             else:
                 print(
-                    "Registered random_bot. Existing replay or managed matches found, so the startup managed match was skipped."
+                    "Discovered random_bot via live bot discovery. Existing replay or managed matches found, so the startup managed match was skipped."
                 )
         else:
             try:
