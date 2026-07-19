@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-from ticket_to_ride.backend.bot_catalog import BotCatalogClient
+from ticket_to_ride.backend.bot_catalog import BotCatalogError
+from ticket_to_ride.backend.bot_directory import BotDirectory, ConnectionStatus, DirectoryBot
+from ticket_to_ride.backend.bot_scaffold import scaffold_bot
 from ticket_to_ride.board_view import (
     build_culled_edges,
     build_culled_nodes,
@@ -11,7 +14,11 @@ from ticket_to_ride.board_view import (
 from ticket_to_ride.engine.state.map import MapGraph, contract_map
 from ticket_to_ride.backend.models import (
     AverageScoreRecord,
-    BotSummary,
+    BotCreateResponse,
+    BotEntry,
+    BotListResponse,
+    ConnectionCreateResponse,
+    ConnectionSummary,
     MatchPayload,
     MatchSummary,
     NotebookLaunchResponse,
@@ -30,53 +37,102 @@ class BotNotFoundError(LookupError):
     """Raised when a requested bot cannot be discovered."""
 
 
-def build_bot_summary(bot_record: Dict[str, Any]) -> BotSummary:
-    return BotSummary(
-        schemaVersion=bot_record["schemaVersion"],
-        botId=bot_record["botId"],
-        name=bot_record["name"],
-        version=bot_record["version"],
-        description=bot_record["description"],
-        author=bot_record.get("author", ""),
-        tags=list(bot_record.get("tags", [])),
-        sourceKind=bot_record["sourceKind"],
-        sourceBaseUrl=bot_record["sourceBaseUrl"],
-        discoveryPath=bot_record["discoveryPath"],
-        createdAt=bot_record.get("createdAt", ""),
+class ConnectionNotFoundError(LookupError):
+    """Raised when a requested bot connection does not exist."""
+
+
+def _bot_entry(bot: DirectoryBot) -> BotEntry:
+    return BotEntry(
+        botId=bot.bot_id,
+        name=bot.name,
+        version=bot.version,
+        description=bot.description,
+        author=bot.author,
+        tags=list(bot.tags),
+        source=bot.source,
+        connectionId=bot.connection_id,
+        baseUrl=bot.base_url,
     )
 
 
-def list_bots(repository: MatchRepository) -> List[BotSummary]:
-    return [build_bot_summary(bot_record) for bot_record in repository.list_bots()]
+def _connection_summary(connection: ConnectionStatus) -> ConnectionSummary:
+    return ConnectionSummary(
+        connectionId=connection.connection_id,
+        url=connection.url,
+        status=connection.status,
+        error=connection.error,
+        botCount=connection.bot_count,
+        createdAt=connection.created_at,
+    )
 
 
-def register_bot(repository: MatchRepository, catalog_client: BotCatalogClient, bot_id: str) -> BotSummary:
-    requested_bot_id = bot_id.strip()
-    if not requested_bot_id:
-        raise ValueError("Bot ID is required.")
+def list_bot_directory(directory: BotDirectory) -> BotListResponse:
+    listing = directory.list_all()
+    return BotListResponse(
+        bots=[_bot_entry(bot) for bot in listing.bots],
+        connections=[_connection_summary(connection) for connection in listing.connections],
+    )
+
+
+def create_bot(notebook_launcher: NotebookLauncher, name: str) -> BotCreateResponse:
+    scaffolded = scaffold_bot(name)
+    url = notebook_launcher.launch(scaffolded.bot_id, scaffolded.path)
+    return BotCreateResponse(botId=scaffolded.bot_id, url=url)
+
+
+def add_bot_connection(
+    repository: MatchRepository,
+    directory: BotDirectory,
+    url: str,
+) -> ConnectionCreateResponse:
+    normalized = url.strip().rstrip("/")
+    parsed = urlparse(normalized)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("Connection URL must be an http or https URL.")
+
+    if any(record["url"] == normalized for record in repository.list_bot_connections()):
+        raise ValueError("This connection is already registered.")
 
     try:
-        catalog_record = catalog_client.resolve_bot(requested_bot_id)
-    except KeyError as exc:
-        raise BotNotFoundError(f"Unknown bot '{requested_bot_id}'.") from exc
+        remote_records = directory.remote_catalog_factory(normalized).list_bots()
+    except BotCatalogError as exc:
+        raise ValueError(f"Unable to reach a bot API at {normalized}: {exc}") from exc
 
-    stored_record = repository.upsert_bot(
-        schema_version=catalog_record.schema_version,
-        bot_id=catalog_record.bot_id,
-        name=catalog_record.name,
-        version=catalog_record.version,
-        description=catalog_record.description,
-        author=catalog_record.author,
-        tags=catalog_record.tags,
-        source_kind=catalog_record.source_kind,
-        source_base_url=catalog_record.source_base_url,
-        discovery_path=catalog_record.discovery_path,
+    record = repository.create_bot_connection(normalized)
+    connection = ConnectionSummary(
+        connectionId=record["id"],
+        url=record["url"],
+        status="online",
+        error=None,
+        botCount=len(remote_records),
+        createdAt=record["createdAt"],
     )
-    return build_bot_summary(stored_record)
+    bots = [
+        BotEntry(
+            botId=remote.bot_id,
+            name=remote.name,
+            version=remote.version,
+            description=remote.description,
+            author=remote.author,
+            tags=list(remote.tags),
+            source="remote",
+            connectionId=record["id"],
+            baseUrl=record["url"],
+        )
+        for remote in remote_records
+    ]
+    return ConnectionCreateResponse(connection=connection, bots=bots)
+
+
+def remove_bot_connection(repository: MatchRepository, connection_id: str) -> None:
+    try:
+        repository.delete_bot_connection(connection_id)
+    except KeyError as exc:
+        raise ConnectionNotFoundError(f"Unknown bot connection '{connection_id}'.") from exc
 
 
 def launch_notebook(
-    catalog_client: BotCatalogClient,
+    directory: BotDirectory,
     notebook_launcher: NotebookLauncher,
     bot_id: str,
 ) -> NotebookLaunchResponse:
@@ -85,12 +141,15 @@ def launch_notebook(
         raise ValueError("Bot ID is required.")
 
     try:
-        catalog_record = catalog_client.resolve_bot(requested_bot_id)
+        bot = directory.resolve(requested_bot_id)
     except KeyError as exc:
         raise BotNotFoundError(f"Unknown bot '{requested_bot_id}'.") from exc
 
-    url = notebook_launcher.launch(catalog_record.bot_id, catalog_record.module_path)
-    return NotebookLaunchResponse(botId=catalog_record.bot_id, url=url)
+    if bot.source != "local" or not bot.module_path:
+        raise ValueError("Only local bots have notebooks to open.")
+
+    url = notebook_launcher.launch(bot.bot_id, bot.module_path)
+    return NotebookLaunchResponse(botId=bot.bot_id, url=url)
 
 
 def create_match(

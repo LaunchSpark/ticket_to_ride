@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from ticket_to_ride.backend.app import create_app
 from ticket_to_ride.backend.bot_catalog import BotCatalogRecord
+from ticket_to_ride.backend.bot_directory import BotDirectory
 from ticket_to_ride.backend.notebook_launcher import NotebookLauncher
 from ticket_to_ride.backend.repository import InMemoryMatchRepository
 
@@ -60,8 +61,12 @@ class NotebookLaunchApiTests(unittest.TestCase):
         client = TestClient(
             create_app(
                 repository=self.repository,
-                bot_catalog_client=StaticCatalogClient(
-                    [build_catalog_record("random_bot", "/repo/integrations/external/bots/random_bot.py")]
+                bot_directory=BotDirectory(
+                    self.repository,
+                    local_catalog_factory=lambda: StaticCatalogClient(
+                        [build_catalog_record("random_bot", "/repo/integrations/external/bots/random_bot.py")]
+                    ),
+                    remote_catalog_factory=lambda url: (_ for _ in ()).throw(AssertionError("no remote calls expected")),
                 ),
                 notebook_launcher=self.notebook_launcher,
             )
@@ -77,7 +82,11 @@ class NotebookLaunchApiTests(unittest.TestCase):
         client = TestClient(
             create_app(
                 repository=self.repository,
-                bot_catalog_client=StaticCatalogClient([]),
+                bot_directory=BotDirectory(
+                    self.repository,
+                    local_catalog_factory=lambda: StaticCatalogClient([]),
+                    remote_catalog_factory=lambda url: (_ for _ in ()).throw(AssertionError("no remote calls expected")),
+                ),
                 notebook_launcher=self.notebook_launcher,
             )
         )
@@ -90,8 +99,12 @@ class NotebookLaunchApiTests(unittest.TestCase):
         client = TestClient(
             create_app(
                 repository=self.repository,
-                bot_catalog_client=StaticCatalogClient(
-                    [build_catalog_record("random_bot", "/repo/integrations/external/bots/random_bot.py")]
+                bot_directory=BotDirectory(
+                    self.repository,
+                    local_catalog_factory=lambda: StaticCatalogClient(
+                        [build_catalog_record("random_bot", "/repo/integrations/external/bots/random_bot.py")]
+                    ),
+                    remote_catalog_factory=lambda url: (_ for _ in ()).throw(AssertionError("no remote calls expected")),
                 ),
                 notebook_launcher=self.notebook_launcher,
             )
@@ -102,6 +115,28 @@ class NotebookLaunchApiTests(unittest.TestCase):
 
         self.assertEqual(first_response.json(), second_response.json())
         self.assertEqual(len(self.spawn_calls), 1)
+
+    def test_launch_rejects_remote_bots(self) -> None:
+        from ticket_to_ride.backend.bot_catalog import BotCatalogRecord
+
+        self.repository.create_bot_connection("http://friend-a:8001")
+        remote_record = build_catalog_record("friend_bot", "")
+        client = TestClient(
+            create_app(
+                repository=self.repository,
+                bot_directory=BotDirectory(
+                    self.repository,
+                    local_catalog_factory=lambda: StaticCatalogClient([]),
+                    remote_catalog_factory=lambda url: StaticCatalogClient([remote_record]),
+                ),
+                notebook_launcher=self.notebook_launcher,
+            )
+        )
+
+        response = client.post("/notebooks/friend_bot/launch")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.spawn_calls, [])
 
 
 if __name__ == "__main__":

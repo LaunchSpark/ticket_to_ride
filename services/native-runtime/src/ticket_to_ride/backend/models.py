@@ -29,22 +29,48 @@ class MatchCreateResponse(BaseModel):
     matchId: str
 
 
-class BotRegisterRequest(BaseModel):
-    botId: str
-
-
-class BotSummary(BaseModel):
-    schemaVersion: Literal[1]
+class BotEntry(BaseModel):
     botId: str
     name: str
     version: str
     description: str
     author: str = ""
     tags: List[str] = Field(default_factory=list)
-    sourceKind: Literal["local_api"]
-    sourceBaseUrl: str
-    discoveryPath: str
-    createdAt: str
+    source: Literal["local", "remote"]
+    connectionId: Optional[str] = None
+    baseUrl: Optional[str] = None
+
+
+class ConnectionSummary(BaseModel):
+    connectionId: str
+    url: str
+    status: Literal["online", "offline"]
+    error: Optional[str] = None
+    botCount: int = 0
+    createdAt: str = ""
+
+
+class BotListResponse(BaseModel):
+    bots: List[BotEntry] = Field(default_factory=list)
+    connections: List[ConnectionSummary] = Field(default_factory=list)
+
+
+class BotCreateRequest(BaseModel):
+    name: str
+
+
+class BotCreateResponse(BaseModel):
+    botId: str
+    url: str
+
+
+class ConnectionCreateRequest(BaseModel):
+    url: str
+
+
+class ConnectionCreateResponse(BaseModel):
+    connection: ConnectionSummary
+    bots: List[BotEntry] = Field(default_factory=list)
 
 
 class NotebookLaunchResponse(BaseModel):

@@ -7,7 +7,8 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from ticket_to_ride.backend.bot_catalog import BotCatalogClient, BotCatalogError, build_bot_catalog_client_from_env
+from ticket_to_ride.backend.bot_catalog import BotCatalogError
+from ticket_to_ride.backend.bot_directory import BotDirectory
 from ticket_to_ride.backend.runtime import (
     ManagedMatchNotFoundError,
     ManagedMatchRuntimeManager,
@@ -15,8 +16,11 @@ from ticket_to_ride.backend.runtime import (
     ManagedRuntimeError,
 )
 from ticket_to_ride.backend.models import (
-    BotRegisterRequest,
-    BotSummary,
+    BotCreateRequest,
+    BotCreateResponse,
+    BotListResponse,
+    ConnectionCreateRequest,
+    ConnectionCreateResponse,
     CulledBoardResponse,
     ManagedMatchCreateRequest,
     ManagedMatchSummary,
@@ -39,7 +43,10 @@ from ticket_to_ride.backend.pocketbase import PocketBaseError, build_repository_
 from ticket_to_ride.backend.repository import MatchRepository
 from ticket_to_ride.backend.service import (
     BotNotFoundError,
+    ConnectionNotFoundError,
     MatchNotFoundError,
+    add_bot_connection,
+    create_bot,
     create_match,
     create_round,
     create_turn,
@@ -47,9 +54,9 @@ from ticket_to_ride.backend.service import (
     get_culled_board,
     get_match,
     launch_notebook,
-    list_bots,
+    list_bot_directory,
     list_matches,
-    register_bot,
+    remove_bot_connection,
 )
 
 
@@ -62,13 +69,13 @@ def _cors_origins_from_env() -> list[str]:
 
 def create_app(
     repository: Optional[MatchRepository] = None,
-    bot_catalog_client: Optional[BotCatalogClient] = None,
+    bot_directory: Optional[BotDirectory] = None,
     runtime_manager: Optional[ManagedMatchRuntimeManager] = None,
     notebook_launcher: Optional[NotebookLauncher] = None,
 ) -> FastAPI:
     app = FastAPI(title="Ticket to Ride Match Logger", version="1.0.0")
     app.state.match_repository = repository or build_repository_from_env()
-    app.state.bot_catalog_client = bot_catalog_client or build_bot_catalog_client_from_env()
+    app.state.bot_directory = bot_directory or BotDirectory(app.state.match_repository)
     app.state.runtime_manager = runtime_manager
     app.state.notebook_launcher = notebook_launcher or NotebookLauncher()
     app.add_middleware(
@@ -112,8 +119,8 @@ def create_app(
     def get_repository() -> MatchRepository:
         return app.state.match_repository
 
-    def get_bot_catalog_client() -> BotCatalogClient:
-        return app.state.bot_catalog_client
+    def get_bot_directory() -> BotDirectory:
+        return app.state.bot_directory
 
     def get_notebook_launcher() -> NotebookLauncher:
         return app.state.notebook_launcher
@@ -123,33 +130,50 @@ def create_app(
             app.state.runtime_manager = ManagedMatchRuntimeManager(app.state.match_repository)
         return app.state.runtime_manager
 
-    @app.get("/bots", response_model=list[BotSummary])
-    def get_bots(
-        repository: MatchRepository = Depends(get_repository),
-    ) -> list[BotSummary]:
-        return list_bots(repository)
+    @app.get("/bots", response_model=BotListResponse)
+    def get_bots(directory: BotDirectory = Depends(get_bot_directory)) -> BotListResponse:
+        return list_bot_directory(directory)
 
-    @app.post("/bots", response_model=BotSummary)
-    def post_bot(
-        request: BotRegisterRequest,
-        repository: MatchRepository = Depends(get_repository),
-        bot_catalog_client: BotCatalogClient = Depends(get_bot_catalog_client),
-    ) -> BotSummary:
+    @app.post("/bots/new", response_model=BotCreateResponse)
+    def post_new_bot(
+        request: BotCreateRequest,
+        notebook_launcher: NotebookLauncher = Depends(get_notebook_launcher),
+    ) -> BotCreateResponse:
         try:
-            return register_bot(repository, bot_catalog_client, request.botId)
+            return create_bot(notebook_launcher, request.name)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except BotNotFoundError as exc:
+
+    @app.post("/bot-connections", response_model=ConnectionCreateResponse)
+    def post_bot_connection(
+        request: ConnectionCreateRequest,
+        repository: MatchRepository = Depends(get_repository),
+        directory: BotDirectory = Depends(get_bot_directory),
+    ) -> ConnectionCreateResponse:
+        try:
+            return add_bot_connection(repository, directory, request.url)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.delete("/bot-connections/{connection_id}")
+    def delete_bot_connection(
+        connection_id: str,
+        repository: MatchRepository = Depends(get_repository),
+    ) -> dict:
+        try:
+            remove_bot_connection(repository, connection_id)
+        except ConnectionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return {"status": "deleted"}
 
     @app.post("/notebooks/{bot_id}/launch", response_model=NotebookLaunchResponse)
     def post_launch_notebook(
         bot_id: str,
-        bot_catalog_client: BotCatalogClient = Depends(get_bot_catalog_client),
+        directory: BotDirectory = Depends(get_bot_directory),
         notebook_launcher: NotebookLauncher = Depends(get_notebook_launcher),
     ) -> NotebookLaunchResponse:
         try:
-            return launch_notebook(bot_catalog_client, notebook_launcher, bot_id)
+            return launch_notebook(directory, notebook_launcher, bot_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except BotNotFoundError as exc:
