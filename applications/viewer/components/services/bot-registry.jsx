@@ -22,17 +22,45 @@ async function listBots(apiBase) {
   return response.json();
 }
 
-async function registerBot(apiBase, botId) {
-  const response = await fetch(`${apiBase}/bots`, {
+async function createBot(apiBase, name) {
+  const response = await fetch(`${apiBase}/bots/new`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ botId }),
+    body: JSON.stringify({ name }),
   });
 
   if (!response.ok) {
-    return readResponseError(response, `Bot registration failed with status ${response.status}`);
+    return readResponseError(response, `Bot creation failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function addConnection(apiBase, url) {
+  const response = await fetch(`${apiBase}/bot-connections`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!response.ok) {
+    return readResponseError(response, `Connection request failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function removeConnection(apiBase, connectionId) {
+  const response = await fetch(`${apiBase}/bot-connections/${encodeURIComponent(connectionId)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    return readResponseError(response, `Connection removal failed with status ${response.status}`);
   }
 
   return response.json();
@@ -51,7 +79,9 @@ async function launchNotebook(apiBase, botId) {
 }
 
 export {
+  addConnection,
+  createBot,
   launchNotebook,
   listBots,
-  registerBot,
+  removeConnection,
 };

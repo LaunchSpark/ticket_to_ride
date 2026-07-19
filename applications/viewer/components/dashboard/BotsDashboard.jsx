@@ -1,29 +1,7 @@
 import { RUN_TRANSITION, h, useDeferredValue, useEffect, useMemo, useState } from "../runtime.jsx";
 import { CardShell } from "../atoms/CardShell.jsx";
 import { UiIcon } from "../atoms/UiIcon.jsx";
-import { launchNotebook, listBots, registerBot } from "../services/bot-registry.jsx";
-
-const DEFAULT_TEST_BOT_ID = "random_bot";
-
-function formatBotTimestamp(value) {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
-
-  return date.toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function buildBotSourceLabel(bot) {
-  return `${bot.sourceBaseUrl}${bot.discoveryPath}`;
-}
+import { addConnection, createBot, launchNotebook, listBots, removeConnection } from "../services/bot-registry.jsx";
 
 function sortBots(bots) {
   return bots
@@ -39,59 +17,101 @@ function sortBots(bots) {
 }
 
 function normalizeBot(bot) {
-  const sourceLabel = buildBotSourceLabel(bot);
+  const sourceLabel = bot.source === "local" ? "Local" : bot.baseUrl || "Remote";
   return {
     ...bot,
-    createdLabel: formatBotTimestamp(bot.createdAt),
-    searchText: [bot.botId, bot.name, bot.version, sourceLabel, bot.sourceKind].join(" ").toLowerCase(),
+    searchText: [bot.botId, bot.name, bot.version, (bot.tags || []).join(" "), bot.source, sourceLabel]
+      .join(" ")
+      .toLowerCase(),
     sourceLabel,
   };
 }
 
 function AddBotModal(props) {
-  const [botId, setBotId] = useState("");
+  const [mode, setMode] = useState("choose");
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
   const [submitState, setSubmitState] = useState({ kind: "idle", message: "" });
+  const isSaving = submitState.kind === "saving";
 
   useEffect(() => {
     function onKeyDown(event) {
-      if (event.key === "Escape" && submitState.kind !== "saving") {
+      if (event.key === "Escape" && !isSaving) {
         props.onClose();
       }
     }
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [props.onClose, submitState.kind]);
+  }, [props.onClose, isSaving]);
 
-  async function handleSubmit(event) {
+  async function handleCreate(event) {
     event.preventDefault();
 
-    const normalizedBotId = botId.trim();
-    if (!normalizedBotId) {
-      setSubmitState({ kind: "error", message: "Bot ID is required." });
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setSubmitState({ kind: "error", message: "Bot name is required." });
       return;
     }
 
     try {
       setSubmitState({ kind: "saving", message: "" });
-      const bot = await registerBot(props.apiBase, normalizedBotId);
+      const result = await createBot(props.apiBase, trimmedName);
+      window.open(result.url, "_blank", "noopener");
       RUN_TRANSITION(() => {
-        props.onRegistered(bot);
+        props.onChanged();
         props.onClose();
       });
     } catch (error) {
       setSubmitState({
         kind: "error",
-        message: error.message || "Unable to register the requested bot.",
+        message: error.message || "Unable to create the bot.",
       });
     }
   }
+
+  async function handleConnect(event) {
+    event.preventDefault();
+
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      setSubmitState({ kind: "error", message: "Connection URL is required." });
+      return;
+    }
+
+    try {
+      setSubmitState({ kind: "saving", message: "" });
+      await addConnection(props.apiBase, trimmedUrl);
+      RUN_TRANSITION(() => {
+        props.onChanged();
+        props.onClose();
+      });
+    } catch (error) {
+      setSubmitState({
+        kind: "error",
+        message: error.message || "Unable to connect to the bot API.",
+      });
+    }
+  }
+
+  function switchMode(nextMode) {
+    setSubmitState({ kind: "idle", message: "" });
+    setMode(nextMode);
+  }
+
+  const title = mode === "new" ? "New Bot" : mode === "connect" ? "Add Connection" : "Add Bot";
+  const subtitle =
+    mode === "new"
+      ? "Name your bot; a notebook is scaffolded from the template and opened for editing."
+      : mode === "connect"
+        ? "Point at someone else's bot API base URL, e.g. http://friend-host:8001."
+        : "Create a brand-new bot or connect to bots served from another machine.";
 
   return h(
     "div",
     {
       className: "bots-add-modal-backdrop",
-      onClick: submitState.kind === "saving" ? undefined : props.onClose,
+      onClick: isSaving ? undefined : props.onClose,
     },
     h(
       "div",
@@ -100,7 +120,7 @@ function AddBotModal(props) {
         onClick: (event) => event.stopPropagation(),
         role: "dialog",
         "aria-modal": "true",
-        "aria-label": "Register bot",
+        "aria-label": title,
       },
       h(
         "div",
@@ -108,13 +128,9 @@ function AddBotModal(props) {
         h(
           "div",
           null,
-          h("p", { className: "shell-eyebrow" }, "Bot Registry"),
-          h("h2", { className: "panel-title" }, "Add Bot"),
-          h(
-            "p",
-            { className: "bots-panel-subtitle" },
-            `Register a locally discoverable bot by ID. Built-in test bot ID: ${DEFAULT_TEST_BOT_ID}.`
-          )
+          h("p", { className: "shell-eyebrow" }, "Bot Directory"),
+          h("h2", { className: "panel-title" }, title),
+          h("p", { className: "bots-panel-subtitle" }, subtitle)
         ),
         h(
           "button",
@@ -122,70 +138,161 @@ function AddBotModal(props) {
             className: "matches-modal-close",
             type: "button",
             onClick: props.onClose,
-            disabled: submitState.kind === "saving",
+            disabled: isSaving,
             "aria-label": "Close add bot modal",
           },
           h(UiIcon, { name: "close" })
         )
       ),
-      h(
-        "form",
-        { className: "bots-add-form", onSubmit: handleSubmit },
-        h(
-          "label",
-          { className: "matches-modal-field" },
-          h("span", null, "Bot ID"),
-          h("input", {
-            type: "text",
-            value: botId,
-            placeholder: DEFAULT_TEST_BOT_ID,
-            autoFocus: true,
-            disabled: submitState.kind === "saving",
-            onInput: (event) => setBotId(event.target.value),
-          })
-        ),
-        submitState.kind === "error"
-          ? h("p", { className: "bots-add-error" }, submitState.message)
-          : null,
-        h(
-          "div",
-          { className: "bots-add-modal-actions" },
-          h(
-            "button",
-            {
-              className: "matches-modal-reset",
-              type: "button",
-              onClick: props.onClose,
-              disabled: submitState.kind === "saving",
-            },
-            "Cancel"
-          ),
-          h(
-            "button",
-            {
-              className: "matches-modal-link bots-panel-add",
-              type: "submit",
-              disabled: submitState.kind === "saving",
-            },
-            submitState.kind === "saving" ? "Registering..." : "Register Bot"
+      mode === "choose"
+        ? h(
+            "div",
+            { className: "bots-add-choice-grid" },
+            h(
+              "button",
+              { className: "bots-add-choice", type: "button", onClick: () => switchMode("new") },
+              h(UiIcon, { name: "add" }),
+              h("span", { className: "bots-add-choice-title" }, "New Bot"),
+              h("span", { className: "bots-add-choice-copy" }, "Scaffold a notebook bot from a name.")
+            ),
+            h(
+              "button",
+              { className: "bots-add-choice", type: "button", onClick: () => switchMode("connect") },
+              h(UiIcon, { name: "link" }),
+              h("span", { className: "bots-add-choice-title" }, "Add Connection"),
+              h("span", { className: "bots-add-choice-copy" }, "Connect to someone else's bot API by URL.")
+            )
           )
-        )
-      )
+        : h(
+            "form",
+            { className: "bots-add-form", onSubmit: mode === "new" ? handleCreate : handleConnect },
+            mode === "new"
+              ? h(
+                  "label",
+                  { className: "matches-modal-field" },
+                  h("span", null, "Bot name"),
+                  h("input", {
+                    type: "text",
+                    value: name,
+                    placeholder: "My Cool Bot",
+                    autoFocus: true,
+                    disabled: isSaving,
+                    onInput: (event) => setName(event.target.value),
+                  })
+                )
+              : h(
+                  "label",
+                  { className: "matches-modal-field" },
+                  h("span", null, "Bot API URL"),
+                  h("input", {
+                    type: "url",
+                    value: url,
+                    placeholder: "http://friend-host:8001",
+                    autoFocus: true,
+                    disabled: isSaving,
+                    onInput: (event) => setUrl(event.target.value),
+                  })
+                ),
+            submitState.kind === "error"
+              ? h("p", { className: "bots-add-error" }, submitState.message)
+              : null,
+            h(
+              "div",
+              { className: "bots-add-modal-actions" },
+              h(
+                "button",
+                {
+                  className: "matches-modal-reset",
+                  type: "button",
+                  onClick: () => switchMode("choose"),
+                  disabled: isSaving,
+                },
+                "Back"
+              ),
+              h(
+                "button",
+                {
+                  className: "matches-modal-link bots-panel-add",
+                  type: "submit",
+                  disabled: isSaving,
+                },
+                isSaving
+                  ? mode === "new"
+                    ? "Creating..."
+                    : "Connecting..."
+                  : mode === "new"
+                    ? "Create Bot"
+                    : "Connect"
+              )
+            )
+          )
     )
   );
 }
 
+function BotCard(props) {
+  const bot = props.bot;
+  return h(
+    "article",
+    { key: bot.botId, className: "bots-card" },
+    h(
+      "div",
+      { className: "bots-card-top" },
+      h(
+        "div",
+        { className: "bots-card-copy" },
+        h("h3", null, bot.name),
+        h("p", { className: "bots-card-path" }, bot.sourceLabel)
+      ),
+      h(
+        "span",
+        { className: "matches-modal-status" },
+        bot.source === "local" ? "Local" : "Remote"
+      )
+    ),
+    h(
+      "div",
+      { className: "matches-modal-card-meta" },
+      h("span", { className: "matches-modal-meta-pill" }, bot.botId),
+      h("span", { className: "matches-modal-meta-pill" }, bot.version),
+      (bot.tags || []).map((tag) => h("span", { key: tag, className: "matches-modal-meta-pill" }, tag))
+    ),
+    bot.source === "local"
+      ? h(
+          "div",
+          { className: "bots-card-actions" },
+          h(
+            "button",
+            {
+              className: "matches-modal-link",
+              type: "button",
+              disabled: props.launchState === "opening",
+              onClick: () => props.onOpenNotebook(bot),
+            },
+            props.launchState === "opening" ? "Opening..." : "Open Notebook"
+          ),
+          props.launchState === "error"
+            ? h("span", { className: "bots-add-error" }, "Unable to open the notebook.")
+            : null
+        )
+      : null
+  );
+}
+
 function BotsDashboard(props) {
-  const [bots, setBots] = useState([]);
+  const [directory, setDirectory] = useState({ bots: [], connections: [] });
   const [query, setQuery] = useState("");
   const [fetchState, setFetchState] = useState({ kind: "loading", message: "" });
   const [isAddBotOpen, setAddBotOpen] = useState(false);
+  const [launchState, setLaunchState] = useState({});
+  const [pendingRemoveId, setPendingRemoveId] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
     let isCancelled = false;
 
-    async function loadRegisteredBots() {
+    async function loadDirectory() {
       try {
         setFetchState({ kind: "loading", message: "" });
         const payload = await listBots(props.apiBase);
@@ -193,25 +300,32 @@ function BotsDashboard(props) {
           return;
         }
 
-        setBots(Array.isArray(payload) ? sortBots(payload) : []);
+        setDirectory({
+          bots: Array.isArray(payload?.bots) ? payload.bots : [],
+          connections: Array.isArray(payload?.connections) ? payload.connections : [],
+        });
         setFetchState({ kind: "ready", message: "" });
       } catch (error) {
         if (!isCancelled) {
           setFetchState({
             kind: "error",
-            message: error.message || "Unable to load registered bots.",
+            message: error.message || "Unable to load the bot directory.",
           });
         }
       }
     }
 
-    loadRegisteredBots();
+    loadDirectory();
     return () => {
       isCancelled = true;
     };
-  }, [props.apiBase]);
+  }, [props.apiBase, reloadToken]);
 
-  const normalizedBots = useMemo(() => sortBots(bots).map(normalizeBot), [bots]);
+  function refresh() {
+    setReloadToken((token) => token + 1);
+  }
+
+  const normalizedBots = useMemo(() => sortBots(directory.bots).map(normalizeBot), [directory.bots]);
   const filteredBots = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -221,15 +335,7 @@ function BotsDashboard(props) {
     return normalizedBots.filter((bot) => bot.searchText.includes(normalizedQuery));
   }, [deferredQuery, normalizedBots]);
 
-  function handleRegisteredBot(bot) {
-    setBots((currentBots) => {
-      const nextBots = currentBots.filter((candidate) => candidate.botId !== bot.botId).concat(bot);
-      return sortBots(nextBots);
-    });
-    setFetchState({ kind: "ready", message: "" });
-  }
-
-  const [launchState, setLaunchState] = useState({});
+  const localBots = filteredBots.filter((bot) => bot.source === "local");
 
   async function handleOpenNotebook(bot) {
     setLaunchState((current) => ({ ...current, [bot.botId]: "opening" }));
@@ -240,6 +346,70 @@ function BotsDashboard(props) {
     } catch (error) {
       setLaunchState((current) => ({ ...current, [bot.botId]: "error" }));
     }
+  }
+
+  async function handleRemoveConnection(connection) {
+    if (pendingRemoveId !== connection.connectionId) {
+      setPendingRemoveId(connection.connectionId);
+      return;
+    }
+
+    try {
+      await removeConnection(props.apiBase, connection.connectionId);
+      setPendingRemoveId(null);
+      refresh();
+    } catch (error) {
+      setPendingRemoveId(null);
+      setFetchState({ kind: "error", message: error.message || "Unable to remove the connection." });
+    }
+  }
+
+  function renderConnectionGroup(connection) {
+    const connectionBots = filteredBots.filter((bot) => bot.connectionId === connection.connectionId);
+    return h(
+      "div",
+      { key: connection.connectionId, className: "bots-group" },
+      h(
+        "div",
+        { className: "bots-group-header" },
+        h(
+          "div",
+          { className: "bots-group-title" },
+          h("h3", null, connection.url),
+          h(
+            "span",
+            {
+              className:
+                connection.status === "online"
+                  ? "bots-status-pill"
+                  : "bots-status-pill bots-status-pill--offline",
+            },
+            connection.status === "online" ? "Online" : "Offline"
+          )
+        ),
+        h(
+          "button",
+          {
+            className: "matches-modal-reset bots-connection-remove",
+            type: "button",
+            onClick: () => handleRemoveConnection(connection),
+          },
+          pendingRemoveId === connection.connectionId ? "Confirm remove" : "Remove"
+        )
+      ),
+      connection.status === "offline"
+        ? h("div", { className: "bots-empty" }, connection.error || "This connection is unreachable.")
+        : !connectionBots.length
+          ? h("div", { className: "bots-empty" }, "No bots match on this connection.")
+          : connectionBots.map((bot) =>
+              h(BotCard, {
+                key: bot.botId,
+                bot,
+                launchState: launchState[bot.botId],
+                onOpenNotebook: handleOpenNotebook,
+              })
+            )
+    );
   }
 
   return h(
@@ -257,8 +427,8 @@ function BotsDashboard(props) {
           h(
             "div",
             null,
-            h("p", { className: "shell-eyebrow" }, "Bot Registry"),
-            h("h2", { className: "panel-title" }, "Registered Bots"),
+            h("p", { className: "shell-eyebrow" }, "Bot Directory"),
+            h("h2", { className: "panel-title" }, "Bots"),
             h("p", { className: "bots-panel-subtitle" }, props.apiBase)
           ),
           h(
@@ -282,7 +452,7 @@ function BotsDashboard(props) {
             h("input", {
               type: "search",
               value: query,
-              placeholder: "Search by bot ID, name, or source",
+              placeholder: "Search by bot ID, name, tag, or source",
               onInput: (event) => setQuery(event.target.value),
             })
           )
@@ -291,7 +461,7 @@ function BotsDashboard(props) {
           "p",
           { className: "bots-summary" },
           fetchState.kind === "loading"
-            ? "Loading registered bots..."
+            ? "Discovering bots..."
             : fetchState.kind === "error"
               ? fetchState.message
               : `${filteredBots.length} of ${normalizedBots.length} bots shown`
@@ -300,61 +470,40 @@ function BotsDashboard(props) {
           "div",
           { className: "bots-list" },
           fetchState.kind === "loading"
-            ? h("div", { className: "bots-empty" }, "Checking the local bot registry.")
+            ? h("div", { className: "bots-empty" }, "Scanning local bots and connections.")
             : fetchState.kind === "error"
               ? h("div", { className: "bots-empty" }, fetchState.message)
-              : !normalizedBots.length
-                ? h(
+              : [
+                  h(
                     "div",
-                    { className: "bots-empty" },
-                    `No bots are registered yet. Try adding the built-in ${DEFAULT_TEST_BOT_ID}.`
-                  )
-                : !filteredBots.length
-                  ? h("div", { className: "bots-empty" }, "No registered bots match the current search.")
-                  : filteredBots.map((bot) =>
+                    { key: "local", className: "bots-group" },
+                    h(
+                      "div",
+                      { className: "bots-group-header" },
                       h(
-                        "article",
-                        { key: bot.botId, className: "bots-card" },
-                        h(
-                          "div",
-                          { className: "bots-card-top" },
-                          h(
-                            "div",
-                            { className: "bots-card-copy" },
-                            h("h3", null, bot.name),
-                            h("p", { className: "bots-card-path" }, bot.sourceLabel)
-                          ),
-                          h("span", { className: "matches-modal-status" }, "Local API")
-                        ),
-                        h(
-                          "div",
-                          { className: "matches-modal-card-meta" },
-                          h("span", { className: "matches-modal-meta-pill" }, bot.botId),
-                          h("span", { className: "matches-modal-meta-pill" }, bot.version),
-                          h("span", { className: "matches-modal-meta-pill" }, bot.sourceKind),
-                          bot.createdLabel
-                            ? h("span", { className: "matches-modal-meta-pill" }, `Registered ${bot.createdLabel}`)
-                            : null
-                        ),
-                        h(
-                          "div",
-                          { className: "bots-card-actions" },
-                          h(
-                            "button",
-                            {
-                              className: "matches-modal-link",
-                              type: "button",
-                              disabled: launchState[bot.botId] === "opening",
-                              onClick: () => handleOpenNotebook(bot),
-                            },
-                            launchState[bot.botId] === "opening" ? "Opening..." : "Open Notebook"
-                          ),
-                          launchState[bot.botId] === "error"
-                            ? h("span", { className: "bots-add-error" }, "Unable to open the notebook.")
-                            : null
-                        )
+                        "div",
+                        { className: "bots-group-title" },
+                        h("h3", null, "Local Bots"),
+                        h("span", { className: "bots-status-pill" }, String(localBots.length))
                       )
-                    )
+                    ),
+                    !localBots.length
+                      ? h(
+                          "div",
+                          { className: "bots-empty" },
+                          "No local bots discovered. Create one with Add Bot, or drop a notebook into integrations/external/bots/."
+                        )
+                      : localBots.map((bot) =>
+                          h(BotCard, {
+                            key: bot.botId,
+                            bot,
+                            launchState: launchState[bot.botId],
+                            onOpenNotebook: handleOpenNotebook,
+                          })
+                        )
+                  ),
+                  directory.connections.map(renderConnectionGroup),
+                ]
         )
       )
     ),
@@ -364,7 +513,7 @@ function BotsDashboard(props) {
       ? h(AddBotModal, {
           apiBase: props.apiBase,
           onClose: () => setAddBotOpen(false),
-          onRegistered: handleRegisteredBot,
+          onChanged: refresh,
         })
       : null
   );

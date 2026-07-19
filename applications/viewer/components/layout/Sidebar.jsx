@@ -365,7 +365,7 @@ function NavBar(props) {
             active: props.currentPath === "/bots",
             icon: "smart_toy",
             label: "Bots",
-            description: "Search and register local bots",
+            description: "Discover local bots and connections",
             href: props.botsHref,
             title: "Open bot workspace",
           }),
