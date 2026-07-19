@@ -66,10 +66,12 @@ class LocalApiBotCatalogClient(BotCatalogClient):
         *,
         discovery_path: str = LOCAL_API_DISCOVERY_PATH,
         timeout_seconds: int = 5,
+        require_loopback: bool = True,
     ) -> None:
         self.base_url = (base_url or os.getenv("BOT_API_BASE_URL", DEFAULT_BOT_API_BASE_URL)).rstrip("/")
         self.discovery_path = discovery_path if discovery_path.startswith("/") else f"/{discovery_path}"
         self.timeout_seconds = timeout_seconds
+        self.require_loopback = require_loopback
 
     def list_bots(self) -> list[BotCatalogRecord]:
         self._ensure_local_base_url()
@@ -141,7 +143,7 @@ class LocalApiBotCatalogClient(BotCatalogClient):
         parsed = urlparse(self.base_url)
         if parsed.scheme not in {"http", "https"}:
             raise BotCatalogError("Configured BOT_API_BASE_URL must use http or https.")
-        if not _is_loopback_host(parsed.hostname):
+        if self.require_loopback and not _is_loopback_host(parsed.hostname):
             raise BotCatalogError("Configured BOT_API_BASE_URL must point to a local loopback host in v1.")
 
     def _request_json(self, method: str, path: str) -> Any:
