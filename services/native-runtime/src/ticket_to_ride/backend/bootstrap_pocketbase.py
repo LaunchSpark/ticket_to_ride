@@ -10,22 +10,6 @@ from urllib.request import Request, urlopen
 
 COLLECTIONS: list[dict[str, Any]] = [
     {
-        "name": "bots",
-        "type": "base",
-        "fields": [
-            {"name": "schema_version", "type": "number", "required": True},
-            {"name": "bot_id", "type": "text", "required": True},
-            {"name": "name", "type": "text", "required": True},
-            {"name": "version", "type": "text", "required": True},
-            {"name": "description", "type": "text", "required": True},
-            {"name": "author", "type": "text", "required": False},
-            {"name": "tags", "type": "json", "required": False},
-            {"name": "source_kind", "type": "select", "required": True, "values": ["local_api"]},
-            {"name": "source_base_url", "type": "text", "required": True},
-            {"name": "discovery_path", "type": "text", "required": True},
-        ],
-    },
-    {
         "name": "matches",
         "type": "base",
         "fields": [
@@ -247,7 +231,7 @@ def validate_project_collections(existing_collections: dict[str, dict[str, Any]]
 def reset_project_collections(base_url: str, token: str, existing_collections: dict[str, dict[str, Any]]) -> list[str]:
     reset_names: list[str] = []
 
-    for collection_name in ("bot_connections", "managed_rounds", "managed_matches", "turns", "rounds", "matches", "bots"):
+    for collection_name in ("bot_connections", "managed_rounds", "managed_matches", "turns", "rounds", "matches"):
         current = existing_collections.get(collection_name)
         if current is None:
             continue

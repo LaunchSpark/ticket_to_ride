@@ -25,56 +25,6 @@ class PocketBaseMatchRepository(MatchRepository):
         if admin_email and admin_password:
             self.admin_token = self._authenticate_admin(admin_email, admin_password)
 
-    def upsert_bot(
-        self,
-        *,
-        schema_version: int,
-        bot_id: str,
-        name: str,
-        version: str,
-        description: str,
-        author: str,
-        tags: List[str],
-        source_kind: str,
-        source_base_url: str,
-        discovery_path: str,
-    ) -> Dict[str, Any]:
-        existing_record = next((bot for bot in self.list_bots() if bot["botId"] == bot_id), None)
-        payload = {
-            "schema_version": schema_version,
-            "bot_id": bot_id,
-            "name": name,
-            "version": version,
-            "description": description,
-            "author": author,
-            "tags": list(tags),
-            "source_kind": source_kind,
-            "source_base_url": source_base_url,
-            "discovery_path": discovery_path,
-        }
-
-        if existing_record is None:
-            record = self._request_json("POST", "/api/collections/bots/records", payload)
-        else:
-            record = self._request_json("PATCH", f"/api/collections/bots/records/{existing_record['id']}", payload)
-
-        return self._normalize_bot(record)
-
-    def list_bots(self) -> List[Dict[str, Any]]:
-        records = self._request_all_items("/api/collections/bots/records")
-        bots = [self._normalize_bot(record) for record in records]
-        return sorted(bots, key=lambda bot: (bot["name"].casefold(), bot["botId"].casefold()))
-
-    def get_bot(self, bot_id: str) -> Dict[str, Any]:
-        filter_expr = f'bot_id="{bot_id}"'
-        records = self._request_all_items(
-            "/api/collections/bots/records",
-            query={"filter": filter_expr},
-        )
-        if not records:
-            raise KeyError(f"Unknown bot '{bot_id}'")
-        return self._normalize_bot(records[0])
-
     def create_bot_connection(self, url: str) -> Dict[str, Any]:
         record = self._request_json("POST", "/api/collections/bot_connections/records", {"url": url})
         return self._normalize_bot_connection(record)
@@ -410,23 +360,6 @@ class PocketBaseMatchRepository(MatchRepository):
             "averageScores": record.get("averageScores", []),
             "mapName": record.get("mapName"),
             "seed": record.get("seed"),
-            "createdAt": record.get("created") or record.get("createdAt") or "",
-        }
-
-    @staticmethod
-    def _normalize_bot(record: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "id": record["id"],
-            "schemaVersion": int(record.get("schema_version") or 1),
-            "botId": record.get("bot_id") or record["id"],
-            "name": record.get("name") or record.get("bot_id") or record["id"],
-            "version": record.get("version") or "",
-            "description": record.get("description") or "",
-            "author": record.get("author") or "",
-            "tags": list(record.get("tags") or []),
-            "sourceKind": record.get("source_kind") or "local_api",
-            "sourceBaseUrl": (record.get("source_base_url") or "").rstrip("/"),
-            "discoveryPath": record.get("discovery_path") or "/bots",
             "createdAt": record.get("created") or record.get("createdAt") or "",
         }
 

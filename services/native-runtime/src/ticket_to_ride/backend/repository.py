@@ -10,31 +10,6 @@ from ticket_to_ride.backend.models import AverageScoreRecord, PlayerRecord, utc_
 
 class MatchRepository(ABC):
     @abstractmethod
-    def upsert_bot(
-        self,
-        *,
-        schema_version: int,
-        bot_id: str,
-        name: str,
-        version: str,
-        description: str,
-        author: str,
-        tags: List[str],
-        source_kind: str,
-        source_base_url: str,
-        discovery_path: str,
-    ) -> Dict[str, Any]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_bots(self) -> List[Dict[str, Any]]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_bot(self, bot_id: str) -> Dict[str, Any]:
-        raise NotImplementedError
-
-    @abstractmethod
     def create_bot_connection(self, url: str) -> Dict[str, Any]:
         raise NotImplementedError
 
@@ -138,73 +113,12 @@ class MatchRepository(ABC):
 
 class InMemoryMatchRepository(MatchRepository):
     def __init__(self) -> None:
-        self.bots: Dict[str, Dict[str, Any]] = {}
         self.matches: Dict[str, Dict[str, Any]] = {}
         self.rounds: Dict[str, Dict[str, Any]] = {}
         self.turns: Dict[str, Dict[str, Any]] = {}
         self.managed_matches: Dict[str, Dict[str, Any]] = {}
         self.managed_rounds: Dict[str, Dict[str, Any]] = {}
         self.bot_connections: Dict[str, Dict[str, Any]] = {}
-
-    def upsert_bot(
-        self,
-        *,
-        schema_version: int,
-        bot_id: str,
-        name: str,
-        version: str,
-        description: str,
-        author: str,
-        tags: List[str],
-        source_kind: str,
-        source_base_url: str,
-        discovery_path: str,
-    ) -> Dict[str, Any]:
-        existing_record = next(
-            (record for record in self.bots.values() if record["botId"] == bot_id),
-            None,
-        )
-        if existing_record is None:
-            record_id = str(uuid4())
-            record = {
-                "id": record_id,
-                "schemaVersion": schema_version,
-                "botId": bot_id,
-                "name": name,
-                "version": version,
-                "description": description,
-                "author": author,
-                "tags": list(tags),
-                "sourceKind": source_kind,
-                "sourceBaseUrl": source_base_url,
-                "discoveryPath": discovery_path,
-                "createdAt": utc_now_iso(),
-            }
-            self.bots[record_id] = record
-            return deepcopy(record)
-
-        existing_record["schemaVersion"] = schema_version
-        existing_record["name"] = name
-        existing_record["version"] = version
-        existing_record["description"] = description
-        existing_record["author"] = author
-        existing_record["tags"] = list(tags)
-        existing_record["sourceKind"] = source_kind
-        existing_record["sourceBaseUrl"] = source_base_url
-        existing_record["discoveryPath"] = discovery_path
-        return deepcopy(existing_record)
-
-    def list_bots(self) -> List[Dict[str, Any]]:
-        return sorted(
-            (deepcopy(bot) for bot in self.bots.values()),
-            key=lambda bot: (bot["name"].casefold(), bot["botId"].casefold()),
-        )
-
-    def get_bot(self, bot_id: str) -> Dict[str, Any]:
-        for record in self.bots.values():
-            if record["botId"] == bot_id:
-                return deepcopy(record)
-        raise KeyError(f"Unknown bot '{bot_id}'")
 
     def create_bot_connection(self, url: str) -> Dict[str, Any]:
         record = {"id": str(uuid4()), "url": url, "createdAt": utc_now_iso()}

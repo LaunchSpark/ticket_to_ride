@@ -14,12 +14,9 @@ from ticket_to_ride.backend.bootstrap_pocketbase import (
 
 class PocketBaseSchemaTests(unittest.TestCase):
     def test_collection_definitions_use_fields_for_ticket_to_ride_schema(self) -> None:
-        bots = next(collection for collection in COLLECTIONS if collection["name"] == "bots")
         matches = next(collection for collection in COLLECTIONS if collection["name"] == "matches")
         turns = next(collection for collection in COLLECTIONS if collection["name"] == "turns")
 
-        self.assertIn("fields", bots)
-        self.assertNotIn("schema", bots)
         self.assertIn("fields", matches)
         self.assertNotIn("schema", matches)
         self.assertIn("fields", turns)
@@ -27,7 +24,6 @@ class PocketBaseSchemaTests(unittest.TestCase):
 
     def test_validate_project_collections_flags_collection_with_only_id_field(self) -> None:
         malformed_collections = {
-            "bots": {"id": "bot-col", "name": "bots", "fields": [{"name": "id", "type": "text"}]},
             "matches": {"id": "match-col", "name": "matches", "fields": [{"name": "id", "type": "text"}]},
             "rounds": {"id": "round-col", "name": "rounds", "fields": [{"name": "id", "type": "text"}]},
             "turns": {"id": "turn-col", "name": "turns", "fields": [{"name": "id", "type": "text"}]},
@@ -35,7 +31,7 @@ class PocketBaseSchemaTests(unittest.TestCase):
 
         invalid = validate_project_collections(malformed_collections)
 
-        self.assertEqual(invalid, ["bots", "matches", "rounds", "turns"])
+        self.assertEqual(invalid, ["matches", "rounds", "turns"])
 
     def test_collection_is_valid_accepts_expected_field_shape(self) -> None:
         expected_turns = next(collection for collection in COLLECTIONS if collection["name"] == "turns")
@@ -49,7 +45,6 @@ class PocketBaseSchemaTests(unittest.TestCase):
 
     def test_reset_project_collections_deletes_and_recreates_only_ticket_to_ride_collections(self) -> None:
         existing = {
-            "bots": {"id": "bot-col", "name": "bots", "fields": [{"name": "id", "type": "text"}]},
             "matches": {"id": "match-col", "name": "matches", "fields": [{"name": "id", "type": "text"}]},
             "rounds": {"id": "round-col", "name": "rounds", "fields": [{"name": "id", "type": "text"}]},
             "turns": {"id": "turn-col", "name": "turns", "fields": [{"name": "id", "type": "text"}]},
@@ -63,18 +58,17 @@ class PocketBaseSchemaTests(unittest.TestCase):
              patch("ticket_to_ride.backend.bootstrap_pocketbase.create_collection") as create_collection:
             reset_names = reset_project_collections("http://127.0.0.1:8090", "token", existing)
 
-        self.assertEqual(reset_names, ["bot_connections", "managed_rounds", "managed_matches", "turns", "rounds", "matches", "bots"])
+        self.assertEqual(reset_names, ["bot_connections", "managed_rounds", "managed_matches", "turns", "rounds", "matches"])
         deleted_ids = [call.args[2] for call in delete_collection.call_args_list]
         self.assertEqual(
             deleted_ids,
-            ["bot-conn-col", "managed-round-col", "managed-match-col", "turn-col", "round-col", "match-col", "bot-col"],
+            ["bot-conn-col", "managed-round-col", "managed-match-col", "turn-col", "round-col", "match-col"],
         )
         created_names = [call.args[2]["name"] for call in create_collection.call_args_list]
-        self.assertEqual(created_names, ["bots", "matches", "rounds", "turns", "managed_matches", "managed_rounds", "bot_connections"])
+        self.assertEqual(created_names, ["matches", "rounds", "turns", "managed_matches", "managed_rounds", "bot_connections"])
 
     def test_ensure_collections_repairs_invalid_project_collections(self) -> None:
         invalid_existing = [
-            {"id": "bot-col", "name": "bots", "fields": [{"name": "id", "type": "text"}]},
             {"id": "match-col", "name": "matches", "fields": [{"name": "id", "type": "text"}]},
             {"id": "round-col", "name": "rounds", "fields": [{"name": "id", "type": "text"}]},
             {"id": "turn-col", "name": "turns", "fields": [{"name": "id", "type": "text"}]},
@@ -83,7 +77,7 @@ class PocketBaseSchemaTests(unittest.TestCase):
 
         with patch("ticket_to_ride.backend.bootstrap_pocketbase.authenticate_superuser", return_value="token"), \
              patch("ticket_to_ride.backend.bootstrap_pocketbase.list_collections", return_value=invalid_existing), \
-             patch("ticket_to_ride.backend.bootstrap_pocketbase.reset_project_collections", return_value=["bots", "matches", "rounds", "turns"]) as reset_project_collections_mock:
+             patch("ticket_to_ride.backend.bootstrap_pocketbase.reset_project_collections", return_value=["matches", "rounds", "turns"]) as reset_project_collections_mock:
             result = ensure_collections("http://127.0.0.1:8090", "admin@example.com", "12345678")
 
         self.assertIn("reset and recreated collections", result)
